@@ -1,0 +1,411 @@
+import type React from "react";
+import { useState } from "react";
+
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Input } from "../../components/common/Input";
+import { Button } from "../../components/common/Button";
+import { Link } from "react-router-dom";
+
+interface FormErrors {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
+interface FormData {
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export default function Register() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
+    email: "",
+    firstName: "",
+    lastName: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState({
+    email: false,
+    firstName: false,
+    lastName: false,
+    password: false,
+    confirmPassword: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validation functions
+  const validateEmail = (email: string): string | undefined => {
+    if (!email) {
+      return "Email address is required";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return "Please enter a valid email address";
+    }
+    return undefined;
+  };
+
+  const validateName = (name: string, field: string): string | undefined => {
+    if (!name) {
+      return `${field} is required`;
+    }
+    if (name.length < 2) {
+      return `${field} must be at least 2 characters`;
+    }
+    return undefined;
+  };
+
+  const validatePassword = (password: string): string | undefined => {
+    if (!password) {
+      return "Password is required";
+    }
+    if (password.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+    }
+    return undefined;
+  };
+
+  const validateConfirmPassword = (
+    confirmPassword: string,
+    password: string
+  ): string | undefined => {
+    if (!confirmPassword) {
+      return "Please confirm your password";
+    }
+    if (confirmPassword !== password) {
+      return "Passwords do not match";
+    }
+    return undefined;
+  };
+
+  // Handle input changes
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Real-time validation
+    if (touched[field]) {
+      const newErrors = { ...errors };
+      if (field === "email") {
+        const emailError = validateEmail(value);
+        if (emailError) {
+          newErrors.email = emailError;
+        } else {
+          delete newErrors.email;
+        }
+      } else if (field === "firstName") {
+        const nameError = validateName(value, "First name");
+        if (nameError) {
+          newErrors.firstName = nameError;
+        } else {
+          delete newErrors.firstName;
+        }
+      } else if (field === "lastName") {
+        const nameError = validateName(value, "Last name");
+        if (nameError) {
+          newErrors.lastName = nameError;
+        } else {
+          delete newErrors.lastName;
+        }
+      } else if (field === "password") {
+        const passwordError = validatePassword(value);
+        if (passwordError) {
+          newErrors.password = passwordError;
+        } else {
+          delete newErrors.password;
+        }
+        // Also validate confirm password if it's been touched
+        if (touched.confirmPassword) {
+          const confirmError = validateConfirmPassword(
+            formData.confirmPassword,
+            value
+          );
+          if (confirmError) {
+            newErrors.confirmPassword = confirmError;
+          } else {
+            delete newErrors.confirmPassword;
+          }
+        }
+      } else if (field === "confirmPassword") {
+        const confirmError = validateConfirmPassword(value, formData.password);
+        if (confirmError) {
+          newErrors.confirmPassword = confirmError;
+        } else {
+          delete newErrors.confirmPassword;
+        }
+      }
+      setErrors(newErrors);
+    }
+  };
+
+  // Handle field blur
+  const handleBlur = (field: keyof FormData) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
+    const newErrors = { ...errors };
+    if (field === "email") {
+      const emailError = validateEmail(formData.email);
+      if (emailError) {
+        newErrors.email = emailError;
+      } else {
+        delete newErrors.email;
+      }
+    } else if (field === "firstName") {
+      const nameError = validateName(formData.firstName, "First name");
+      if (nameError) {
+        newErrors.firstName = nameError;
+      } else {
+        delete newErrors.firstName;
+      }
+    } else if (field === "lastName") {
+      const nameError = validateName(formData.lastName, "Last name");
+      if (nameError) {
+        newErrors.lastName = nameError;
+      } else {
+        delete newErrors.lastName;
+      }
+    } else if (field === "password") {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) {
+        newErrors.password = passwordError;
+      } else {
+        delete newErrors.password;
+      }
+      // Also validate confirm password if it's been touched
+      if (touched.confirmPassword) {
+        const confirmError = validateConfirmPassword(
+          formData.confirmPassword,
+          formData.password
+        );
+        if (confirmError) {
+          newErrors.confirmPassword = confirmError;
+        } else {
+          delete newErrors.confirmPassword;
+        }
+      }
+    } else if (field === "confirmPassword") {
+      const confirmError = validateConfirmPassword(
+        formData.confirmPassword,
+        formData.password
+      );
+      if (confirmError) {
+        newErrors.confirmPassword = confirmError;
+      } else {
+        delete newErrors.confirmPassword;
+      }
+    }
+    setErrors(newErrors);
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    // Validate all fields
+    const emailError = validateEmail(formData.email);
+    const firstNameError = validateName(formData.firstName, "First name");
+    const lastNameError = validateName(formData.lastName, "Last name");
+    const passwordError = validatePassword(formData.password);
+    const confirmPasswordError = validateConfirmPassword(
+      formData.confirmPassword,
+      formData.password
+    );
+
+    const newErrors: FormErrors = {};
+    if (emailError) newErrors.email = emailError;
+    if (firstNameError) newErrors.firstName = firstNameError;
+    if (lastNameError) newErrors.lastName = lastNameError;
+    if (passwordError) newErrors.password = passwordError;
+    if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
+
+    setErrors(newErrors);
+    setTouched({
+      email: true,
+      firstName: true,
+      lastName: true,
+      password: true,
+      confirmPassword: true,
+    });
+
+    // If no errors, proceed with registration
+    if (Object.keys(newErrors).length === 0) {
+      try {
+        // Combine first and last name with a space
+        const fullName = `${formData.firstName} ${formData.lastName}`;
+        const registrationData = {
+          email: formData.email,
+          name: fullName,
+          password: formData.password,
+        };
+
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        console.log("Registration successful:", registrationData);
+        // Handle successful registration here
+      } catch (error) {
+        console.error("Registration failed:", error);
+        // Handle registration error here
+      }
+    }
+
+    setIsSubmitting(false);
+  };
+
+  const isFormValid =
+    Object.keys(errors).length === 0 &&
+    formData.email &&
+    formData.firstName &&
+    formData.lastName &&
+    formData.password &&
+    formData.confirmPassword;
+
+  return (
+    <div className="min-h-screen bg-primary-dark flex items-center justify-center p-4">
+      <div className="w-full max-w-[615px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] px-[45px] py-[35px] shadow-2xl">
+        <div className="flex justify-center mb-6">
+          <div className="relative w-36 h-36">
+            <img src="./assets/logo.png" alt="" />
+          </div>
+        </div>
+
+        <div className="text-center mb-8">
+          <h1
+            className="text-[40px] font-tajawal font-bold text-black mb-2 uppercase"
+            style={{ fontFamily: "Tajawal, sans-serif" }}
+          >
+            Welcome
+          </h1>
+          <p className="text-2xl font-medium font-tajawal uppercase">
+            Create Admin Account
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              type="text"
+              value={formData.firstName}
+              onChange={(e) => handleInputChange("firstName", e.target.value)}
+              onBlur={() => handleBlur("firstName")}
+              placeholder="First Name"
+              error={errors.firstName}
+              rightIcon={
+                errors.firstName ? (
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                ) : undefined
+              }
+            />
+            <Input
+              type="text"
+              value={formData.lastName}
+              onChange={(e) => handleInputChange("lastName", e.target.value)}
+              onBlur={() => handleBlur("lastName")}
+              placeholder="Last Name"
+              error={errors.lastName}
+              rightIcon={
+                errors.lastName ? (
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                ) : undefined
+              }
+            />
+          </div>
+
+          <Input
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleInputChange("email", e.target.value)}
+            onBlur={() => handleBlur("email")}
+            placeholder="Email Address"
+            error={errors.email}
+            rightIcon={
+              errors.email ? (
+                <AlertCircle className="h-5 w-5 text-red-500" />
+              ) : undefined
+            }
+          />
+
+          <Input
+            type={showPassword ? "text" : "password"}
+            value={formData.password}
+            onChange={(e) => handleInputChange("password", e.target.value)}
+            onBlur={() => handleBlur("password")}
+            placeholder="Password"
+            error={errors.password}
+            rightIcon={
+              <div className="flex items-center gap-2">
+                {errors.password && (
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                )}
+                {showPassword ? (
+                  <EyeOff strokeWidth={1.5} />
+                ) : (
+                  <Eye strokeWidth={1.5} />
+                )}
+              </div>
+            }
+            onRightIconClick={() => setShowPassword(!showPassword)}
+            className={errors.password ? "pr-20" : "pr-12"}
+          />
+
+          <Input
+            type={showConfirmPassword ? "text" : "password"}
+            value={formData.confirmPassword}
+            onChange={(e) =>
+              handleInputChange("confirmPassword", e.target.value)
+            }
+            onBlur={() => handleBlur("confirmPassword")}
+            placeholder="Confirm Password"
+            error={errors.confirmPassword}
+            rightIcon={
+              <div className="flex items-center gap-2">
+                {errors.confirmPassword && (
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                )}
+                {showConfirmPassword ? (
+                  <EyeOff strokeWidth={1.5} />
+                ) : (
+                  <Eye strokeWidth={1.5} />
+                )}
+              </div>
+            }
+            onRightIconClick={() =>
+              setShowConfirmPassword(!showConfirmPassword)
+            }
+            className={errors.confirmPassword ? "pr-20" : "pr-12"}
+          />
+
+          <Button
+            type="submit"
+            disabled={!isFormValid}
+            loading={isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting ? "Registering..." : "Register"}
+          </Button>
+
+          {/* Login Link */}
+          <div className="text-center">
+            <Link
+              to="/login"
+              className="text-lg hover:text-dark-primary underline font-medium"
+            >
+              Already have an account? Log In
+            </Link>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
