@@ -6,6 +6,7 @@ import {
   refreshSchema,
   registerSchema,
 } from "../validators/auth.schema";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const authRouter = Router();
 
@@ -219,5 +220,11 @@ authRouter.post(
  *                   type: string
  *                   example: Invalid or expired refresh token
  */
+
+authRouter.post(
+  "/change-password",
+  authenticate,
+  AuthController.changePassword
+);
 
 export default authRouter;

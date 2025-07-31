@@ -5,13 +5,14 @@ import Login from "./auth/user/Login";
 import AdminLogin from "./auth/admin/Login";
 import Register from "./auth/user/Register";
 import { AuthProvider } from "./context/AuthContext";
+import UserLayout from "./user/UserLayout";
+import Changepassword from "./auth/user/Changepassword";
+import AdminLayout from "./admin/AdminLayout";
 
 export const Signup = () => <div>Signup Page</div>;
 
-export const ClientLayout = () => <div>Client Layout</div>;
 export const ClientDashboard = () => <div>Client Dashboard</div>;
-
-export const AdminLayout = () => <div>Admin Layout</div>;
+export const AdminDashboard = () => <div>Admin Dashboard</div>;
 
 function App() {
   return (
@@ -30,19 +31,24 @@ function App() {
               </RoleBasedRoute>
             </ProtectedRoute>
           }
-        ></Route>
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+        </Route>
 
         <Route
-          path="/client"
+          path="/"
           element={
             <ProtectedRoute>
               <RoleBasedRoute allowedRoles={["user"]}>
-                <ClientLayout />
+                <UserLayout />
               </RoleBasedRoute>
             </ProtectedRoute>
           }
         >
-          <Route path="dashboard" element={<ClientDashboard />} />
+          <Route index element={<ClientDashboard />} />
+          <Route path="/dashboard" element={<ClientDashboard />} />
+          <Route path="/change-password" element={<Changepassword />} />
         </Route>
 
         <Route path="*" element={<Login />} />

@@ -3,6 +3,11 @@ import { useState } from "react";
 import { Input } from "../../components/common/Input";
 import { Button } from "../../components/common/Button";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import axiosPublic from "../../AxiosInstances/PublicAxiosInstance";
+import { useAuth } from "../../context/AuthContext";
+import { API_ENDPOINTS } from "../../config/api";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 interface FormErrors {
   email?: string;
@@ -15,6 +20,8 @@ interface FormData {
 }
 
 export default function AdminLogin() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -119,16 +126,24 @@ export default function AdminLogin() {
     setErrors(newErrors);
     setTouched({ email: true, password: true });
 
-    // If no errors, proceed with login
     if (Object.keys(newErrors).length === 0) {
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.log("Login successful:", formData);
-        // Handle successful login here
+        const response = await axiosPublic.post(API_ENDPOINTS.AUTH.LOGIN, {
+          email: formData.email,
+          password: formData.password,
+        });
+
+        const data = await response.data;
+        console.log(response);
+
+        if (data.success) {
+          console.log("being called");
+          login(data.user, data.accessToken, data.refreshToken);
+        }
+        toast.success("login successfull");
+        navigate("/");
       } catch (error) {
         console.error("Login failed:", error);
-        // Handle login error here
       }
     }
 

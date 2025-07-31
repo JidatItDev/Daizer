@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Tajawal:wght@200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.cdnfonts.com/css/post-no-bills-jaffna');
 
 @tailwind base;
 @tailwind components;
@@ -6,4 +7,17 @@
 
 body{
   font-family: "Poppins";
+}
+
+.custom-notch::after {
+  content: '';
+  position: absolute;
+  right: -20px; /* Adjust depending on your spacing */
+  top: 0;
+  height: 100%;
+  width: 20px;
+  background-color: white; /* Match your sidebar background */
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+  z-index: 1;
 }

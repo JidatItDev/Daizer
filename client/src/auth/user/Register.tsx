@@ -4,7 +4,11 @@ import { useState } from "react";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Input } from "../../components/common/Input";
 import { Button } from "../../components/common/Button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axiosPublic from "../../AxiosInstances/PublicAxiosInstance";
+import toast from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext";
+import { API_ENDPOINTS } from "../../config/api";
 
 interface FormErrors {
   email?: string;
@@ -24,6 +28,8 @@ interface FormData {
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -242,21 +248,44 @@ export default function Register() {
     // If no errors, proceed with registration
     if (Object.keys(newErrors).length === 0) {
       try {
-        // Combine first and last name with a space
         const fullName = `${formData.firstName} ${formData.lastName}`;
-        const registrationData = {
+
+        const response = await axiosPublic.post(API_ENDPOINTS.AUTH.REGISTER, {
           email: formData.email,
           name: fullName,
           password: formData.password,
-        };
+        });
 
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.log("Registration successful:", registrationData);
-        // Handle successful registration here
-      } catch (error) {
+        const data = await response.data;
+        console.log(response);
+
+        if (data.success) {
+          console.log("being called");
+          login(data.user, data.accessToken, data.refreshToken);
+        }
+        console.log("Registration successful:", response.data);
+        navigate("/");
+        toast.success("Registration successful");
+      } catch (error: any) {
         console.error("Registration failed:", error);
-        // Handle registration error here
+
+        // Handle known backend error
+        if (error.response?.status === 409) {
+          setErrors((prev) => ({
+            ...prev,
+            email: "Email already registered",
+          }));
+
+          toast.error(
+            "This email is already registered. Try logging in instead."
+          );
+        } else if (error.response?.status === 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(
+            error.response?.data?.message || "Registration failed unexpectedly."
+          );
+        }
       }
     }
 

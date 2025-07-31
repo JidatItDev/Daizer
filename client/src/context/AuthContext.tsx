@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import CryptoJS from "crypto-js";
 import type { AuthContextType, User } from "../types/auth/user.types";
+import toast from "react-hot-toast";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -13,7 +14,8 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-const SECRET_KEY = "DAizie8rR+$3CR3T+PassC0de";
+// const SECRET_KEY = "DAizie8rR+$3CR3T+PassC0de";
+const SECRET_KEY = import.meta.env.VITE_CRYPTO_SECRET_KEY;
 
 const encryptData = (data: unknown): string =>
   CryptoJS.AES.encrypt(JSON.stringify(data), SECRET_KEY).toString();
@@ -70,6 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     newAccessToken: string,
     newRefreshToken: string
   ) => {
+    console.log("log in auth being called");
+
     const encryptedUser = encryptData(newUser);
     const encryptedAccess = encryptData(newAccessToken);
     const encryptedRefresh = encryptData(newRefreshToken);
@@ -88,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUserLoggedIn(true);
   };
 
-  const logout = () => {
+  const logout = (message = "") => {
     Cookies.remove("userData");
     Cookies.remove("accessToken");
     Cookies.remove("refreshToken");
@@ -101,6 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setAccessToken(null);
     setRefreshToken(null);
     setUserLoggedIn(false);
+    if (message) {
+      toast.error(`${message}`);
+    }
   };
 
   const value: AuthContextType = {

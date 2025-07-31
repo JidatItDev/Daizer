@@ -3,7 +3,11 @@ import { useState } from "react";
 import { Input } from "../../components/common/Input";
 import { Button } from "../../components/common/Button";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axiosPublic from "../../AxiosInstances/PublicAxiosInstance";
+import { useAuth } from "../../context/AuthContext";
+import { API_ENDPOINTS } from "../../config/api";
+import toast from "react-hot-toast";
 
 interface FormErrors {
   email?: string;
@@ -16,6 +20,8 @@ interface FormData {
 }
 
 export default function Login() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -123,13 +129,50 @@ export default function Login() {
     // If no errors, proceed with login
     if (Object.keys(newErrors).length === 0) {
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.log("Login successful:", formData);
-        // Handle successful login here
-      } catch (error) {
+        const response = await axiosPublic.post(API_ENDPOINTS.AUTH.LOGIN, {
+          email: formData.email,
+          password: formData.password,
+        });
+
+        const data = await response.data;
+        console.log(response);
+
+        if (data.success) {
+          login(data.user, data.accessToken, data.refreshToken);
+        }
+        toast.success("login successfull");
+
+        if (data.user.role === "user") {
+          navigate("/");
+        }
+        if (data.user.role === "admin") {
+          navigate("/admin");
+        }
+      } catch (error: any) {
         console.error("Login failed:", error);
-        // Handle login error here
+
+        // Handle known backend error
+        if (error.response?.status === 404) {
+          setErrors((prev) => ({
+            ...prev,
+            email: "User not found. Please register first.",
+          }));
+
+          toast.error("User not found. Please register first.");
+        } else if (error.response?.status === 401) {
+          setErrors((prev) => ({
+            ...prev,
+            password: "Incorrect password",
+          }));
+
+          toast.error("Incorrect password. Please try again.");
+        } else if (error.response?.status === 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(
+            error.response?.data?.message || "Login failed unexpectedly."
+          );
+        }
       }
     }
 

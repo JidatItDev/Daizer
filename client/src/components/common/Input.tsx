@@ -23,7 +23,7 @@ export function Input({
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
   const baseInputStyles =
-    "w-full py-3 border-b-[2px] border-black placeholder:text-lg placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0 focus:outline-none focus:border-black";
+    "w-full py-3 border-b-[2px] border-black placeholder:text-lg placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0 focus:outline-none focus:border-black bg-transparent";
 
   const errorStyles = error ? "border-red-500 " : "border-gray-300 ";
   const iconPadding = leftIcon ? "pl-12" : rightIcon ? "pr-12" : "";

@@ -1,11 +1,19 @@
 import jwt from "jsonwebtoken";
 
-export const createAccessToken = (id: string, role: string) =>
-  jwt.sign({ id, role }, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRATION_MINUTES,
-  });
+const JWT_SECRET = process.env.JWT_SECRET;
 
-export const createRefreshToken = (id: string) =>
-  jwt.sign({ id }, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRATION_DAYS,
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined in environment variables");
+}
+
+export const createAccessToken = (id: string, role: string): string => {
+  return jwt.sign({ id, role }, JWT_SECRET, {
+    expiresIn: "15m",
   });
+};
+
+export const createRefreshToken = (id: string): string => {
+  return jwt.sign({ id }, JWT_SECRET, {
+    expiresIn: "7d",
+  });
+};
