@@ -14,6 +14,8 @@ export default {
       colors: {
         "primary-dark": "#2C2E5F",
         "dashboard-bg": "#F1F1F1",
+        "primary-dark/80": "#2C2E5FCC",
+        success: "#1CA600",
       },
       boxShadow: {
         "custom-primary": "0 0 20px rgba(0, 0, 0, 0.1)",

@@ -13,5 +13,5 @@ export interface AuthContextType {
   refreshToken: string | null;
   userLoggedIn: boolean;
   login: (user: User, accessToken: string, refreshToken: string) => void;
-  logout: () => void;
+  logout: (message?: string) => void;
 }

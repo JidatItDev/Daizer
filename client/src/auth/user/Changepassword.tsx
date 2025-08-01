@@ -176,7 +176,7 @@ export default function ChangePassword() {
 
         // Uncomment to actually call the API
         const response = await axiosPrivate.post(
-          API_ENDPOINTS.AUTH.ChangePassword,
+          API_ENDPOINTS.AUTH.Change_PASSWORD,
           payload
         );
 

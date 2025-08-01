@@ -1,7 +1,8 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { IoLogOut } from "react-icons/io5";
 
 interface MenuItem {
   name: string;
@@ -36,7 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div
-      className={`transition-all duration-300 flex flex-col bg-white ${
+      className={`transition-all duration-300 flex flex-col bg-white  ${
         isOpen ? "min-w-72 " : "min-w-20"
       }   shadow-custom-primary    absolute md:relative z-50 h-[calc(100vh - 80px)] pt-6  rounded-card   ${
         isOpen ? " " : "hidden md:flex "
@@ -88,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       }`}
                     >
                       <div
-                        className={`relative flex items-center cursor-pointer px-6 pl-3 py-3 hover:text-primary-dark rounded-tl-full rounded-bl-full ${
+                        className={`relative flex items-center cursor-pointer px-6 pl-3 py-3 text-primary-dark/80 hover:text-primary-dark rounded-tl-full rounded-bl-full ${
                           isActive ? "bg-dashboard-bg text-primary-dark" : ""
                         }
         `}
@@ -135,15 +136,15 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <li>
           <div
-            className={`relative px-6 py-2 flex items-center cursor-pointer hover:text-primary  my-5`}
+            className={`relative px-6 py-2 flex items-center cursor-pointer text-primary-dark/80 hover:text-primary  my-5`}
             onClick={logoutHandler}
           >
             <span className="flex-shrink-0 text-xl">
-              <LogOut />
+              <IoLogOut />
             </span>
             {isOpen && (
-              <span className="ml-3 whitespace-nowrap overflow-hidden overflow-ellipsis font-poppins font-normal text-base">
-                logout
+              <span className="ml-3 whitespace-nowrap overflow-hidden overflow-ellipsis font-poppins font-normal text-base text-primary-dark/80">
+                Logout
               </span>
             )}
           </div>

@@ -4,7 +4,13 @@ import { db } from "../db/dbConnection";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../utils/crypto.utils";
-import { createAccessToken, createRefreshToken } from "../utils/jwt.utils";
+import {
+  createAccessToken,
+  createRefreshToken,
+  createResetToken,
+  verifyResetToken,
+} from "../utils/jwt.utils";
+import { EmailService } from "../services/email.service";
 
 class AuthController {
   static async register(req: Request, res: Response) {
@@ -182,6 +188,53 @@ class AuthController {
       console.error("Change password error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
+  }
+
+  static async sendResetLink(req: Request, res: Response) {
+    const { email } = req.body;
+
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const token = createResetToken(email);
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    await EmailService.sendPasswordResetLinkEmail(email, resetLink);
+
+    return res.json({
+      success: true,
+      message: "Password reset link sent to email",
+    });
+  }
+
+  static async resetPassword(req: Request, res: Response) {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword)
+      return res.status(400).json({ error: "Token and new password required" });
+
+    let email: string;
+    try {
+      const payload = verifyResetToken(token);
+      email = payload.email;
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const hashed = await hashPassword(newPassword);
+
+    await db
+      .update(users)
+      .set({ password: hashed })
+      .where(eq(users.email, email));
+
+    return res.json({ success: true, message: "Password has been reset" });
   }
 }
 

@@ -4,23 +4,41 @@ import RoleBasedRoute from "./routes/RoleBasedRoute";
 import Login from "./auth/user/Login";
 import AdminLogin from "./auth/admin/Login";
 import Register from "./auth/user/Register";
-import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 import UserLayout from "./user/UserLayout";
 import Changepassword from "./auth/user/Changepassword";
 import AdminLayout from "./admin/AdminLayout";
+import ForgotPassword from "./auth/user/ForgotPassword";
+import ResetPassword from "./auth/user/ResetPassword";
+import ErrorPage from "./auth/user/AccessErrorPage";
+import { useEffect } from "react";
+import { checkSession } from "./utils/auth";
 
 export const Signup = () => <div>Signup Page</div>;
 
-export const ClientDashboard = () => <div>Client Dashboard</div>;
+export const ClientDashboard = () => <div>User Dashboard</div>;
 export const AdminDashboard = () => <div>Admin Dashboard</div>;
 
 function App() {
+  const { logout, userLoggedIn } = useAuth();
+
+  useEffect(() => {
+    (async () => {
+      const result = await checkSession();
+      if (!result.success && userLoggedIn) {
+        logout("Session expired. Please log in to continue");
+      }
+    })();
+  }, []);
+
   return (
-    <AuthProvider>
+    <>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/admin-login" element={<AdminLogin />} />
-        <Route index path="/register" element={<Register />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/admin"
@@ -51,9 +69,9 @@ function App() {
           <Route path="/change-password" element={<Changepassword />} />
         </Route>
 
-        <Route path="*" element={<Login />} />
+        <Route path="*" element={<ErrorPage errorType="404" />} />
       </Routes>
-    </AuthProvider>
+    </>
   );
 }
 
