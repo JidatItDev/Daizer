@@ -25,10 +25,10 @@ function App() {
   useEffect(() => {
     (async () => {
       const result = await checkSession();
-      console.log("result", result);
-      // if (!result.success && userLoggedIn) {
-      //   logout("Session expired. Please log in to continue");
-      // }
+      // console.log("result", result);
+      if (!result.success && userLoggedIn) {
+        logout("Session expired. Please log in to continue");
+      }
     })();
   }, []);
 
