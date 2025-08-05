@@ -33,7 +33,7 @@ const UserLayout = () => {
       />
       <div className="flex flex-col  overflow-hidden w-full gap-5">
         <Header toggleSidebar={toggleSidebar} />
-        <main className="flex-1 overflow-auto p-[33px] bg-white h-full w-full  shadow-custom-primary  mt-0  rounded-card ">
+        <main className="flex-1 overflow-auto p-4 md:p-[33px] bg-white h-full w-full  shadow-custom-primary  mt-0  rounded-card ">
           {<Outlet />}
         </main>
       </div>

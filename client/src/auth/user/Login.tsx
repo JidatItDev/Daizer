@@ -184,9 +184,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-primary-dark flex items-center justify-center p-4">
-      <div className="w-full max-w-[615px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px]   px-[45px] py-[35px] shadow-2xl">
+      <div className="w-full max-w-[520px]  3xl:max-w-[615px] 4xl:max-w-[800px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px]   px-[45px] py-[35px] shadow-2xl">
         <div className="flex justify-center mb-6">
-          <div className="relative w-36 h-36">
+          <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
             <img src="./assets/logo.png" alt="" />
           </div>
         </div>
@@ -194,18 +194,18 @@ export default function Login() {
         {/* Welcome Text */}
         <div className="text-center mb-8">
           <h1
-            className="text-[40px] font-tajawal font-bold text-black  mb-2 uppercase"
+            className="text-lg lg:text-2xl 3xl:text-[36px] font-tajawal font-bold text-black  mb-2 uppercase"
             style={{ fontFamily: "Tajawal, sans-serif" }}
           >
             Welcome
           </h1>
-          <p className="text-2xl font-medium font-tajawal uppercase">
+          <p className="text-lg lg:text-xl 3xl:text-2xl font-medium font-tajawal uppercase">
             Log in your account
           </p>
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-5 3xl:space-y-8">
           {/* Email Field */}
           <Input
             // label="Email Address"
@@ -253,7 +253,7 @@ export default function Login() {
           <div className="text-right">
             <Link
               to="/forgot-password"
-              className="text-base font-medium  hover:text-gray-800 underline"
+              className="text-sm 3xl:text-base font-medium  hover:text-gray-800 underline"
             >
               Forgot Password?
             </Link>
@@ -270,10 +270,10 @@ export default function Login() {
           </Button>
 
           {/* Sign Up Link */}
-          <div className="text-center">
+          <div className="text-center ">
             <Link
               to="/register"
-              className="text-lg hover:text-dark-primary underline font-medium"
+              className="text-sm 3xl:text-lg hover:text-dark-primary underline font-medium"
             >
               Don't Have an Account? Sign Up
             </Link>

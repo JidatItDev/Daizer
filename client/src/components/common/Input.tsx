@@ -23,7 +23,7 @@ export function Input({
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
   const baseInputStyles =
-    "w-full py-3 border-b-[2px] border-black placeholder:text-lg placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0 focus:outline-none focus:border-black bg-transparent";
+    "w-full py-3 border-b-[2px] border-black   lg:text-lg md:text-base text-sm lg:placeholder:text-lg md:placeholder:text-base placeholder:text-sm placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0 focus:outline-none focus:border-black bg-transparent";
 
   const errorStyles = error ? "border-red-500 " : "border-gray-300 ";
   const iconPadding = leftIcon ? "pl-12" : rightIcon ? "pr-12" : "";
@@ -33,7 +33,7 @@ export function Input({
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-lg font-poppins font-light text-black "
+          className="block text-sm lg:text-lg font-poppins font-light text-black "
         >
           {label}
         </label>
@@ -56,7 +56,7 @@ export function Input({
           <button
             type="button"
             onClick={onRightIconClick}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2   focus:outline-none"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2    focus:outline-none"
           >
             {rightIcon}
           </button>

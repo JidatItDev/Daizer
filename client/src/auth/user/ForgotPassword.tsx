@@ -106,9 +106,9 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen bg-primary-dark flex items-center justify-center p-4">
-      <div className="w-full max-w-[615px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] px-[45px] py-[35px] shadow-2xl">
+      <div className="w-full max-w-[520px]  3xl:max-w-[615px] 4xl:max-w-[800px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] px-[45px] py-[35px] shadow-2xl">
         <div className="flex justify-center mb-6">
-          <div className="relative w-36 h-36">
+          <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
             <img src="./assets/logo.png" alt="" />
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function ForgotPassword() {
         {/* Heading */}
         <div className="text-center mb-8">
           <h1
-            className="text-[40px] font-tajawal font-bold text-black mb-2 uppercase"
+            className="text-lg lg:text-2xl 3xl:text-[36px] font-tajawal font-bold text-black mb-2 uppercase"
             style={{ fontFamily: "Tajawal, sans-serif" }}
           >
             Reset Password
@@ -131,7 +131,7 @@ export default function ForgotPassword() {
             <div className="text-success text-[60px] flex items-center justify-center">
               <MdVerified />
             </div>
-            <p className="text-lg">
+            <p className="text-sm">
               We've sent a password reset link to{" "}
               <strong>{formData.email}</strong>. Please check your email.
             </p>
@@ -170,7 +170,7 @@ export default function ForgotPassword() {
             <div className="text-center">
               <Link
                 to="/login"
-                className="text-lg hover:text-dark-primary underline font-medium"
+                className="text-sm 3xl:text-lg hover:text-dark-primary underline font-medium"
               >
                 Remember your password? Log In
               </Link>

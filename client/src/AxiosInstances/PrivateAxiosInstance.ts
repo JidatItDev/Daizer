@@ -16,7 +16,7 @@ const axiosPrivate = axios.create({
 let isRefreshing = false;
 let failedQueue: any[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+export const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -27,7 +27,7 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-const decryptData = <T>(encryptedData: string): T | null => {
+export const decryptData = <T>(encryptedData: string): T | null => {
   try {
     const bytes = CryptoJS.AES.decrypt(encryptedData, SECRET_KEY);
     const decrypted = bytes.toString(CryptoJS.enc.Utf8);
@@ -38,19 +38,19 @@ const decryptData = <T>(encryptedData: string): T | null => {
   }
 };
 
-const getAccessToken = (): string | null => {
+export const getAccessToken = (): string | null => {
   const encrypted =
     Cookies.get("accessToken") || localStorage.getItem("accessToken");
   return encrypted ? decryptData<string>(encrypted) : null;
 };
 
-const getRefreshToken = (): string | null => {
+export const getRefreshToken = (): string | null => {
   const encrypted =
     Cookies.get("refreshToken") || localStorage.getItem("refreshToken");
   return encrypted ? decryptData<string>(encrypted) : null;
 };
 
-const setAccessToken = (token: string) => {
+export const setAccessToken = (token: string) => {
   const encrypted = CryptoJS.AES.encrypt(
     JSON.stringify(token),
     SECRET_KEY

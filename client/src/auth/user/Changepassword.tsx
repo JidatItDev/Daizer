@@ -215,23 +215,23 @@ export default function ChangePassword() {
     formData.confirmPassword;
 
   return (
-    <div className="h-full flex items-center justify-center p-4">
-      <div className="w-full max-w-[615px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] px-[45px] py-[35px]">
+    <div className="h-full flex items-center justify-center  ">
+      <div className="w-full max-w-[520px]  3xl:max-w-[615px] 4xl:max-w-[800px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] p-4  md:px-[20px] md:py-[20px]">
         <div className="flex justify-center mb-6">
-          <div className="relative w-36 h-36">
+          <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
             <img src="./assets/logo.png" alt="" />
           </div>
         </div>
 
         <div className="text-center mb-8">
-          <p className="text-3xl font-medium font-tajawal uppercase">
+          <p className="text-lg lg:text-2xl 3xl:text-[36px]  font-medium font-tajawal uppercase">
             Change your password
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-6 bg-[#F9F6FE] p-8 rounded-xl"
+          className="space-y-6 bg-[#F9F6FE] p-4 lg:p-8 rounded-xl"
         >
           {/* Current Password Field */}
           <div className="space-y-2">
@@ -250,9 +250,9 @@ export default function ChangePassword() {
                     <AlertCircle className="h-5 w-5 text-red-500" />
                   )}
                   {showCurrentPassword ? (
-                    <EyeOff strokeWidth={1.5} />
+                    <EyeOff strokeWidth={1.5} size={18} />
                   ) : (
-                    <Eye strokeWidth={1.5} />
+                    <Eye strokeWidth={1.5} size={18} />
                   )}
                 </div>
               }
@@ -278,9 +278,9 @@ export default function ChangePassword() {
                     <AlertCircle className="h-5 w-5 text-red-500" />
                   )}
                   {showNewPassword ? (
-                    <EyeOff strokeWidth={1.5} />
+                    <EyeOff strokeWidth={1.5} size={18} />
                   ) : (
-                    <Eye strokeWidth={1.5} />
+                    <Eye strokeWidth={1.5} size={18} />
                   )}
                 </div>
               }
@@ -306,9 +306,9 @@ export default function ChangePassword() {
                     <AlertCircle className="h-5 w-5 text-red-500" />
                   )}
                   {showConfirmPassword ? (
-                    <EyeOff strokeWidth={1.5} />
+                    <EyeOff strokeWidth={1.5} size={18} />
                   ) : (
-                    <Eye strokeWidth={1.5} />
+                    <Eye strokeWidth={1.5} size={18} />
                   )}
                 </div>
               }

@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { IoLogOut } from "react-icons/io5";
 
@@ -37,9 +37,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div
-      className={`transition-all duration-300 flex flex-col bg-white  ${
-        isOpen ? "min-w-72 " : "min-w-20"
-      }   shadow-custom-primary    absolute md:relative z-50 h-[calc(100vh - 80px)] pt-6  rounded-card   ${
+      className={`transition-all duration-300 flex flex-col  bg-white  ${
+        isOpen ? "min-w-60 w-full max-w-72 " : "min-w-20"
+      }   shadow-custom-primary    absolute md:relative z-50 max-h-[90%] md:max-h-full md:h-[calc(100vh - 80px)] pt-6  rounded-card   ${
         isOpen ? " " : "hidden md:flex "
       }`}
     >
@@ -48,25 +48,43 @@ const Sidebar: React.FC<SidebarProps> = ({
           <img
             src="./assets/logo.png"
             alt="Daizer-logo"
-            className="h-12  object-contain"
+            className="md:h-10 h-8  lg:h-12   object-contain"
           />
           {isOpen && (
-            <h2 className="font-jaffna text-[28px] text-primary-dark">
+            <h2 className="font-jaffna  text-[24px] md:text-[26px] 3xl:text-[28px] text-primary-dark">
               Daizer Cards
             </h2>
           )}
         </div>
       </div>
-      <div className="flex items-center w-8 h-8 justify-center absolute -right-4 top-28 rounded-full border border-primary bg-white/50">
+      <div className="flex items-center w-8 h-8 justify-center absolute -right-4 top-9 lg:top-28 rounded-full border border-primary bg-white/50">
         <button
           onClick={toggleSidebar}
           className="focus:outline-none text-primary-dark "
         >
-          {isOpen ? <ChevronLeft /> : <ChevronRight />}
+          {isOpen ? (
+            <div>
+              <span className="hidden md:block">
+                <ChevronLeft />
+              </span>
+              <span className=" md:hidden">
+                <X />
+              </span>
+            </div>
+          ) : (
+            <div className="hidden md:block">
+              <span className="hidden md:block">
+                <ChevronRight />
+              </span>
+              <span className=" md:hidden">
+                <X />
+              </span>
+            </div>
+          )}
         </button>
       </div>
 
-      <ul className="flex-1 overflow-y-auto mt-10 flex flex-col  justify-between pl-5">
+      <ul className="flex-1 overflow-y-auto  mt-6 lg:mt-10  flex flex-col  justify-between pl-5 ">
         <li>
           {menuItems.map((item) =>
             item.path ? (
@@ -76,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => handleItemClick()}
               >
                 {({ isActive }) => (
-                  <div className="relative my-5">
+                  <div className="relative my-1 3xl:my-5 ">
                     <div
                       className={`${
                         isActive
@@ -89,14 +107,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                       }`}
                     >
                       <div
-                        className={`relative flex items-center cursor-pointer px-6 pl-3 py-3 text-primary-dark/80 hover:text-primary-dark rounded-tl-full rounded-bl-full ${
+                        className={`relative flex items-center cursor-pointer px-6  pl-3 py-2 3xl:py-3 text-primary-dark/80 hover:text-primary-dark rounded-tl-full rounded-bl-full ${
                           isActive ? "bg-dashboard-bg text-primary-dark" : ""
                         }
         `}
                       >
                         {/* Icon */}
                         <span
-                          className={`flex-shrink-0 text-xl p-3 ${
+                          className={`flex-shrink-0 text:sm lg:text-lg 3xl:text-xl p-1.5 lg:p-2  3xl:p-3 ${
                             isActive
                               ? "bg-primary-dark text-white rounded-full"
                               : ""
@@ -107,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                         {/* Label */}
                         {isOpen && (
-                          <span className="ml-3 whitespace-nowrap overflow-hidden overflow-ellipsis text-sm font-poppins font-medium">
+                          <span className="ml-3 whitespace-nowrap overflow-hidden overflow-ellipsis text-xs 3xl:text-sm font-poppins font-medium">
                             {item.name}
                           </span>
                         )}

@@ -3,6 +3,10 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      screens: {
+        "3xl": "1920px", // First custom breakpoint after 2xl
+        "4xl": "2400px", // Second custom breakpoint after 3xl
+      },
       fontFamily: {
         poppins: ["Poppins", "sans-serif"],
         tajawal: ["Tajawal", "sans-serif"],

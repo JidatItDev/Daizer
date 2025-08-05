@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }: HeaderProps) => {
         <div className="flex items-center   ">
           <button
             onClick={toggleSidebar}
-            className="md:hidden text-primary mr-2 "
+            className="md:hidden text-primary mr-2 text-primary-dark "
           >
             <MenuIcon />
           </button>
@@ -48,13 +48,13 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }: HeaderProps) => {
         </div>
         <div className="flex items-center space-x-4 relative" ref={dropdownRef}>
           <button
-            className=" gap-2 md:gap-4 rounded-full bg-accent-primary flex items-center justify-between relative font-poppins hover:text-primary  shadow-custom-secondary pr-7"
+            className=" gap-2 3xl:gap-2 rounded-full bg-accent-primary flex items-center justify-between relative font-poppins hover:text-primary  shadow-custom-secondary pr-5"
             onClick={toggleDropdown}
           >
-            <div className="bg-[#B1B1B1] text-white p-1 text-2xl rounded-full flex items-center h-12 w-12 justify-center ">
+            <div className="bg-[#B1B1B1] text-white p-1  text-lg  3xl:text-xl rounded-full flex items-center h-8 w-8 md:w-9 md:h-9   justify-center ">
               <FaUserLarge />
             </div>
-            <p className=" font-medium text-sm md:text-lg text-[#B1B1B1] hover:text-black">
+            <p className=" font-medium text-sm 3xl:text-base text-[#B1B1B1] hover:text-black">
               {user?.name.split(" ")[0] || ""}
             </p>
             {/* <ChevronDown className="w-5 h-5 " /> */}
