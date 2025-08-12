@@ -53,7 +53,7 @@ const swaggerOptions: swaggerJSDoc.Options = {
     },
     tags: [
       {
-        name: "Dazier auth",
+        name: "Auth",
         description: "Endpoints for managing daizear auth process",
       },
     ],
