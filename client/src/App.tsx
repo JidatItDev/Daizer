@@ -13,11 +13,13 @@ import ResetPassword from "./auth/user/ResetPassword";
 import ErrorPage from "./auth/user/AccessErrorPage";
 import { useEffect } from "react";
 import { checkSession } from "./utils/auth";
+import UserManagement from "./admin/userManagement";
+import PricingGroup from "./admin/pricingGroups";
 
 export const Signup = () => <div>Signup Page</div>;
 
 export const ClientDashboard = () => <div>User Dashboard</div>;
-export const AdminDashboard = () => <div>Admin Dashboard</div>;
+export const AdminDashboard = () => <div>Admin Dashboardmmmmcm</div>;
 
 function App() {
   const { logout, userLoggedIn } = useAuth();
@@ -51,8 +53,9 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<AdminDashboard />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route index element={<UserManagement />} />
+          <Route path="dashboard" element={<UserManagement />} />
+          <Route path="pricing-groups" element={<PricingGroup />} />
         </Route>
 
         <Route

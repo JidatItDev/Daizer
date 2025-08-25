@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import compression from "compression";
 import authRouter from "./routes/auth.routes";
 import { setupSwagger } from "./config/Swagger";
+import pricingGroupRouter from "./routes/pricingGroup.routes";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 setupSwagger(app);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/pricing-groups", pricingGroupRouter);
 
 app.get("/", (_, res) => {
   res.send(`
@@ -63,6 +65,7 @@ app.get("/", (_, res) => {
           margin-top: 20px;
           padding: 12px 24px;
           background: #2C2E5F;
+
           color: white;
           text-decoration: none;
           border-radius: 8px;

@@ -20,6 +20,7 @@ export default {
         "dashboard-bg": "#F1F1F1",
         "primary-dark/80": "#2C2E5FCC",
         success: "#1CA600",
+        error: "#D06A6C",
       },
       boxShadow: {
         "custom-primary": "0 0 20px rgba(0, 0, 0, 0.1)",

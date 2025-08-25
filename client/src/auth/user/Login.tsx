@@ -115,6 +115,8 @@ export default function Login() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    console.log("hit login");
+
     // Validate all fields
     const emailError = validateEmail(formData.email);
     const passwordError = validatePassword(formData.password);
@@ -138,6 +140,7 @@ export default function Login() {
         console.log(response);
 
         if (data.success) {
+          console.log("called");
           login(data.user, data.accessToken, data.refreshToken);
         }
         toast.success("login successfull");

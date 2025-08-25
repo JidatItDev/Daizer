@@ -25,7 +25,7 @@ export function Button({
     secondary:
       "bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-900 focus:ring-gray-500",
     outline:
-      "border border-gray-300 hover:bg-gray-50 disabled:bg-gray-50 text-gray-700 focus:ring-gray-500",
+      "border border-gray-300 hover:bg-gray-50 disabled:bg-gray-50 text-gray-700 focus:ring-gray-500 ",
   };
 
   const sizes = {

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { LiaUsersCogSolid } from "react-icons/lia";
+import { BsFillCreditCardFill } from "react-icons/bs";
+
 import Sidebar from "../components/common/Sidebar";
 import Header from "../components/common/Header";
 
@@ -10,6 +12,11 @@ const AdminLayout = () => {
       name: "User Managment",
       icon: <LiaUsersCogSolid />,
       path: "dashboard",
+    },
+    {
+      name: "Pricing Group",
+      icon: <BsFillCreditCardFill />,
+      path: "pricing-groups",
     },
   ];
   const isMobile = window.innerWidth < 768;

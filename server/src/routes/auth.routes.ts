@@ -414,4 +414,114 @@ authRouter.post("/reset-password", AuthController.resetPassword);
  *         description: Internal server error
  */
 
+// routes/authRoutes.ts
+
+authRouter.post("/create-user", authenticate, AuthController.createUser);
+/**
+ * @swagger
+ * /auth/create-user:
+ *   post:
+ *     summary: Create a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - name
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "jane.doe@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "StrongPass123!"
+ *               name:
+ *                 type: string
+ *                 example: "Jane Doe"
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User created successfully
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "c1a2b3c4-d5e6-7890-f1a2-b3c4d5e67890"
+ *                     name:
+ *                       type: string
+ *                       example: "Jane Doe"
+ *                     email:
+ *                       type: string
+ *                       example: "jane.doe@example.com"
+ *                     role:
+ *                       type: string
+ *                       example: user
+ *       409:
+ *         description: Email already exists
+ *       500:
+ *         description: Internal server error
+ */
+
+authRouter.get("/users", authenticate, AuthController.getAllUsers);
+/**
+ * @swagger
+ * /auth/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: List of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "a123b456-c789-012d-345e-6789f0a123b4"
+ *                       name:
+ *                         type: string
+ *                         example: "John Doe"
+ *                       email:
+ *                         type: string
+ *                         example: "john.doe@example.com"
+ *                       role:
+ *                         type: string
+ *                         example: "user"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-08-18T10:00:00.000Z"
+ *       500:
+ *         description: Internal server error
+ */
+
 export default authRouter;
