@@ -14,64 +14,6 @@ import { EmailService } from "../services/email.service";
 import redisClient from "../config/redis";
 
 class AuthController {
-  // static async register(req: Request, res: Response) {
-  //   try {
-  //     const { email, password, name } = req.body;
-
-  //     const [existingUser] = await db
-  //       .select({
-  //         id: users.id,
-  //       })
-  //       .from(users)
-  //       .where(eq(users.email, email))
-  //       .limit(1);
-
-  //     if (existingUser) {
-  //       return res.status(409).json({ message: "Email already in use" });
-  //     }
-
-  //     const hashedPassword = await hashPassword(password);
-
-  //     const [newUser] = await db
-  //       .insert(users)
-  //       .values({
-  //         name,
-  //         email,
-  //         password: hashedPassword,
-  //         role: "user",
-  //         isActive: true,
-  //       })
-  //       .returning({
-  //         id: users.id,
-  //         email: users.email,
-  //         name: users.name,
-  //         role: users.role,
-  //         createdAt: users.createdAt,
-  //       });
-  //     if (!newUser.id || !newUser.role) {
-  //       return res.status(500).json({ message: "User data is incomplete" });
-  //     }
-  //     const accessToken = createAccessToken(newUser.id, newUser.role);
-  //     const refreshToken = createRefreshToken(newUser.id);
-  //     await redisClient.del("users:page:*");
-  //     return res.status(201).json({
-  //       message: "User registered successfully",
-  //       accessToken,
-  //       refreshToken,
-  //       success: true,
-  //       user: {
-  //         id: newUser.id,
-  //         name: newUser.name,
-  //         email: newUser.email,
-  //         role: newUser.role,
-  //       },
-  //     });
-  //   } catch (error: any) {
-  //     console.error("Registration error:", error);
-  //     return res.status(500).json({ message: "Internal server error" });
-  //   }
-  // }
-
   static async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
@@ -253,111 +195,7 @@ class AuthController {
 
     return res.json({ success: true, message: "Password has been reset" });
   }
-  // static async createUser(req: Request, res: Response) {
-  //   try {
-  //     const {
-  //       email,
-  //       password,
-  //       name,
-  //       role = "user",
-  //       isActive = true,
-  //     } = req.body;
 
-  //     const [existingUser] = await db
-  //       .select({ id: users.id })
-  //       .from(users)
-  //       .where(eq(users.email, email))
-  //       .limit(1);
-
-  //     if (existingUser) {
-  //       return res.status(409).json({ message: "Email already in use" });
-  //     }
-
-  //     const hashedPassword = await hashPassword(password);
-
-  //     const [newUser] = await db
-  //       .insert(users)
-  //       .values({
-  //         name,
-  //         email,
-  //         password: hashedPassword,
-  //         role,
-  //         isActive,
-  //       })
-  //       .returning({
-  //         id: users.id,
-  //         name: users.name,
-  //         email: users.email,
-  //         role: users.role,
-  //         createdAt: users.createdAt,
-  //       });
-
-  //     await redisClient.del("users:page:*");
-
-  //     return res.status(201).json({
-  //       success: true,
-  //       message: "User created successfully",
-  //       user: newUser,
-  //     });
-  //   } catch (error) {
-  //     console.error("Create user error:", error);
-  //     return res.status(500).json({ message: "Internal server error" });
-  //   }
-  // }
-  // static async getAllUsers(req: Request, res: Response) {
-  //   try {
-  //     const { page = 1, limit = 20 } = req.query;
-  //     const cacheKey = `users:page:${page}:limit:${limit}`;
-
-  //     // Check Redis cache first
-  //     const cachedUsers = await redisClient.get(cacheKey);
-  //     if (cachedUsers) {
-  //       return res.status(200).json(JSON.parse(cachedUsers));
-  //     }
-
-  //     const offset = (Number(page) - 1) * Number(limit);
-
-  //     const [result, countResult] = await Promise.all([
-  //       db
-  //         .select({
-  //           id: users.id,
-  //           name: users.name,
-  //           email: users.email,
-  //           role: users.role,
-  //           isActive: users.isActive,
-  //           createdAt: users.createdAt,
-  //           lastLoginAt: users.lastLoginAt,
-  //         })
-  //         .from(users)
-  //         .orderBy(users.createdAt)
-  //         .limit(Number(limit))
-  //         .offset(offset),
-  //       db.select({ count: sql<number>`count(*)` }).from(users),
-  //     ]);
-
-  //     const [{ count }] = countResult;
-  //     const response = {
-  //       success: true,
-  //       users: result,
-  //       pagination: {
-  //         page: Number(page),
-  //         limit: Number(limit),
-  //         totalUsers: Number(count),
-  //         totalPages: Math.ceil(Number(count) / Number(limit)),
-  //       },
-  //     };
-
-  //     // Cache for 5 minutes
-  //     await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
-
-  //     console.log("db return");
-
-  //     return res.status(200).json(response);
-  //   } catch (error) {
-  //     console.error("Get users error:", error);
-  //     return res.status(500).json({ message: "Internal server error" });
-  //   }
-  // }
   static async register(req: Request, res: Response) {
     try {
       const { email, password, name, pricingGroupId } = req.body;
@@ -625,6 +463,37 @@ class AuthController {
       });
     } catch (error) {
       console.error("Get users error:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  static async deleteUser(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const [user] = await db
+        .select({ id: users.id, email: users.email })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await db.delete(users).where(eq(users.id, id));
+
+      await Promise.all([
+        redisClient.del("users:page:*"),
+        redisClient.del(`user:${user.email}`),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        message: "User deleted permanently",
+      });
+    } catch (error) {
+      console.error("Delete user error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }

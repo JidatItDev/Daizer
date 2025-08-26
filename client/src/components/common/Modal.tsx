@@ -6,6 +6,7 @@ interface ModalProps {
   heading: string;
   subheading: string;
   children: React.ReactNode;
+  widthClass?: string;
 }
 
 const Modal: React.FC<ModalProps> = ({
@@ -14,6 +15,7 @@ const Modal: React.FC<ModalProps> = ({
   heading,
   subheading,
   children,
+  widthClass = "max-w-lg",
 }) => {
   if (!isOpen) return null;
 
@@ -26,7 +28,9 @@ const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 modal-content">
+      <div
+        className={`relative bg-white rounded-xl shadow-xl w-full mx-4 modal-content ${widthClass}`}
+      >
         <div className="py-[56px] px-[84px]">
           {/* Heading */}
           <h2 className="font-roboto font-medium text-3xl text-center leading-[52px] tracking-tight mb-2 text-primary-dark">

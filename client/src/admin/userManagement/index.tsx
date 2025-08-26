@@ -9,9 +9,14 @@ import {
   ArrowUp,
   ArrowDown,
   X,
+  Loader,
 } from "lucide-react";
-import { useUsers } from "../../api/auth";
+import { useUsers, useUpdateUser, useDeleteUser } from "../../api/auth";
 import { usePricingGroups } from "../../api/pricingGroup";
+import Modal from "../../components/common/Modal";
+import { Input } from "../../components/common/Input";
+import ConfirmationModal from "../../components/common/ConfirmationModal";
+import toast from "react-hot-toast";
 
 interface User {
   id: string;
@@ -26,6 +31,7 @@ interface User {
   amountSpent?: number;
   transactions?: number;
   pricingGroup?: string;
+  pricingGroupId?: string;
 }
 
 interface PricingGroup {
@@ -40,7 +46,7 @@ interface FilterState {
     active: boolean;
     disable: boolean;
   };
-  pricingGroups: Record<string, boolean>; // key: pricingGroupId, value: checked state
+  pricingGroups: Record<string, boolean>;
 }
 
 interface SortState {
@@ -87,7 +93,7 @@ const FilterSection = ({
               type="checkbox"
               checked={option.checked}
               onChange={() => onSelect(option.id)}
-              className="mr-2 h-4 w-4 text-primary-dark rounded"
+              className="mr-2 h-4 w-4 text-primary-dark rounded accent-primary-dark"
             />
             {option.label}
           </label>
@@ -165,7 +171,7 @@ const FilterDropdown = ({
   const sortOptions = [{ key: "name", label: "Name" }];
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+    <div className="absolute top-7  right-0 md:top-full  mt-2 w-full md:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold">Filters & Sort</h3>
@@ -216,8 +222,29 @@ const UserManagement = () => {
       active: false,
       disable: false,
     },
-    pricingGroups: {}, // Empty object to store pricing group selections
+    pricingGroups: {},
   });
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const [createFormData, setCreateFormData] = useState({
+    fullName: "",
+    email: "",
+    pricingGroup: "",
+    balance: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    fullName: "",
+    email: "",
+    pricingGroup: "",
+    balance: "",
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: pricingGroupsData, isLoading: isLoadingPricingGroups } =
     usePricingGroups();
@@ -228,19 +255,18 @@ const UserManagement = () => {
     direction: "asc",
   });
 
-  // Get selected pricing group IDs for API call
   const selectedPricingGroupIds = Object.entries(filters.pricingGroups)
     .filter(([_, isSelected]) => isSelected)
     .map(([id]) => id);
 
-  const { data, isLoading } = useUsers({
+  const { data, isLoading, refetch } = useUsers({
     page: pagination.current,
     limit: pagination.pageSize,
     status:
       filters.status.active && !filters.status.disable
-        ? true // isActive=true
+        ? true
         : !filters.status.active && filters.status.disable
-        ? false // isActive=false
+        ? false
         : undefined,
     pricingGroupIds:
       selectedPricingGroupIds.length > 0 ? selectedPricingGroupIds : undefined,
@@ -248,10 +274,13 @@ const UserManagement = () => {
     sortOrder: sort.direction,
   });
 
+  const updateUserMutation = useUpdateUser();
+  const isUpdating = updateUserMutation.isPending;
+  const deleteUserMutation = useDeleteUser();
+
   const users = data?.users ?? [];
   const totalUsers = data?.pagination?.totalUsers ?? 0;
 
-  // Update total when data arrives
   if (pagination.total !== totalUsers) {
     setPagination((prev) => ({ ...prev, total: totalUsers }));
   }
@@ -264,20 +293,139 @@ const UserManagement = () => {
     }));
   };
 
-  const handleSendRequest = (userId: string) => {
-    console.log("Send request for user:", userId);
-  };
+  // const handleSendRequest = (userId: string) => {
+  //   console.log("Send request for user:", userId);
+  // };
 
   const handleViewDetails = (userId: string) => {
     console.log("View details for user:", userId);
   };
 
-  const handleEdit = (userId: string) => {
-    console.log("Edit user:", userId);
+  const handleEdit = (user: User) => {
+    setSelectedUser(user);
+    setEditFormData({
+      fullName: user.name,
+      email: user.email,
+      pricingGroup: user.pricingGroupId || "",
+      balance: user.amountSpent?.toString() || "",
+    });
+    setIsEditModalOpen(true);
   };
 
-  const handleDelete = (userId: string) => {
-    console.log("Delete user:", userId);
+  const handleDelete = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleToggleStatus = async (user: User) => {
+    try {
+      await updateUserMutation.mutateAsync({
+        id: user.id,
+        payload: { isActive: !user.isActive },
+      });
+      toast.success(
+        `User ${!user.isActive ? "activated" : "deactivated"} successfully`
+      );
+      refetch();
+    } catch (error: any) {
+      console.error("Failed to update user status:", error);
+      toast.error("Failed to update user status");
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await deleteUserMutation.mutateAsync(selectedUser.id);
+      setIsDeleteModalOpen(false);
+      setSelectedUser(null);
+      toast.success("User deleted successfully");
+      refetch();
+    } catch (error: any) {
+      console.error("Failed to delete user:", error);
+      toast.error("Failed to delete user");
+    }
+  };
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      console.log("Creating account with:", createFormData);
+      // const payload = {
+      //   email: createFormData?.email || "",
+      //   password: "User1234",
+      //   name: createFormData?.fullName || "",
+      //   pricingGroupId: createFormData?.pricingGroup || "",
+      // };
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      setCreateFormData({
+        fullName: "",
+        email: "",
+        pricingGroup: "",
+        balance: "",
+      });
+      setIsCreateModalOpen(false);
+
+      console.log("Account created successfully");
+      toast.success("Account created successfully");
+    } catch (error) {
+      console.error("Failed to create account:", error);
+      toast.error("Failed to create account");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        name: editFormData.fullName,
+        email: editFormData.email,
+        pricingGroupId: editFormData.pricingGroup,
+      };
+
+      await updateUserMutation.mutateAsync({
+        id: selectedUser.id,
+        payload,
+      });
+
+      setEditFormData({
+        fullName: "",
+        email: "",
+        pricingGroup: "",
+        balance: "",
+      });
+      setIsEditModalOpen(false);
+      setSelectedUser(null);
+
+      toast.success("User updated successfully");
+      refetch();
+    } catch (error: any) {
+      console.error("Failed to update user:", error);
+      toast.error("Failed to update user");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (
+    formData: any,
+    setFormData: any,
+    field: keyof typeof createFormData,
+    value: string
+  ) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    console.log(formData);
   };
 
   const handleFilterChange = (filterType: keyof FilterState, value: string) => {
@@ -329,52 +477,75 @@ const UserManagement = () => {
       key: "transactions",
       title: "Transactions",
     },
-    {
-      key: "resetPassword",
-      title: "Reset Password",
-      render: (_: any, record: User) => (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-error border-rose-200 hover:bg-rose-50  min-w-[140px]"
-          onClick={() => handleSendRequest(record.id)}
-        >
-          Send Request
-        </Button>
-      ),
-    },
+    // {
+    //   key: "status",
+    //   title: "Status",
+    //   align: "center",
+    //   render: (_: any, record: User) => (
+    //     <div className="flex justify-between gap-5 items-center">
+    //       <span
+    //         className={`px-2 py-1 rounded-full text-sm font-regular ${
+    //           record.isActive ? "text-success" : "text-error"
+    //         }`}
+    //       >
+    //         {record.isActive ? "Active" : "Disabled"}
+    //       </span>
+    //       <button
+    //         onClick={() => handleToggleStatus(record)}
+    //         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+    //           record.isActive ? "bg-success" : "bg-[#C60504]"
+    //         }`}
+    //       >
+    //         <span
+    //           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+    //             record.isActive ? "translate-x-6" : "translate-x-1"
+    //           }`}
+    //         />
+    //       </button>
+    //     </div>
+    //   ),
+    // },
     {
       key: "status",
       title: "Status",
-      render: (_: any, record: User) => (
-        <span
-          className={`px-2 py-1 rounded-full text-sm font-regular ${
-            record.isActive ? "text-success" : "text-error"
-          }`}
-        >
-          {record.isActive ? "Active" : "Disabled"}
-        </span>
-      ),
-    },
-    {
-      key: "enabled",
-      title: "Enable",
       align: "center",
-      render: (_: any, record: User) => (
-        <div className="flex justify-center">
-          <button
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              record.enabled ? "bg-success" : "bg-[#C60504]"
-            }`}
-          >
+      render: (_: any, record: User) => {
+        return (
+          <div className="flex justify-between gap-5 items-center">
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                record.enabled ? "translate-x-6" : "translate-x-1"
+              className={`px-2 py-1 rounded-full text-sm font-regular ${
+                record.isActive ? "text-success" : "text-error"
               }`}
-            />
-          </button>
-        </div>
-      ),
+            >
+              {record.isActive ? "Active" : "Disabled"}
+            </span>
+            <button
+              onClick={() => !isUpdating && handleToggleStatus(record)}
+              disabled={isUpdating}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                record.isActive ? "bg-success" : "bg-[#C60504]"
+              } ${
+                isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  record.isActive ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+              {isUpdating && (
+                <div
+                  className={`absolute inset-0 flex items-center ${
+                    record.isActive ? "justify-start" : "justify-end"
+                  } p-2`}
+                >
+                  <Loader className="h-3 w-3 animate-spin text-white" />
+                </div>
+              )}
+            </button>
+          </div>
+        );
+      },
     },
     {
       key: "action",
@@ -385,20 +556,20 @@ const UserManagement = () => {
           <Button
             variant="outline"
             size="sm"
-            className="px-3 py-1 text-primary-dark border-primary-dark hover:bg-gray-50  min-w-[140px]"
+            className="px-3 py-1 text-primary-dark border-primary-dark hover:bg-gray-50 min-w-[140px]"
             onClick={() => handleViewDetails(record.id)}
           >
             View Details
           </Button>
           <button
-            onClick={() => handleEdit(record.id)}
-            className=" text-primary-dark hover:text-black  h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center  py-2 md:py-3  "
+            onClick={() => handleEdit(record)}
+            className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
           >
             <Edit size={16} />
           </button>
           <button
-            onClick={() => handleDelete(record.id)}
-            className=" text-primary-dark hover:text-black  h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center  py-2 md:py-3  "
+            onClick={() => handleDelete(record)}
+            className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
           >
             <Trash2 size={16} />
           </button>
@@ -410,36 +581,38 @@ const UserManagement = () => {
   return (
     <div className="bg-white relative">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6 ">
+      <div className="flex justify-between items-center mb-6 flex-col md:flex-row gap-4">
         <div className="flex items-center gap-4">
           <Heading>User Management</Heading>
         </div>
-        <div className="flex items-center gap-4 relative">
+        <div className="flex items-center gap-4 relative ">
           <button
             className=" text-primary-dark hover:text-black h-9 w-9 border border-primary-dark rounded-full flex items-center justify-center"
             onClick={() => setIsFilterOpen(!isFilterOpen)}
           >
             <SlidersHorizontal size={20} strokeWidth={2.5} />
           </button>
+          <div>
+            <FilterDropdown
+              isOpen={isFilterOpen}
+              onClose={() => setIsFilterOpen(false)}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              sort={sort}
+              onSortChange={handleSortChange}
+              pricingGroups={pricingGroups}
+              isLoadingPricingGroups={isLoadingPricingGroups}
+            />
 
-          <FilterDropdown
-            isOpen={isFilterOpen}
-            onClose={() => setIsFilterOpen(false)}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            sort={sort}
-            onSortChange={handleSortChange}
-            pricingGroups={pricingGroups}
-            isLoadingPricingGroups={isLoadingPricingGroups}
-          />
-
-          <Button
-            variant="primary"
-            size="md"
-            className="text-sm font-normal px-6 !py-2"
-          >
-            Create Account
-          </Button>
+            <Button
+              variant="primary"
+              size="md"
+              className="text-sm font-normal px-6 !py-2"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              Create Account
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -455,6 +628,244 @@ const UserManagement = () => {
           }}
         />
       </div>
+
+      {/* Create Account Modal */}
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        heading="Create Account"
+        subheading="create a user signup link for your client"
+        widthClass="w-[850px]"
+      >
+        <form onSubmit={handleCreateAccount} className="space-y-12 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Input
+                type="text"
+                value={createFormData.fullName}
+                onChange={(e) =>
+                  handleInputChange(
+                    createFormData,
+                    setCreateFormData,
+                    "fullName",
+                    e.target.value
+                  )
+                }
+                placeholder="Full Name"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                type="email"
+                value={createFormData.email}
+                onChange={(e) =>
+                  handleInputChange(
+                    createFormData,
+                    setCreateFormData,
+                    "email",
+                    e.target.value
+                  )
+                }
+                placeholder="Email Address"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <div className="relative">
+                <select
+                  value={createFormData.pricingGroup}
+                  onChange={(e) =>
+                    handleInputChange(
+                      createFormData,
+                      setCreateFormData,
+                      "pricingGroup",
+                      e.target.value
+                    )
+                  }
+                  className="w-full py-3 border-b-[2px] border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black appearance-none"
+                  required
+                >
+                  <option value="">Select Pricing Group</option>
+                  {pricingGroups.map((group: PricingGroup) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+                {/* Custom dropdown arrow */}
+                <div className="absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-black"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Input
+                type="number"
+                value={createFormData.balance}
+                onChange={(e) =>
+                  handleInputChange(
+                    createFormData,
+                    setCreateFormData,
+                    "balance",
+                    e.target.value
+                  )
+                }
+                placeholder="Balance"
+                required
+              />
+            </div>
+          </div>
+
+          <Button type="submit" loading={isSubmitting} className="w-full">
+            {isSubmitting ? "Creating..." : "Create Account"}
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedUser(null);
+        }}
+        heading="Edit Account"
+        subheading="Update user account details"
+        widthClass="w-[850px]"
+      >
+        <form onSubmit={handleUpdateAccount} className="space-y-12 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Input
+                type="text"
+                value={editFormData.fullName}
+                onChange={(e) =>
+                  handleInputChange(
+                    editFormData,
+                    setEditFormData,
+                    "fullName",
+                    e.target.value
+                  )
+                }
+                placeholder="Full Name"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                type="email"
+                value={editFormData.email}
+                onChange={(e) =>
+                  handleInputChange(
+                    editFormData,
+                    setEditFormData,
+                    "email",
+                    e.target.value
+                  )
+                }
+                placeholder="Email Address"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              {/* Custom styled dropdown to match Input component */}
+              <div className="relative">
+                <select
+                  value={editFormData.pricingGroup}
+                  onChange={(e) =>
+                    handleInputChange(
+                      editFormData,
+                      setEditFormData,
+                      "pricingGroup",
+                      e.target.value
+                    )
+                  }
+                  className="w-full py-3 border-b-[2px] p-2 border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black appearance-none"
+                  required
+                >
+                  <option value="">Select Pricing Group</option>
+                  {pricingGroups.map((group: PricingGroup) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+                {/* Custom dropdown arrow */}
+                <div className="absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-black"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                type="number"
+                value={editFormData.balance}
+                onChange={(e) =>
+                  handleInputChange(
+                    editFormData,
+                    setEditFormData,
+                    "balance",
+                    e.target.value
+                  )
+                }
+                placeholder="Balance"
+              />
+            </div>
+          </div>
+
+          <Button type="submit" loading={isSubmitting} className="w-full">
+            {isSubmitting ? "Updating..." : "Update Account"}
+          </Button>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedUser(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete User"
+        message={`Are you sure you want to delete the user "${selectedUser?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

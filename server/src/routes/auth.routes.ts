@@ -524,4 +524,123 @@ authRouter.get("/users", authenticate, AuthController.getAllUsers);
  *         description: Internal server error
  */
 
+authRouter.put("/users/:id", authenticate, AuthController.updateUser);
+
+/**
+ * @swagger
+ * /auth/users/{id}:
+ *   put:
+ *     summary: Update an existing user
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The ID of the user to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Jane Doe Updated"
+ *               role:
+ *                 type: string
+ *                 example: "admin"
+ *               isActive:
+ *                 type: boolean
+ *                 example: true
+ *               pricingGroupId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User updated successfully
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "c1a2b3c4-d5e6-7890-f1a2-b3c4d5e67890"
+ *                     name:
+ *                       type: string
+ *                       example: "Jane Doe Updated"
+ *                     email:
+ *                       type: string
+ *                       example: "jane.doe@example.com"
+ *                     role:
+ *                       type: string
+ *                       example: "admin"
+ *                     isActive:
+ *                       type: boolean
+ *                       example: true
+ *                     pricingGroupId:
+ *                       type: string
+ *                       format: uuid
+ *                       example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-08-18T12:34:56.000Z"
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+
+authRouter.delete("/users/:id", authenticate, AuthController.deleteUser);
+
+/**
+ * @swagger
+ * /auth/users/{id}:
+ *   delete:
+ *     summary: Permanently delete a user
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User deleted permanently
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+
 export default authRouter;
