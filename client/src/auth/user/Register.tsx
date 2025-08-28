@@ -1,14 +1,15 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader } from "lucide-react";
 import { Input } from "../../components/common/Input";
 import { Button } from "../../components/common/Button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axiosPublic from "../../AxiosInstances/PublicAxiosInstance";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { API_ENDPOINTS } from "../../config/api";
+import { useRegisterWithLink, useSignupLink } from "../../api/auth";
 
 interface FormErrors {
   email?: string;
@@ -47,7 +48,10 @@ export default function Register() {
     confirmPassword: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+  const [isSignupLink, setIsSignupLink] = useState(false);
+  const [prefilledData, setPrefilledData] = useState<Partial<FormData>>({});
   // Validation functions
   const validateEmail = (email: string): string | undefined => {
     if (!email) {
@@ -95,6 +99,44 @@ export default function Register() {
     }
     return undefined;
   };
+  const { data: signupLinkData, isLoading: isLoadingSignupLink } =
+    useSignupLink(token || "", {
+      enabled: !!token,
+    });
+
+  // useEffect(() => {
+  //   if (isSignupLink && prefilledData.email) {
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       email: prefilledData.email || "",
+  //       firstName: prefilledData.firstName || "",
+  //       lastName: prefilledData.lastName || "",
+  //     }));
+  //   }
+  // }, [isSignupLink, prefilledData]);
+
+  useEffect(() => {
+    if (signupLinkData && signupLinkData.success) {
+      console.log("signupLinkData", signupLinkData);
+      console.log("called");
+      setIsSignupLink(true);
+      const nameParts = signupLinkData.link.name.split(" ");
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ");
+      setPrefilledData({
+        email: signupLinkData.link.email,
+        firstName: firstName,
+        lastName: lastName,
+      });
+      setFormData((prev) => ({
+        ...prev,
+        email: signupLinkData.link.email,
+
+        firstName: firstName,
+        lastName: lastName,
+      }));
+    }
+  }, [signupLinkData]);
 
   // Handle input changes
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -214,6 +256,7 @@ export default function Register() {
     setErrors(newErrors);
   };
 
+  const registerWithLinkMutation = useRegisterWithLink();
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,7 +265,10 @@ export default function Register() {
     // Validate all fields
     const emailError = validateEmail(formData.email);
     const firstNameError = validateName(formData.firstName, "First name");
-    const lastNameError = validateName(formData.lastName, "Last name");
+    const lastNameError =
+      token && formData.lastName
+        ? validateName(formData.lastName, "Last name")
+        : false;
     const passwordError = validatePassword(formData.password);
     const confirmPasswordError = validateConfirmPassword(
       formData.confirmPassword,
@@ -247,25 +293,65 @@ export default function Register() {
 
     // If no errors, proceed with registration
     if (Object.keys(newErrors).length === 0) {
+      // try {
+      //   const fullName = `${formData.firstName} ${formData.lastName}`;
+
+      //   const response = await axiosPublic.post(API_ENDPOINTS.AUTH.REGISTER, {
+      //     email: formData.email,
+      //     name: fullName,
+      //     password: formData.password,
+      //   });
+
+      //   const data = await response.data;
+      //   console.log(response);
+
+      //   if (data.success) {
+      //     console.log("being called");
+      //     login(data.user, data.accessToken, data.refreshToken);
+      //   }
+      //   console.log("Registration successful:", response.data);
+      //   navigate("/");
+      //   toast.success("Registration successful");
+      // }
       try {
-        const fullName = `${formData.firstName} ${formData.lastName}`;
+        if (isSignupLink && token) {
+          // Use the register with link method
+          console.log("this one called");
+          const response = await registerWithLinkMutation.mutateAsync({
+            token,
+            password: formData.password,
+          });
 
-        const response = await axiosPublic.post(API_ENDPOINTS.AUTH.REGISTER, {
-          email: formData.email,
-          name: fullName,
-          password: formData.password,
-        });
+          const data = await response;
+          console.log(response);
 
-        const data = await response.data;
-        console.log(response);
+          if (data.success) {
+            console.log("Registration with link successful");
+            login(data.user, data.accessToken, data.refreshToken);
+            navigate("/");
+            toast.success("Registration successful");
+          }
+        } else {
+          // Use the normal registration method (your existing code)
+          const fullName = `${formData.firstName} ${formData.lastName}`;
 
-        if (data.success) {
-          console.log("being called");
-          login(data.user, data.accessToken, data.refreshToken);
+          const response = await axiosPublic.post(API_ENDPOINTS.AUTH.REGISTER, {
+            email: formData.email,
+            name: fullName,
+            password: formData.password,
+          });
+
+          const data = await response.data;
+          console.log(response);
+
+          if (data.success) {
+            console.log("being called");
+            login(data.user, data.accessToken, data.refreshToken);
+          }
+          console.log("Registration successful:", response.data);
+          navigate("/");
+          toast.success("Registration successful");
         }
-        console.log("Registration successful:", response.data);
-        navigate("/");
-        toast.success("Registration successful");
       } catch (error: any) {
         console.error("Registration failed:", error);
 
@@ -296,9 +382,18 @@ export default function Register() {
     Object.keys(errors).length === 0 &&
     formData.email &&
     formData.firstName &&
-    formData.lastName &&
+    // formData.lastName &&
     formData.password &&
     formData.confirmPassword;
+
+  if (isLoadingSignupLink) {
+    return (
+      <div className="min-h-screen bg-primary-dark flex items-center justify-center">
+        <Loader className="animate-spin text-white" />
+        <div className="ml-3 text-white">Verifying your signup link...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-primary-dark flex items-center justify-center p-4">
@@ -322,7 +417,11 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div
+            className={`grid   ${
+              isSignupLink && formData.lastName ? "grid-cols-2" : "grid-cols-1"
+            }  gap-4  `}
+          >
             <Input
               type="text"
               value={formData.firstName}
@@ -330,25 +429,42 @@ export default function Register() {
               onBlur={() => handleBlur("firstName")}
               placeholder="First Name"
               error={errors.firstName}
+              disabled={isSignupLink}
               rightIcon={
                 errors.firstName ? (
                   <AlertCircle className="h-5 w-5 text-red-500" />
                 ) : undefined
               }
             />
-            <Input
+            {isSignupLink && formData.lastName && (
+              <Input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
+                onBlur={() => handleBlur("lastName")}
+                placeholder="Last Name"
+                error={errors.lastName}
+                rightIcon={
+                  errors.lastName ? (
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                  ) : undefined
+                }
+              />
+            )}
+            {/* <Input
               type="text"
               value={formData.lastName}
               onChange={(e) => handleInputChange("lastName", e.target.value)}
               onBlur={() => handleBlur("lastName")}
               placeholder="Last Name"
               error={errors.lastName}
+              disabled={isSignupLink}
               rightIcon={
                 errors.lastName ? (
                   <AlertCircle className="h-5 w-5 text-red-500" />
                 ) : undefined
               }
-            />
+            /> */}
           </div>
 
           <Input
@@ -358,6 +474,7 @@ export default function Register() {
             onBlur={() => handleBlur("email")}
             placeholder="Email Address"
             error={errors.email}
+            disabled={isSignupLink}
             rightIcon={
               errors.email ? (
                 <AlertCircle className="h-5 w-5 text-red-500" />

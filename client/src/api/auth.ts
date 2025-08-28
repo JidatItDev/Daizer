@@ -84,3 +84,72 @@ export const useDeleteUser = () => {
     onSuccess: () => invalidateAll(),
   });
 };
+
+export const useCreateSignupLink = () => {
+  const invalidateAll = useInvalidateAll();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      email: string;
+      name: string;
+      pricingGroupId: string;
+    }) => {
+      const res = await axiosPrivate.post("/auth/signup-link", payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      invalidateAll();
+    },
+  });
+};
+
+export const useRegisterWithLink = () => {
+  return useMutation({
+    mutationFn: async (payload: { token: string; password: string }) => {
+      const res = await axiosPrivate.post("/auth/register-with-link", payload);
+      return res.data;
+    },
+  });
+};
+
+export const useSignupLinks = (
+  filters: {
+    page?: number;
+    limit?: number;
+    status?: "used" | "unused" | "expired"; // optional filter
+    sortField?: string;
+    sortOrder?: string;
+  } = {}
+) => {
+  const { page = 1, limit = 10, status, sortField, sortOrder } = filters;
+
+  return useQuery({
+    queryKey: ["signupLinks", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+
+      if (page) params.append("page", page.toString());
+      if (limit) params.append("limit", limit.toString());
+      if (status) params.append("status", status);
+      if (sortField) params.append("sortField", sortField);
+      if (sortOrder) params.append("sortOrder", sortOrder);
+
+      const res = await axiosPrivate.get(
+        `/auth/signup-links?${params.toString()}`
+      );
+      return res.data;
+    },
+  });
+};
+
+export const useSignupLink = (token: string, options = {}) => {
+  return useQuery({
+    queryKey: ["signupLink", token],
+    queryFn: async () => {
+      const res = await axiosPrivate.get(`/auth/signup-links/${token}`);
+      return res.data;
+    },
+    enabled: !!token, // only run if token is provided
+    ...options,
+  });
+};

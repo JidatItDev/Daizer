@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { db } from "../db/dbConnection";
 import { pricingGroups, users } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -12,6 +13,7 @@ import {
 } from "../utils/jwt.utils";
 import { EmailService } from "../services/email.service";
 import redisClient from "../config/redis";
+import { signupLinks } from "../db/schema/signupLinks.schema";
 
 class AuthController {
   static async login(req: Request, res: Response) {
@@ -25,6 +27,7 @@ class AuthController {
           password: users.password,
           role: users.role,
           name: users.name,
+          isActive: users.isActive,
         })
         .from(users)
         .where(eq(users.email, email))
@@ -35,6 +38,9 @@ class AuthController {
       const isMatch = await verifyPassword(password, user.password);
       if (!isMatch)
         return res.status(401).json({ message: "Invalid credentials" });
+      if (!user.isActive) {
+        return res.status(403).json({ message: "User account is inactive" });
+      }
       if (!user.id || !user.role) {
         return res.status(500).json({ message: "User data is incomplete" });
       }
@@ -65,6 +71,49 @@ class AuthController {
     }
   }
 
+  // static async refresh(req: Request, res: Response) {
+  //   try {
+  //     const { token } = req.body;
+  //     const secret = process.env.JWT_SECRET;
+  //     if (!secret) throw new Error("JWT_SECRET is not defined");
+
+  //     const cacheKey = `token:${token}`;
+  //     const cachedPayload = await redisClient.get(cacheKey);
+
+  //     if (cachedPayload) {
+  //       const payload = JSON.parse(cachedPayload);
+  //       const newAccessToken = createAccessToken(payload.id, payload.role);
+  //       return res.json({ accessToken: newAccessToken });
+  //     }
+
+  //     const payload = jwt.verify(token, secret) as { id: string };
+
+  //     const [user] = await db
+  //       .select()
+  //       .from(users)
+  //       .where(eq(users.id, payload.id))
+  //       .limit(1);
+
+  //     if (!user)
+  //       return res.status(401).json({ message: "Invalid refresh token" });
+
+  //     // Cache token validation for 30 minutes
+  //     await redisClient.setEx(
+  //       cacheKey,
+  //       1800,
+  //       JSON.stringify({ id: user.id, role: user.role })
+  //     );
+
+  //     const newAccessToken = createAccessToken(user.id, user.role);
+  //     return res.json({ accessToken: newAccessToken });
+  //   } catch (err) {
+  //     console.error("Refresh error:", err);
+  //     return res
+  //       .status(403)
+  //       .json({ message: "Invalid or expired refresh token" });
+  //   }
+  // }
+
   static async refresh(req: Request, res: Response) {
     try {
       const { token } = req.body;
@@ -76,6 +125,18 @@ class AuthController {
 
       if (cachedPayload) {
         const payload = JSON.parse(cachedPayload);
+
+        // Ensure user is still active
+        const [user] = await db
+          .select({ isActive: users.isActive })
+          .from(users)
+          .where(eq(users.id, payload.id))
+          .limit(1);
+
+        if (!user || !user.isActive) {
+          return res.status(403).json({ message: "User account is inactive" });
+        }
+
         const newAccessToken = createAccessToken(payload.id, payload.role);
         return res.json({ accessToken: newAccessToken });
       }
@@ -83,13 +144,14 @@ class AuthController {
       const payload = jwt.verify(token, secret) as { id: string };
 
       const [user] = await db
-        .select()
+        .select({ id: users.id, role: users.role, isActive: users.isActive })
         .from(users)
         .where(eq(users.id, payload.id))
         .limit(1);
 
-      if (!user)
-        return res.status(401).json({ message: "Invalid refresh token" });
+      if (!user || !user.isActive) {
+        return res.status(403).json({ message: "User account is inactive" });
+      }
 
       // Cache token validation for 30 minutes
       await redisClient.setEx(
@@ -107,6 +169,7 @@ class AuthController {
         .json({ message: "Invalid or expired refresh token" });
     }
   }
+
   static async changePassword(req: Request, res: Response) {
     try {
       const userId = req.body.userId;
@@ -495,6 +558,233 @@ class AuthController {
     } catch (error) {
       console.error("Delete user error:", error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  static async createSignupLink(req: Request, res: Response) {
+    try {
+      const { email, name, pricingGroupId } = req.body;
+
+      // check if email already used
+      const [existingUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      if (existingUser) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+
+      // generate token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hrs
+
+      const [link] = await db
+        .insert(signupLinks)
+        .values({
+          email,
+          name,
+          pricingGroupId,
+          token,
+          expiresAt,
+        })
+        .returning();
+
+      const signupUrl = `${process.env.FRONTEND_URL}/register?token=${token}`;
+
+      // Send email to invited user
+      await EmailService.sendSignupLinkEmail(email, signupUrl);
+
+      return res.status(201).json({
+        success: true,
+        message: "Signup link created and sent",
+        link,
+      });
+    } catch (err) {
+      console.error("Create signup link error:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  static async registerWithLink(req: Request, res: Response) {
+    try {
+      const { token, password } = req.body;
+
+      const [link] = await db
+        .select()
+        .from(signupLinks)
+        .where(eq(signupLinks.token, token))
+        .limit(1);
+
+      if (!link) return res.status(404).json({ message: "Invalid link" });
+      if (link.isUsed)
+        return res
+          .status(400)
+          .json({ message: "Link already used please login to continue" });
+      if (new Date(link.expiresAt) < new Date()) {
+        return res.status(400).json({ message: "Link expired" });
+      }
+
+      const hashedPassword = await hashPassword(password);
+
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          name: link.name,
+          email: link.email,
+          password: hashedPassword,
+          role: "user",
+          isActive: true,
+          pricingGroupId: link.pricingGroupId,
+        })
+        .returning();
+
+      // mark link as used
+      await db
+        .update(signupLinks)
+        .set({ isUsed: true })
+        .where(eq(signupLinks.id, link.id));
+
+      return res.status(201).json({
+        success: true,
+        message: "User registered successfully",
+        user: newUser,
+      });
+    } catch (err) {
+      console.error("Register with link error:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  static async getAllSignupLinks(req: Request, res: Response) {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        status,
+        "pricingGroupIds[]": pricingGroupIds,
+        sortField = "createdAt",
+        sortOrder = "desc",
+      } = req.query;
+
+      const offset = (Number(page) - 1) * Number(limit);
+
+      const conditions: any[] = [];
+
+      if (status === "used") {
+        conditions.push(eq(signupLinks.isUsed, true));
+      } else if (status === "unused") {
+        conditions.push(eq(signupLinks.isUsed, false));
+      } else if (status === "expired") {
+        conditions.push(lt(signupLinks.expiresAt, new Date()));
+      }
+
+      if (pricingGroupIds) {
+        const ids = Array.isArray(pricingGroupIds)
+          ? pricingGroupIds
+          : [pricingGroupIds];
+        conditions.push(inArray(signupLinks.pricingGroupId, ids));
+      }
+
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
+
+      const allowedSortFields: Record<string, any> = {
+        email: signupLinks.email,
+        name: signupLinks.name,
+        createdAt: signupLinks.createdAt,
+        expiresAt: signupLinks.expiresAt,
+      };
+
+      const orderByField =
+        allowedSortFields[String(sortField)] || signupLinks.createdAt;
+      const orderDirection =
+        String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
+
+      const [result, countResult] = await Promise.all([
+        db
+          .select({
+            id: signupLinks.id,
+            email: signupLinks.email,
+            name: signupLinks.name,
+            pricingGroupId: signupLinks.pricingGroupId,
+            token: signupLinks.token,
+            isUsed: signupLinks.isUsed,
+            expiresAt: signupLinks.expiresAt,
+            createdAt: signupLinks.createdAt,
+          })
+          .from(signupLinks)
+          .where(whereClause || sql`true`)
+          .orderBy(
+            orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
+          )
+          .limit(Number(limit))
+          .offset(offset),
+
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(signupLinks)
+          .where(whereClause || sql`true`),
+      ]);
+
+      const [{ count }] = countResult;
+
+      return res.status(200).json({
+        success: true,
+        links: result,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          totalLinks: Number(count),
+          totalPages: Math.ceil(Number(count) / Number(limit)),
+        },
+      });
+    } catch (error) {
+      console.error("Get signup links error:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  static async getSignupLinkByToken(req: Request, res: Response) {
+    try {
+      const { token } = req.params;
+
+      if (!token) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Token is required" });
+      }
+
+      const [signupLink] = await db
+        .select({
+          id: signupLinks.id,
+          email: signupLinks.email,
+          name: signupLinks.name,
+          pricingGroupId: signupLinks.pricingGroupId,
+          token: signupLinks.token,
+          isUsed: signupLinks.isUsed,
+          expiresAt: signupLinks.expiresAt,
+          createdAt: signupLinks.createdAt,
+        })
+        .from(signupLinks)
+        .where(eq(signupLinks.token, token))
+        .limit(1);
+
+      if (!signupLink) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Signup link not found" });
+      }
+
+      return res.status(200).json({
+        success: true,
+        link: signupLink,
+      });
+    } catch (error) {
+      console.error("Get signup link by token error:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
     }
   }
 }

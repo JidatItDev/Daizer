@@ -261,7 +261,6 @@ export class EmailService {
     `;
   }
 
-  // utils/email/EmailService.ts
   static async sendPasswordResetLinkEmail(email: string, resetLink: string) {
     const subject = "Daizer: Reset Your Password";
 
@@ -286,6 +285,28 @@ export class EmailService {
           box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
           margin: 20px 0;
         " >Reset Password</a>
+        </div>
+      </div>
+    `;
+
+    const html = this.getBaseTemplate(subject, content);
+    await this.sendEmail(email, subject, html);
+  }
+
+  static async sendSignupLinkEmail(email: string, signupLink: string) {
+    const subject = "Daizer: Complete Your Signup";
+    const content = `
+      <div class="header">
+        <h1>Welcome to Daizer!</h1>
+        <p class="subtitle">You're just one step away from getting started 🚀</p>
+      </div>
+      <div class="content">
+        <p class="message">Click the button below to complete your signup process and set up your account.</p>
+        <div style="text-align:center;">
+          <a href="${signupLink}" class="cta-button">Complete Signup</a>
+        </div>
+        <div class="warning-box">
+          <p>This link will expire in 24 hours for your security. Please complete the signup process before it expires.</p>
         </div>
       </div>
     `;

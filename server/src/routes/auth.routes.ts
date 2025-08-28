@@ -643,4 +643,182 @@ authRouter.delete("/users/:id", authenticate, AuthController.deleteUser);
  *         description: Internal server error
  */
 
+authRouter.post("/signup-link", authenticate, AuthController.createSignupLink);
+/**
+ * @swagger
+ * /auth/signup-link:
+ *   post:
+ *     summary: Create a signup link for a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, name]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "invitee@example.com"
+ *               name:
+ *                 type: string
+ *                 example: "Invitee User"
+ *               pricingGroupId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "d7b2a920-35af-4d3c-b23c-9f0c4a4126e7"
+ *     responses:
+ *       201:
+ *         description: Signup link created and sent
+ *       409:
+ *         description: Email already in use
+ *       500:
+ *         description: Internal server error
+ */
+
+authRouter.post("/register-with-link", AuthController.registerWithLink);
+/**
+ * @swagger
+ * /auth/register-with-link:
+ *   post:
+ *     summary: Register a user using a signup link
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, password]
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "a7fbd09a3d2f4c9ea6be8c..."
+ *               password:
+ *                 type: string
+ *                 example: "StrongPass123!"
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: Link invalid or expired
+ *       404:
+ *         description: Link not found
+ *       500:
+ *         description: Internal server error
+ */
+
+authRouter.get("/signup-links", AuthController.getAllSignupLinks);
+
+/**
+ * @swagger
+ * /auth/signup-links:
+ *   get:
+ *     summary: Get all signup links
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           example: 10
+ *     responses:
+ *       200:
+ *         description: List of signup links
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 signupLinks:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "64b8f3f6..."
+ *                       email:
+ *                         type: string
+ *                         example: "john@example.com"
+ *                       name:
+ *                         type: string
+ *                         example: "John Doe"
+ *                       pricingGroupId:
+ *                         type: string
+ *                         example: "pg_12345"
+ *                       expiresAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-09-01T12:00:00.000Z"
+ *                       isUsed:
+ *                         type: boolean
+ *                         example: false
+ *                 total:
+ *                   type: integer
+ *                   example: 42
+ */
+
+authRouter.get("/signup-links/:token", AuthController.getSignupLinkByToken);
+
+/**
+ * @swagger
+ * /auth/signup-links/{token}:
+ *   get:
+ *     summary: Get a signup link by token
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Signup link token
+ *     responses:
+ *       200:
+ *         description: Signup link details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 link:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "64b8f3f6..."
+ *                     email:
+ *                       type: string
+ *                       example: "john@example.com"
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     pricingGroupId:
+ *                       type: string
+ *                       example: "pg_12345"
+ *                     token:
+ *                       type: string
+ *                       example: "abcd1234efgh"
+ *                     expiresAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-09-01T12:00:00.000Z"
+ *                     isUsed:
+ *                       type: boolean
+ *                       example: false
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ */
+
 export default authRouter;
