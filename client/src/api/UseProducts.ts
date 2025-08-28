@@ -1,0 +1,233 @@
+import { useQuery, useMutation } from "@tanstack/react-query";
+import axiosPrivate from "../AxiosInstances/PrivateAxiosInstance";
+import { queryClient } from "../main";
+
+// Types
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  pricingGroupPrices: {
+    id: string;
+    name: string;
+    price: number;
+  }[]; // ✅ was Record<string, number>
+  subcategoryId: string;
+  image?: {
+    name: string;
+    url: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  subcategory?: {
+    id: string;
+    name: string;
+    category?: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+export interface ProductsResponse {
+  success: boolean;
+  products: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalProducts: number;
+    totalPages: number;
+  };
+}
+
+export interface PricingGroup {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface PricingGroupsResponse {
+  success: boolean;
+  pricingGroups: PricingGroup[];
+  source?: string;
+}
+
+export interface CreateProductPayload {
+  name: string;
+  description?: string;
+  pricingGroupPrices: Record<string, number>;
+  subcategoryId: string;
+  image?: File;
+}
+
+export interface UpdateProductPayload {
+  name?: string;
+  description?: string;
+  pricingGroupPrices?: Record<string, number>;
+  subcategoryId?: string;
+  image?: File;
+}
+
+const useInvalidateProducts = () => {
+  return () =>
+    queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
+};
+
+// Get all products with pagination
+export const useProducts = (
+  filters: { page?: number; limit?: number } = {}
+) => {
+  const { page = 1, limit = 10 } = filters;
+
+  return useQuery({
+    queryKey: ["products", { page, limit }],
+    queryFn: async (): Promise<ProductsResponse> => {
+      const response = await axiosPrivate.get("/products/getAllProducts", {
+        params: { page, limit },
+      });
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Get product by ID
+export const useProduct = (id: string) => {
+  return useQuery({
+    queryKey: ["product", id],
+    queryFn: async (): Promise<{
+      success: boolean;
+      data: Product;
+      source: string;
+    }> => {
+      const response = await axiosPrivate.get(`/products/getProductById/${id}`);
+      return response.data;
+    },
+    enabled: !!id,
+  });
+};
+
+// Get pricing groups
+export const usePricingGroups = () => {
+  return useQuery({
+    queryKey: ["pricingGroups"],
+    queryFn: async (): Promise<PricingGroupsResponse> => {
+      const response = await axiosPrivate.get("/products/getPricingGroups");
+      return response.data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// Get products by category
+export const useProductsByCategory = (categoryId: string) => {
+  return useQuery({
+    queryKey: ["products", "category", categoryId],
+    queryFn: async (): Promise<{
+      success: boolean;
+      products: Product[];
+      message: string;
+    }> => {
+      const response = await axiosPrivate.get(
+        `/products/getProductsByCategory/${categoryId}`
+      );
+      return response.data;
+    },
+    enabled: !!categoryId,
+  });
+};
+
+// Create product
+export const useCreateProduct = () => {
+  const invalidateProducts = useInvalidateProducts();
+
+  return useMutation({
+    mutationFn: async (payload: CreateProductPayload) => {
+      const formData = new FormData();
+      formData.append("name", payload.name);
+      if (payload.description) {
+        formData.append("description", payload.description);
+      }
+      formData.append(
+        "pricingGroupPrices",
+        JSON.stringify(payload.pricingGroupPrices)
+      );
+      formData.append("subcategoryId", payload.subcategoryId);
+      if (payload.image) {
+        formData.append("image", payload.image);
+      }
+
+      const response = await axiosPrivate.post(
+        "/products/createProduct",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      invalidateProducts();
+    },
+  });
+};
+
+// Update product
+export const useUpdateProduct = () => {
+  const invalidateProducts = useInvalidateProducts();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...payload
+    }: { id: string } & UpdateProductPayload) => {
+      const formData = new FormData();
+      if (payload.name) formData.append("name", payload.name);
+      if (payload.description)
+        formData.append("description", payload.description);
+      if (payload.pricingGroupPrices) {
+        formData.append(
+          "pricingGroupPrices",
+          JSON.stringify(payload.pricingGroupPrices)
+        );
+      }
+      if (payload.subcategoryId)
+        formData.append("subcategoryId", payload.subcategoryId);
+      if (payload.image) formData.append("image", payload.image);
+
+      const response = await axiosPrivate.put(
+        `/products/updateProduct/${id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      invalidateProducts();
+    },
+  });
+};
+
+// Delete product
+export const useDeleteProduct = () => {
+  const invalidateProducts = useInvalidateProducts();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await axiosPrivate.delete(
+        `/products/deleteProduct/${id}`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      invalidateProducts();
+    },
+  });
+};

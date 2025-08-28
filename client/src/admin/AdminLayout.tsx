@@ -5,6 +5,7 @@ import { BsFillCreditCardFill } from "react-icons/bs";
 
 import Sidebar from "../components/common/Sidebar";
 import Header from "../components/common/Header";
+import { MdDashboard } from "react-icons/md";
 
 const AdminLayout = () => {
   const menuItems = [
@@ -17,6 +18,11 @@ const AdminLayout = () => {
       name: "Pricing Group",
       icon: <BsFillCreditCardFill />,
       path: "pricing-groups",
+    },
+    {
+      name: "Orders & Products",
+      icon: <MdDashboard />,
+      path: "orders-products",
     },
   ];
   const isMobile = window.innerWidth < 768;

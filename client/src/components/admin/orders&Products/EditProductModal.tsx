@@ -1,0 +1,315 @@
+import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { Button } from "../../common/Button";
+import { Input } from "../../common/Input";
+import { usePricingGroups } from "../../../api/pricingGroup";
+import { useCategoriesTree } from "../../../api/UseCategories";
+
+import { TreeSelect } from "../../common/TreeSelect";
+import { ImageUploader } from "../../common/ImageUplaoder";
+import toast from "react-hot-toast";
+import { useUpdateProduct, type Product } from "../../../api/UseProducts";
+
+interface EditProductModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  product: Product | null;
+}
+
+interface FormData {
+  name: string;
+  description: string;
+  subcategoryId: string;
+  image: File | null;
+  pricingGroupPrices: Record<string, string>;
+}
+
+export const EditProductModal: React.FC<EditProductModalProps> = ({
+  isOpen,
+  onClose,
+  product,
+}) => {
+  const [formData, setFormData] = useState<FormData>({
+    name: "",
+    description: "",
+    subcategoryId: "",
+    image: null,
+    pricingGroupPrices: {},
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { data: pricingGroupsData, isLoading: isLoadingPricingGroups } =
+    usePricingGroups();
+  const { data: categoriesData, isLoading: isLoadingCategories } =
+    useCategoriesTree();
+  const updateProductMutation = useUpdateProduct();
+
+  const pricingGroups = pricingGroupsData?.pricingGroups || [];
+  const categories = categoriesData?.categories || [];
+
+  // Initialize form data when product changes
+  useEffect(() => {
+    if (product && isOpen) {
+      const pricingGroupPrices: Record<string, string> = {};
+
+      if (Array.isArray(product.pricingGroupPrices)) {
+        // ✅ Convert array to Record<string, string>
+        product.pricingGroupPrices.forEach((pg) => {
+          pricingGroupPrices[pg.id] = pg.price.toString();
+        });
+      }
+
+      setFormData({
+        name: product.name,
+        description: product.description || "",
+        subcategoryId: product.subcategoryId,
+        image: null,
+        pricingGroupPrices,
+      });
+    }
+  }, [product, isOpen]);
+
+  const handleInputChange = (field: keyof FormData, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handlePricingGroupPriceChange = (groupId: string, price: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      pricingGroupPrices: {
+        ...prev.pricingGroupPrices,
+        [groupId]: price,
+      },
+    }));
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Product name is required";
+    }
+
+    if (!formData.subcategoryId) {
+      newErrors.subcategoryId = "Please select a category";
+    }
+
+    // Validate that at least one pricing group has a price
+    const hasValidPrice = Object.values(formData.pricingGroupPrices).some(
+      (price) => price && parseFloat(price) > 0
+    );
+
+    if (!hasValidPrice) {
+      newErrors.pricingGroupPrices =
+        "At least one pricing group must have a valid price";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!product || !validateForm()) {
+      return;
+    }
+
+    try {
+      // Convert string prices to numbers
+      const pricingGroupPrices: Record<string, number> = {};
+      Object.entries(formData.pricingGroupPrices).forEach(
+        ([groupId, price]) => {
+          if (price && parseFloat(price) > 0) {
+            pricingGroupPrices[groupId] = parseFloat(price);
+          }
+        }
+      );
+
+      await updateProductMutation.mutateAsync({
+        id: product.id,
+        name: formData.name,
+        description: formData.description,
+        subcategoryId: formData.subcategoryId,
+        image: formData.image || undefined,
+        pricingGroupPrices,
+      });
+
+      toast.success("Product updated successfully");
+      handleClose();
+    } catch (error: any) {
+      console.error("Failed to update product:", error);
+      toast.error(error.response?.data?.message || "Failed to update product");
+    }
+  };
+
+  const handleClose = () => {
+    setFormData({
+      name: "",
+      description: "",
+      subcategoryId: "",
+      image: null,
+      pricingGroupPrices: {},
+    });
+    setErrors({});
+    onClose();
+  };
+
+  if (!isOpen || !product) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                Edit Product
+              </h3>
+              <p className="text-sm text-gray-500">
+                Update product information
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    placeholder="Product Name"
+                    error={errors.name}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <TreeSelect
+                    data={categories}
+                    value={formData.subcategoryId}
+                    onChange={(value) =>
+                      handleInputChange("subcategoryId", value)
+                    }
+                    placeholder="Select Category"
+                    error={errors.subcategoryId}
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    handleInputChange("description", e.target.value)
+                  }
+                  placeholder="Product description..."
+                  rows={3}
+                  className="w-full py-3 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <ImageUploader
+                  onImageChange={(file) => handleInputChange("image", file)}
+                  currentImage={product.image?.url}
+                  label="Product Image"
+                  error={errors.image}
+                />
+              </div>
+
+              {/* Pricing Groups */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-md font-medium text-gray-900">
+                    Pricing Groups
+                  </h4>
+                  {isLoadingPricingGroups && (
+                    <div className="text-sm text-gray-500">
+                      Loading pricing groups...
+                    </div>
+                  )}
+                </div>
+
+                {errors.pricingGroupPrices && (
+                  <p className="text-sm text-red-600 mb-3">
+                    {errors.pricingGroupPrices}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pricingGroups.map((group) => (
+                    <div key={group.id} className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        {group.name}
+                        {group.isDefault && (
+                          <span className="text-xs text-blue-600 ml-1">
+                            (Default)
+                          </span>
+                        )}
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.pricingGroupPrices[group.id] || ""}
+                        onChange={(e) =>
+                          handlePricingGroupPriceChange(
+                            group.id,
+                            e.target.value
+                          )
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={updateProductMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  loading={updateProductMutation.isPending}
+                  disabled={isLoadingPricingGroups || isLoadingCategories}
+                >
+                  Update Product
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
