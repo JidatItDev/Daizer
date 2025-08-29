@@ -51,7 +51,7 @@ export default function Register() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const [isSignupLink, setIsSignupLink] = useState(false);
-  const [prefilledData, setPrefilledData] = useState<Partial<FormData>>({});
+  // const [prefilledData, setPrefilledData] = useState<Partial<FormData>>({});
   // Validation functions
   const validateEmail = (email: string): string | undefined => {
     if (!email) {
@@ -104,17 +104,6 @@ export default function Register() {
       enabled: !!token,
     });
 
-  // useEffect(() => {
-  //   if (isSignupLink && prefilledData.email) {
-  //     setFormData((prev) => ({
-  //       ...prev,
-  //       email: prefilledData.email || "",
-  //       firstName: prefilledData.firstName || "",
-  //       lastName: prefilledData.lastName || "",
-  //     }));
-  //   }
-  // }, [isSignupLink, prefilledData]);
-
   useEffect(() => {
     if (signupLinkData && signupLinkData.success) {
       console.log("signupLinkData", signupLinkData);
@@ -123,11 +112,7 @@ export default function Register() {
       const nameParts = signupLinkData.link.name.split(" ");
       const firstName = nameParts[0];
       const lastName = nameParts.slice(1).join(" ");
-      setPrefilledData({
-        email: signupLinkData.link.email,
-        firstName: firstName,
-        lastName: lastName,
-      });
+
       setFormData((prev) => ({
         ...prev,
         email: signupLinkData.link.email,
@@ -293,26 +278,6 @@ export default function Register() {
 
     // If no errors, proceed with registration
     if (Object.keys(newErrors).length === 0) {
-      // try {
-      //   const fullName = `${formData.firstName} ${formData.lastName}`;
-
-      //   const response = await axiosPublic.post(API_ENDPOINTS.AUTH.REGISTER, {
-      //     email: formData.email,
-      //     name: fullName,
-      //     password: formData.password,
-      //   });
-
-      //   const data = await response.data;
-      //   console.log(response);
-
-      //   if (data.success) {
-      //     console.log("being called");
-      //     login(data.user, data.accessToken, data.refreshToken);
-      //   }
-      //   console.log("Registration successful:", response.data);
-      //   navigate("/");
-      //   toast.success("Registration successful");
-      // }
       try {
         if (isSignupLink && token) {
           // Use the register with link method

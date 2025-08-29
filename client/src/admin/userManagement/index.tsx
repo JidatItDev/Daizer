@@ -191,21 +191,18 @@ const FilterDropdown = ({
           </button>
         </div>
 
-        {/* Sort Section */}
         <SortSection
           options={sortOptions}
           currentSort={sort}
           onSelect={onSortChange}
         />
 
-        {/* Status Filter */}
         <FilterSection
           title="Status"
           options={statusOptions}
           onSelect={(key) => onFilterChange("status", key)}
         />
 
-        {/* Pricing Group Filter */}
         <FilterSection
           title="Pricing Group"
           options={pricingGroupOptions}
@@ -243,6 +240,7 @@ const UserManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const [createFormData, setCreateFormData] = useState({
     fullName: "",
@@ -353,6 +351,7 @@ const UserManagement = () => {
   };
 
   const handleToggleStatus = async (user: User) => {
+    setUpdatingUserId(user.id);
     try {
       await updateUserMutation.mutateAsync({
         id: user.id,
@@ -362,9 +361,11 @@ const UserManagement = () => {
         `User ${!user.isActive ? "activated" : "deactivated"} successfully`
       );
       refetch();
+      setUpdatingUserId(null);
     } catch (error: any) {
       console.error("Failed to update user status:", error);
       toast.error("Failed to update user status");
+      setUpdatingUserId(null);
     }
   };
 
@@ -382,7 +383,7 @@ const UserManagement = () => {
       toast.error("Failed to delete user");
     }
   };
-  const { mutateAsync: createSignupLink, isPending } = useCreateSignupLink();
+  const { mutateAsync: createSignupLink } = useCreateSignupLink();
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,10 +391,17 @@ const UserManagement = () => {
 
     try {
       console.log("Creating account with:", createFormData);
+      let pricingGroupId = createFormData.pricingGroup;
+      if (!pricingGroupId) {
+        const defaultPricingGroup = pricingGroups.find(
+          (group: PricingGroup) => group.isDefault
+        );
+        pricingGroupId = defaultPricingGroup?.id || null;
+      }
       const payload = {
         email: createFormData?.email || "",
         name: createFormData?.fullName || "",
-        pricingGroupId: createFormData?.pricingGroup || "",
+        pricingGroupId: pricingGroupId || null,
       };
       console.log("payload", payload);
 
@@ -407,18 +415,18 @@ const UserManagement = () => {
         fullName: "",
         email: "",
         pricingGroup: "",
-        balance: "",
+        // balance: "",
       });
       setIsCreateModalOpen(false);
 
       console.log("Account created successfully//");
-    } catch (error) {
-      if (error?.status === 409) {
+    } catch (error: any) {
+      if (error?.response?.status === 409) {
         console.log("error if called");
         toast.error("Email already exists.");
       }
       console.log("Failed to create account:", error);
-      toast.error(`Failed to create account `);
+      toast.error(`Failed to create account`);
     } finally {
       setIsSubmitting(false);
     }
@@ -461,10 +469,14 @@ const UserManagement = () => {
     }
   };
 
+  type CreateFormFields = keyof typeof createFormData;
+  type EditFormFields = keyof typeof editFormData;
+  type AllFormFields = CreateFormFields | EditFormFields;
+
   const handleInputChange = (
     formData: any,
     setFormData: any,
-    field: keyof typeof createFormData,
+    field: AllFormFields,
     value: string
   ) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -549,7 +561,7 @@ const UserManagement = () => {
                   record.isActive ? "translate-x-6" : "translate-x-1"
                 }`}
               />
-              {isUpdating && (
+              {isUpdating && updatingUserId === record.id && (
                 <div
                   className={`absolute inset-0 flex items-center ${
                     record.isActive ? "justify-start" : "justify-end"
@@ -574,6 +586,7 @@ const UserManagement = () => {
             size="sm"
             className="px-3 py-1 text-primary-dark border-primary-dark hover:bg-gray-50 min-w-[140px]"
             onClick={() => handleViewDetails(record.id)}
+            disabled
           >
             View Details
           </Button>
@@ -644,12 +657,18 @@ const UserManagement = () => {
         return (
           <div className="flex gap-3">
             {/* Copy Button */}
-            <button
+            {/* <button
               onClick={handleCopy}
               className="p-2 rounded-full hover:bg-gray-200 transition"
               title="Copy Link"
             >
               <ClipboardIcon className="h-5 w-5 text-gray-600" />
+            </button> */}
+            <button
+              onClick={handleCopy}
+              className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
+            >
+              <ClipboardIcon size={16} />
             </button>
 
             {/* Open Link Button */}
@@ -657,10 +676,10 @@ const UserManagement = () => {
               href={signupUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-full hover:bg-gray-200 transition"
+              className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
               title="Open Link"
             >
-              <LinkIcon className="h-5 w-5 text-gray-600" />
+              <LinkIcon size={16} />
             </a>
           </div>
         );
@@ -797,7 +816,6 @@ const UserManagement = () => {
                     )
                   }
                   className="w-full p-2 py-3 border-b-[2px] border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black appearance-none"
-                  required
                 >
                   <option value="">Select Pricing Group</option>
                   {pricingGroups.map((group: PricingGroup) => (
@@ -824,22 +842,6 @@ const UserManagement = () => {
                 </div>
               </div>
             </div>
-            {/* <div className="space-y-2">
-              <Input
-                type="number"
-                value={createFormData.balance}
-                onChange={(e) =>
-                  handleInputChange(
-                    createFormData,
-                    setCreateFormData,
-                    "balance",
-                    e.target.value
-                  )
-                }
-                placeholder="Balance"
-                required
-              />
-            </div> */}
           </div>
 
           <Button type="submit" loading={isSubmitting} className="w-full">
@@ -950,6 +952,7 @@ const UserManagement = () => {
                     e.target.value
                   )
                 }
+                disabled
                 placeholder="Balance"
               />
             </div>

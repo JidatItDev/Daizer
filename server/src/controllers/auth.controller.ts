@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { db } from "../db/dbConnection";
 import { pricingGroups, users } from "../db/schema";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, lt } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../utils/crypto.utils";
 import {
   createAccessToken,
@@ -71,49 +71,6 @@ class AuthController {
     }
   }
 
-  // static async refresh(req: Request, res: Response) {
-  //   try {
-  //     const { token } = req.body;
-  //     const secret = process.env.JWT_SECRET;
-  //     if (!secret) throw new Error("JWT_SECRET is not defined");
-
-  //     const cacheKey = `token:${token}`;
-  //     const cachedPayload = await redisClient.get(cacheKey);
-
-  //     if (cachedPayload) {
-  //       const payload = JSON.parse(cachedPayload);
-  //       const newAccessToken = createAccessToken(payload.id, payload.role);
-  //       return res.json({ accessToken: newAccessToken });
-  //     }
-
-  //     const payload = jwt.verify(token, secret) as { id: string };
-
-  //     const [user] = await db
-  //       .select()
-  //       .from(users)
-  //       .where(eq(users.id, payload.id))
-  //       .limit(1);
-
-  //     if (!user)
-  //       return res.status(401).json({ message: "Invalid refresh token" });
-
-  //     // Cache token validation for 30 minutes
-  //     await redisClient.setEx(
-  //       cacheKey,
-  //       1800,
-  //       JSON.stringify({ id: user.id, role: user.role })
-  //     );
-
-  //     const newAccessToken = createAccessToken(user.id, user.role);
-  //     return res.json({ accessToken: newAccessToken });
-  //   } catch (err) {
-  //     console.error("Refresh error:", err);
-  //     return res
-  //       .status(403)
-  //       .json({ message: "Invalid or expired refresh token" });
-  //   }
-  // }
-
   static async refresh(req: Request, res: Response) {
     try {
       const { token } = req.body;
@@ -160,7 +117,7 @@ class AuthController {
         JSON.stringify({ id: user.id, role: user.role })
       );
 
-      const newAccessToken = createAccessToken(user.id, user.role);
+      const newAccessToken = createAccessToken(user.id, user.role!);
       return res.json({ accessToken: newAccessToken });
     } catch (err) {
       console.error("Refresh error:", err);
@@ -213,6 +170,7 @@ class AuthController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+
   static async sendResetLink(req: Request, res: Response) {
     const { email } = req.body;
 
@@ -232,6 +190,7 @@ class AuthController {
       message: "Password reset link sent to email",
     });
   }
+
   static async resetPassword(req: Request, res: Response) {
     const { token, newPassword } = req.body;
 
@@ -453,16 +412,15 @@ class AuthController {
       // Build filters
       const conditions = [];
       if (status !== undefined) {
-        // status comes as string "true"/"false" → convert to boolean
         conditions.push(
-          eq(users.isActive, status === "true" || status === true)
+          eq(users.isActive, status === "true" || status === "true")
         );
       }
       if (pricingGroupIds) {
         const ids = Array.isArray(pricingGroupIds)
           ? pricingGroupIds
           : [pricingGroupIds];
-        conditions.push(inArray(users.pricingGroupId, ids));
+        conditions.push(inArray(users.pricingGroupId, ids as string[]));
       }
 
       console.log("object filters", {
@@ -683,7 +641,7 @@ class AuthController {
         const ids = Array.isArray(pricingGroupIds)
           ? pricingGroupIds
           : [pricingGroupIds];
-        conditions.push(inArray(signupLinks.pricingGroupId, ids));
+        conditions.push(inArray(signupLinks.pricingGroupId, ids as string[]));
       }
 
       const whereClause =
