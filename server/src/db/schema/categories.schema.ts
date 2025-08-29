@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -7,7 +8,7 @@ import {
   foreignKey,
   jsonb,
 } from "drizzle-orm/pg-core";
-
+import { products } from "./products.schema";
 // -------------------------
 // Categories (with self-reference)
 // -------------------------
@@ -32,3 +33,11 @@ export const categories = pgTable(
     }).onDelete("cascade"),
   })
 );
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  parent: one(categories, {
+    fields: [categories.parentCategoryId],
+    references: [categories.id],
+  }),
+  children: many(categories), // for subcategories
+  products: many(products),
+}));

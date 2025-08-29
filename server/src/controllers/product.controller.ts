@@ -18,7 +18,13 @@ const invalidateProductsCache = async () => {
     console.error("Error invalidating product cache:", err);
   }
 };
-
+type ProductWithSubcategory = typeof products.$inferSelect & {
+  subcategory?:
+    | (typeof categories.$inferSelect & {
+        category?: typeof categories.$inferSelect | null;
+      })
+    | null;
+};
 class ProductController {
   // ✅ Create Product
   static async createProduct(req: Request, res: Response) {
@@ -350,7 +356,6 @@ class ProductController {
   static async getProductById(req: Request, res: Response) {
     try {
       const { id } = req.params;
-
       const cacheKey = `product:${id}`;
       const cachedProduct = await redisClient.get(cacheKey);
 
@@ -362,16 +367,9 @@ class ProductController {
         });
       }
 
-      // Query from DB
+      // Fetch the base product
       const product = await db.query.products.findFirst({
-        where: eq(products.id, id), // ✅ use string, not Number(id)
-        with: {
-          subcategory: {
-            with: {
-              category: true,
-            },
-          },
-        },
+        where: eq(products.id, id),
       });
 
       if (!product) {
@@ -381,13 +379,40 @@ class ProductController {
         });
       }
 
+      // Create the enhanced product object with proper typing
+      let enrichedProduct: ProductWithSubcategory = { ...product };
+
+      // Manually fetch subcategory and parent category if needed
+      if (product.subcategoryId) {
+        const subcategory = await db.query.categories.findFirst({
+          where: eq(categories.id, product.subcategoryId),
+        });
+
+        if (subcategory) {
+          let parentCategory: typeof categories.$inferSelect | null = null;
+
+          if (subcategory.parentCategoryId) {
+            parentCategory =
+              (await db.query.categories.findFirst({
+                where: eq(categories.id, subcategory.parentCategoryId),
+              })) ?? null; // ✅ fallback ensures it's never undefined
+          }
+
+          // Now TypeScript knows about the subcategory property
+          enrichedProduct.subcategory = {
+            ...subcategory,
+            category: parentCategory,
+          };
+        }
+      }
+
       // Save in Redis
-      await redisClient.setEx(cacheKey, 3600, JSON.stringify(product));
+      await redisClient.setEx(cacheKey, 3600, JSON.stringify(enrichedProduct));
 
       return res.status(200).json({
         success: true,
         source: "db",
-        data: product,
+        data: enrichedProduct,
       });
     } catch (err) {
       console.error(err);

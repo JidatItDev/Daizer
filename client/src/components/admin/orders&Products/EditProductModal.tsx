@@ -8,7 +8,11 @@ import { useCategoriesTree } from "../../../api/UseCategories";
 import { TreeSelect } from "../../common/TreeSelect";
 import { ImageUploader } from "../../common/ImageUplaoder";
 import toast from "react-hot-toast";
-import { useUpdateProduct, type Product } from "../../../api/UseProducts";
+import {
+  useUpdateProduct,
+  type PricingGroup,
+  type Product,
+} from "../../../api/UseProducts";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -70,7 +74,10 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   }, [product, isOpen]);
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
+  const handleInputChange = <K extends keyof FormData>(
+    field: K,
+    value: FormData[K]
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
@@ -141,9 +148,14 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
       toast.success("Product updated successfully");
       handleClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update product:", error);
-      toast.error(error.response?.data?.message || "Failed to update product");
+
+      if (error instanceof Error) {
+        toast.error(error.message || "Failed to update product");
+      } else {
+        toast.error("Failed to update product");
+      }
     }
   };
 
@@ -260,7 +272,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pricingGroups.map((group) => (
+                  {pricingGroups.map((group: PricingGroup) => (
                     <div key={group.id} className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">
                         {group.name}

@@ -28,10 +28,6 @@ const ConfirmationModalNew: React.FC<ConfirmationModalNewProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const buttonClass =
-    variant === "danger"
-      ? "bg-red-600 hover:bg-red-700"
-      : "bg-blue-600 hover:bg-blue-700";
   const getButtonColors = () => {
     switch (variant) {
       case "danger":

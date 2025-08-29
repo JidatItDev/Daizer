@@ -6,9 +6,10 @@ import { Input } from "../../common/Input";
 import toast from "react-hot-toast";
 import { usePricingGroups } from "../../../api/pricingGroup";
 import { useCategoriesTree } from "../../../api/UseCategories";
-import { useCreateProduct } from "../../../api/UseProducts";
+import { useCreateProduct, type PricingGroup } from "../../../api/UseProducts";
 import { TreeSelect } from "../../common/TreeSelect";
 import { ImageUploader } from "../../common/ImageUplaoder";
+import { AxiosError } from "axios";
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -46,7 +47,10 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   const pricingGroups = pricingGroupsData?.pricingGroups || [];
   const categories = categoriesData?.categories || [];
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
+  const handleInputChange = <K extends keyof FormData>(
+    field: K,
+    value: FormData[K]
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
@@ -116,9 +120,14 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
 
       toast.success("Product created successfully");
       handleClose();
-    } catch (error: any) {
-      console.error("Failed to create product:", error);
-      toast.error(error.response?.data?.message || "Failed to create product");
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        toast.error(
+          error.response?.data?.message || "Failed to create product"
+        );
+      } else {
+        toast.error("Failed to create product");
+      }
     }
   };
 
@@ -234,7 +243,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pricingGroups.map((group) => (
+                  {pricingGroups.map((group: PricingGroup) => (
                     <div key={group.id} className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">
                         {group.name}

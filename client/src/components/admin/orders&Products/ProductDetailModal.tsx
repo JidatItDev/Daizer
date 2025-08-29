@@ -1,30 +1,11 @@
 import React from "react";
 import { X, Package, Calendar, DollarSign, Tag } from "lucide-react";
+import type { Product } from "../../../api/UseProducts";
 
 interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: {
-    id: string;
-    name: string;
-    description: string;
-    pricingGroupPrices: Array<{
-      id: string;
-      name: string;
-      price: number;
-    }>;
-    image: {
-      key: string;
-      url: string;
-      name: string;
-      size: number;
-      mimetype: string;
-    } | null;
-    subcategoryId: string;
-    subcategoryName: string;
-    createdAt: string;
-    updatedAt: string;
-  } | null;
+  product: Product | null;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({

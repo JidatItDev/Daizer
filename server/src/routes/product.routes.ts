@@ -60,29 +60,15 @@ productRouter.delete(
 );
 
 // getProductsByCategory
-productRouter.delete(
+productRouter.get(
   "/getProductsByCategory/:categoryId",
-  authenticate,
-  authorize("admin"),
-  validateSchema(getProductByCategorySchema),
   ProductController.getProductsByCategory
 );
 
 // getPricingGroups
-productRouter.delete(
-  "/getPricingGroups",
-  authenticate,
-  authorize("admin"),
-  ProductController.getPricingGroups
-);
+productRouter.get("/getPricingGroups", ProductController.getPricingGroups);
 
 // getProductById/:id
-productRouter.delete(
-  "/getProductById/:id",
-  authenticate,
-  authorize("admin"),
-  validateSchema(getProductSchema),
-  ProductController.getProductById
-);
+productRouter.get("/getProductById/:id", ProductController.getProductById);
 
 export default productRouter;

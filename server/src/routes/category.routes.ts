@@ -53,27 +53,20 @@ CategoryRoutes.delete(
 );
 
 // Fetch lists
-CategoryRoutes.get(
-  "/getAllCategories",
-  validateSchema(pagedQuerySchema),
-  CategoryController.getAllCategories
-);
+CategoryRoutes.get("/getAllCategories", CategoryController.getAllCategories);
 
 CategoryRoutes.get(
   "/getAllParentCategories",
-  validateSchema(listParentsSchema),
   CategoryController.getParentCategories
 );
 
 CategoryRoutes.get(
   "/getAllSubCategories",
-  validateSchema(listSubcategoriesSchema),
   CategoryController.getAllSubcategories
 );
 
 CategoryRoutes.get(
   "/getSpecific_Subcategories_Of_Category/:id",
-  validateSchema(getSubcategoriesOfCategorySchema),
   CategoryController.getSubcategoriesOfCategory
 );
 

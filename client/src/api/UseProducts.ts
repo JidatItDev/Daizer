@@ -11,14 +11,17 @@ export interface Product {
     id: string;
     name: string;
     price: number;
-  }[]; // ✅ was Record<string, number>
+  }[];
   subcategoryId: string;
   image?: {
     name: string;
     url: string;
+    size: number;
+    mimetype: string;
   };
   createdAt: string;
   updatedAt: string;
+  subcategoryName: string;
   subcategory?: {
     id: string;
     name: string;

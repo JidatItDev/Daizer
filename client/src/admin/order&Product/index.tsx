@@ -17,27 +17,6 @@ import { EditProductModal } from "../../components/admin/orders&Products/EditPro
 import { ProductDetailModal } from "../../components/admin/orders&Products/ProductDetailModal";
 
 // Updated Product interface to match API response
-interface ApiProduct {
-  id: string;
-  name: string;
-  description: string;
-  pricingGroupPrices: Array<{
-    id: string;
-    name: string;
-    price: number;
-  }>;
-  image: {
-    key: string;
-    url: string;
-    name: string;
-    size: number;
-    mimetype: string;
-  } | null;
-  subcategoryId: string;
-  subcategoryName: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 const ProductsManagement = () => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -48,9 +27,7 @@ const ProductsManagement = () => {
   const [isProductDetailModalOpen, setIsProductDetailModalOpen] =
     useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(
-    null
-  );
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -65,8 +42,8 @@ const ProductsManagement = () => {
 
   const deleteProductMutation = useDeleteProduct();
 
-  const products: ApiProduct[] = data?.products ?? [];
-  console.log("products", products);
+  const products: Product[] = data?.products ?? [];
+
   const totalProducts = data?.pagination?.totalProducts ?? 0;
 
   if (pagination.total !== totalProducts) {
@@ -81,17 +58,17 @@ const ProductsManagement = () => {
     }));
   };
 
-  const handleViewProduct = (product: ApiProduct) => {
+  const handleViewProduct = (product: Product) => {
     setSelectedProduct(product);
     setIsProductDetailModalOpen(true);
   };
 
-  const handleEditProduct = (product: ApiProduct) => {
+  const handleEditProduct = (product: Product) => {
     setSelectedProduct(product);
     setIsEditProductModalOpen(true);
   };
 
-  const handleDeleteProduct = (product: ApiProduct) => {
+  const handleDeleteProduct = (product: Product) => {
     setSelectedProduct(product);
     setIsDeleteModalOpen(true);
   };
@@ -105,7 +82,7 @@ const ProductsManagement = () => {
       setSelectedProduct(null);
       toast.success("Product deleted successfully");
       refetch();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to delete product:", error);
       toast.error("Failed to delete product");
     }
@@ -117,7 +94,6 @@ const ProductsManagement = () => {
       | Array<{ id: string; name: string; price: number }>
       | null
       | undefined
-      | any
   ) => {
     if (!Array.isArray(pricingGroups) || pricingGroups.length === 0) {
       return "N/A";
@@ -132,11 +108,11 @@ const ProductsManagement = () => {
       : `$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`;
   };
   // Updated getCategoryPath function to work with new data structure
-  const getCategoryPath = (product: ApiProduct) => {
+  const getCategoryPath = (product: Product) => {
     return product.subcategoryName || "Uncategorized";
   };
 
-  const productColumns: TableColumn<ApiProduct>[] = [
+  const productColumns: TableColumn<Product>[] = [
     {
       key: "name",
       title: "Product",

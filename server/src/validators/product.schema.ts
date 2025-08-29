@@ -61,8 +61,4 @@ export const getProductSchema = z.object({
     id: z.string().uuid({ message: "Invalid product ID" }), // Assuming UUID primary key
   }),
 });
-export const getProductByCategorySchema = z.object({
-  params: z.object({
-    id: z.string().uuid({ message: "Invalid product ID" }), // Assuming UUID
-  }),
-});
+export const getProductByCategorySchema = z.object({});

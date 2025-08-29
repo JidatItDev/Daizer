@@ -8,7 +8,7 @@ if (!JWT_SECRET) {
 
 export const createAccessToken = (id: string, role: string): string => {
   return jwt.sign({ id, role }, JWT_SECRET, {
-    expiresIn: "15m",
+    expiresIn: "7d",
   });
 };
 export function createResetToken(email: string): string {
