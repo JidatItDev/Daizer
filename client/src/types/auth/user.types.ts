@@ -1,10 +1,11 @@
 export type role = "admin" | "user";
 
 export interface User {
-  id: string;
+  id?: string;
   name: string;
   email: string;
-  role: role;
+  role?: role;
+  pricingGroupId?: string;
 }
 
 export interface AuthContextType {

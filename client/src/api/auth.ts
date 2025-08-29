@@ -92,7 +92,7 @@ export const useCreateSignupLink = () => {
     mutationFn: async (payload: {
       email: string;
       name: string;
-      pricingGroupId: string;
+      pricingGroupId: string | null;
     }) => {
       const res = await axiosPrivate.post("/auth/signup-link", payload);
       return res.data;

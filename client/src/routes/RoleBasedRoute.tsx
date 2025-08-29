@@ -11,7 +11,7 @@ interface Props {
 const RoleBasedRoute = ({ allowedRoles, children }: Props) => {
   const { user } = useAuth();
 
-  if (!user || !allowedRoles.includes(user?.role)) {
+  if (!user || !user.role || !allowedRoles.includes(user?.role)) {
     return <Navigate to="/login" replace />;
   }
 

@@ -28,6 +28,7 @@ class AuthController {
           role: users.role,
           name: users.name,
           isActive: users.isActive,
+          pricingGroupId: users.pricingGroupId,
         })
         .from(users)
         .where(eq(users.email, email))
@@ -63,6 +64,7 @@ class AuthController {
           name: user.name,
           email: user.email,
           role: user.role,
+          pricingGroupId: user.pricingGroupId,
         },
       });
     } catch (err) {

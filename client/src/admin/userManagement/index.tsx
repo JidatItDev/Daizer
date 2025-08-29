@@ -295,8 +295,8 @@ const UserManagement = () => {
       filters.status.active && !filters.status.disable
         ? true
         : !filters.status.active && filters.status.disable
-          ? false
-          : undefined,
+        ? false
+        : undefined,
     pricingGroupIds:
       selectedPricingGroupIds.length > 0 ? selectedPricingGroupIds : undefined,
     sortField: sort.field,
@@ -656,14 +656,6 @@ const UserManagement = () => {
 
         return (
           <div className="flex gap-3">
-            {/* Copy Button */}
-            {/* <button
-              onClick={handleCopy}
-              className="p-2 rounded-full hover:bg-gray-200 transition"
-              title="Copy Link"
-            >
-              <ClipboardIcon className="h-5 w-5 text-gray-600" />
-            </button> */}
             <button
               onClick={handleCopy}
               className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
@@ -689,7 +681,6 @@ const UserManagement = () => {
 
   return (
     <div className="bg-white relative">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-col md:flex-row gap-4">
         <div className="flex items-center gap-4">
           <Heading>User Management</Heading>
@@ -757,7 +748,6 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Create Account Modal */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

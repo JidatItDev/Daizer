@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { LiaUsersCogSolid } from "react-icons/lia";
+import { AiFillProduct } from "react-icons/ai";
 import Sidebar from "../components/common/Sidebar";
 import Header from "../components/common/Header";
 
@@ -12,9 +13,9 @@ const UserLayout = () => {
       path: "dashboard",
     },
     {
-      name: "Wallet",
-      icon: <LiaUsersCogSolid />,
-      path: "/",
+      name: "Product Browsing",
+      icon: <AiFillProduct />,
+      path: "/browse-categories",
     },
   ];
   const isMobile = window.innerWidth < 768;

@@ -16,6 +16,9 @@ import { checkSession } from "./utils/auth";
 import UserManagement from "./admin/userManagement";
 import PricingGroup from "./admin/pricingGroups";
 import ProductsManagement from "./admin/order&Product";
+import Categories from "./user/categories";
+import Subcategory from "./user/categories/Subcategory";
+import Products from "./user/products";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -71,6 +74,10 @@ function App() {
       >
         <Route index element={<ClientDashboard />} />
         <Route path="/dashboard" element={<ClientDashboard />} />
+        <Route path="/browse-categories" element={<Categories />} />
+        <Route path="/browse-categories/:id" element={<Subcategory />} />
+        <Route path="/products/:id" element={<Products />} />
+
         <Route path="/change-password" element={<Changepassword />} />
       </Route>
 
