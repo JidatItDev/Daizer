@@ -6,13 +6,14 @@ import { usePricingGroups } from "../../../api/pricingGroup";
 import { useCategoriesTree } from "../../../api/UseCategories";
 
 import { TreeSelect } from "../../common/TreeSelect";
-import { ImageUploader } from "../../common/ImageUplaoder";
+
 import toast from "react-hot-toast";
 import {
   useUpdateProduct,
   type PricingGroup,
   type Product,
 } from "../../../api/UseProducts";
+import { ImageUploader } from "../../common/ImageUplaoder";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -148,10 +149,11 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
       toast.success("Product updated successfully");
       handleClose();
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Failed to update product:", error);
 
       if (error instanceof Error) {
+        toast.error(error.message);
         toast.error(error.message || "Failed to update product");
       } else {
         toast.error("Failed to update product");
@@ -185,9 +187,6 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
               <h3 className="text-lg font-medium text-gray-900">
                 Edit Product
               </h3>
-              <p className="text-sm text-gray-500">
-                Update product information
-              </p>
             </div>
             <button
               onClick={handleClose}
@@ -200,35 +199,109 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
           {/* Content */}
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="Product Name"
-                    error={errors.name}
-                    required
-                  />
+              {/* Left and Right Column Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Left Column */}
+                <div className="space-y-6">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) =>
+                        handleInputChange("name", e.target.value)
+                      }
+                      placeholder=""
+                      error={errors.name}
+                      required
+                    />
+                  </div>
+
+                  {/* Select Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Category
+                    </label>
+                    <TreeSelect
+                      data={categories}
+                      value={formData.subcategoryId}
+                      onChange={(value) =>
+                        handleInputChange("subcategoryId", value)
+                      }
+                      placeholder="Select Category"
+                      error={errors.subcategoryId}
+                    />
+                  </div>
+
+                  {/* Pricing Groups */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-4">
+                      Pricing Groups
+                    </label>
+                    {errors.pricingGroupPrices && (
+                      <p className="text-sm text-red-600 mb-3">
+                        {errors.pricingGroupPrices}
+                      </p>
+                    )}
+                    <div className="space-y-4">
+                      {pricingGroups.map((group: PricingGroup) => (
+                        <div key={group.id}>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Enter {group.name} Price:
+                          </label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.pricingGroupPrices[group.id] || ""}
+                            onChange={(e) =>
+                              handlePricingGroupPriceChange(
+                                group.id,
+                                e.target.value
+                              )
+                            }
+                            placeholder="Type here..."
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <TreeSelect
-                    data={categories}
-                    value={formData.subcategoryId}
-                    onChange={(value) =>
-                      handleInputChange("subcategoryId", value)
-                    }
-                    placeholder="Select Category"
-                    error={errors.subcategoryId}
-                  />
+                {/* Right Column */}
+                <div className="space-y-6">
+                  {/* Upload Image */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload Image
+                    </label>
+                    <ImageUploader
+                      onImageChange={(file) => handleInputChange("image", file)}
+                      currentImage={product.image?.url}
+                      error={errors.image}
+                    />
+                  </div>
+
+                  {/* Multiple API Links Section */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Multiple API Links
+                    </label>
+                    <div className="border border-gray-300 rounded-md p-4 bg-gray-50">
+                      <p className="text-sm text-gray-500">
+                        API Links functionality can be added here
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description - Full width below columns */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="text-sm font-medium text-gray-700 mb-2">
                   Description
                 </label>
                 <textarea
@@ -236,84 +309,19 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   onChange={(e) =>
                     handleInputChange("description", e.target.value)
                   }
-                  placeholder="Product description..."
-                  rows={3}
+                  placeholder=""
+                  rows={4}
                   className="w-full py-3 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
-              {/* Image Upload */}
-              <div>
-                <ImageUploader
-                  onImageChange={(file) => handleInputChange("image", file)}
-                  currentImage={product.image?.url}
-                  label="Product Image"
-                  error={errors.image}
-                />
-              </div>
-
-              {/* Pricing Groups */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-md font-medium text-gray-900">
-                    Pricing Groups
-                  </h4>
-                  {isLoadingPricingGroups && (
-                    <div className="text-sm text-gray-500">
-                      Loading pricing groups...
-                    </div>
-                  )}
-                </div>
-
-                {errors.pricingGroupPrices && (
-                  <p className="text-sm text-red-600 mb-3">
-                    {errors.pricingGroupPrices}
-                  </p>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {pricingGroups.map((group: PricingGroup) => (
-                    <div key={group.id} className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        {group.name}
-                        {group.isDefault && (
-                          <span className="text-xs text-blue-600 ml-1">
-                            (Default)
-                          </span>
-                        )}
-                      </label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={formData.pricingGroupPrices[group.id] || ""}
-                        onChange={(e) =>
-                          handlePricingGroupPriceChange(
-                            group.id,
-                            e.target.value
-                          )
-                        }
-                        placeholder="0.00"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Actions */}
-              <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={updateProductMutation.isPending}
-                >
-                  Cancel
-                </Button>
+              <div className="flex justify-center pt-6 border-t border-gray-200">
                 <Button
                   type="submit"
                   loading={updateProductMutation.isPending}
                   disabled={isLoadingPricingGroups || isLoadingCategories}
+                  className="px-12 py-3"
                 >
                   Update Product
                 </Button>

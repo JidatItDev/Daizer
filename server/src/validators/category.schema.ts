@@ -26,24 +26,33 @@ export const createSubcategorySchema = z.object({
 });
 
 // Update category (name and/or move under different parent)
+export const updateCategoryMultipartSchema = z
+  .object({
+    name: z.string().min(2).max(255).optional(),
+    parentCategoryId: z
+      .string()
+      .uuid("Invalid parentCategoryId")
+      .nullable()
+      .optional(),
+    id: z.string().uuid("Invalid category id"), // Include ID directly in the schema
+  })
+  .refine(
+    (data) => data.name !== undefined || data.parentCategoryId !== undefined,
+    { message: "Provide at least one field to update" }
+  );
+
+// Option 2: Keep the original structure but transform the data
 export const updateCategorySchema = z.object({
-  params: z.object({
-    id: z.string().uuid("Invalid category id"),
-  }),
-  body: z
-    .object({
-      name: z.string().min(2).max(255).optional(),
-      parentCategoryId: z
-        .string()
-        .uuid("Invalid parentCategoryId")
-        .nullable()
-        .optional(),
-    })
-    .refine(
-      (data) => data.name !== undefined || data.parentCategoryId !== undefined,
-      { message: "Provide at least one field to update" }
-    ),
+  name: z.string().min(2).max(255).optional(),
 });
+
+// Helper function to transform multipart data to match schema structure
+export const transformMultipartToSchema = (multipartData: any, params: any) => {
+  return {
+    params,
+    body: multipartData,
+  };
+};
 
 // Only subcategories of a given category
 export const getSubcategoriesOfCategorySchema = z.object({

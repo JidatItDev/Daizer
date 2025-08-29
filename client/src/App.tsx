@@ -16,6 +16,7 @@ import { checkSession } from "./utils/auth";
 import UserManagement from "./admin/userManagement";
 import PricingGroup from "./admin/pricingGroups";
 import ProductsManagement from "./admin/order&Product";
+import { Toaster } from "react-hot-toast";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -36,46 +37,49 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/admin-login" element={<AdminLogin />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+    <>
+      <Toaster position="top-right" />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <RoleBasedRoute allowedRoles={["admin"]}>
-              <AdminLayout />
-            </RoleBasedRoute>
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<UserManagement />} />
-        <Route path="dashboard" element={<UserManagement />} />
-        <Route path="pricing-groups" element={<PricingGroup />} />
-        <Route path="orders-products" element={<ProductsManagement />} />
-      </Route>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <RoleBasedRoute allowedRoles={["admin"]}>
+                <AdminLayout />
+              </RoleBasedRoute>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<UserManagement />} />
+          <Route path="dashboard" element={<UserManagement />} />
+          <Route path="pricing-groups" element={<PricingGroup />} />
+          <Route path="orders-products" element={<ProductsManagement />} />
+        </Route>
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <RoleBasedRoute allowedRoles={["user"]}>
-              <UserLayout />
-            </RoleBasedRoute>
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<ClientDashboard />} />
-        <Route path="/dashboard" element={<ClientDashboard />} />
-        <Route path="/change-password" element={<Changepassword />} />
-      </Route>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <RoleBasedRoute allowedRoles={["user"]}>
+                <UserLayout />
+              </RoleBasedRoute>
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ClientDashboard />} />
+          <Route path="/dashboard" element={<ClientDashboard />} />
+          <Route path="/change-password" element={<Changepassword />} />
+        </Route>
 
-      <Route path="*" element={<ErrorPage errorType="404" />} />
-    </Routes>
+        <Route path="*" element={<ErrorPage errorType="404" />} />
+      </Routes>
+    </>
   );
 }
 

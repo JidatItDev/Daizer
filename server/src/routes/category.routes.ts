@@ -14,7 +14,9 @@ import {
   pagedQuerySchema,
 } from "../validators/category.schema";
 import CategoryController from "../controllers/categories.controller";
-
+import { documentUpload } from "../middlewares/multerS3upload.middleware";
+import express from "express";
+import { multiPartValidateSchema } from "../middlewares/ZodMultipartMiddleware";
 const CategoryRoutes = Router();
 
 // Create
@@ -22,16 +24,18 @@ CategoryRoutes.post(
   "/createParentCategory",
   authenticate,
   authorize("admin"),
+  documentUpload.upload.single("image"), // Add multer middleware BEFORE validation
   validateSchema(createParentCategorySchema),
-  CategoryController.createParentCategory
+  CategoryController.createParentCategory as unknown as express.RequestHandler
 );
 
 CategoryRoutes.post(
   "/createSubCategory",
   authenticate,
   authorize("admin"),
+  documentUpload.upload.single("image"), // Add multer middleware BEFORE validation
   validateSchema(createSubcategorySchema),
-  CategoryController.createSubcategory
+  CategoryController.createSubcategory as unknown as express.RequestHandler
 );
 
 // Update
@@ -39,8 +43,9 @@ CategoryRoutes.put(
   "/updateCategory/:id",
   authenticate,
   authorize("admin"),
-  validateSchema(updateCategorySchema),
-  CategoryController.updateCategory
+  documentUpload.upload.single("image"), // Add multer middleware BEFORE validation
+  multiPartValidateSchema(updateCategorySchema),
+  CategoryController.updateCategory as unknown as express.RequestHandler
 );
 
 // Delete
@@ -48,7 +53,6 @@ CategoryRoutes.delete(
   "/deleteCategory/:id",
   authenticate,
   authorize("admin"),
-  validateSchema(idParamSchema),
   CategoryController.deleteCategory
 );
 

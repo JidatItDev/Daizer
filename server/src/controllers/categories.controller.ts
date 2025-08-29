@@ -3,7 +3,13 @@ import { db } from "../db/dbConnection";
 import { categories } from "../db/schema/categories.schema";
 import { eq, isNull, and, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
-
+interface MulterRequest extends Request {
+  file?: {
+    location: string;
+    key: string;
+    originalname: string;
+  };
+}
 // ---- Cache helpers ----
 const invalidateCategoryCaches = async (categoryId?: string) => {
   try {
@@ -30,12 +36,26 @@ const invalidateCategoryCaches = async (categoryId?: string) => {
 // ---- Controller ----
 class CategoryController {
   // Create Parent Category
-  static async createParentCategory(req: Request, res: Response) {
+  static async createParentCategory(req: MulterRequest, res: Response) {
     try {
       const { name } = req.body;
+
+      let imageData: { name: string; url: string } | undefined;
+
+      if (req.file) {
+        imageData = {
+          name: req.file.originalname,
+          url: req.file.location,
+        };
+      }
+
       const [row] = await db
         .insert(categories)
-        .values({ name, parentCategoryId: null })
+        .values({
+          name,
+          parentCategoryId: null,
+          ...(imageData && { image: imageData }),
+        })
         .returning();
 
       await invalidateCategoryCaches();
@@ -47,16 +67,19 @@ class CategoryController {
       });
     } catch (error) {
       console.error("createParentCategory error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
 
   // Create Subcategory
-  static async createSubcategory(req: Request, res: Response) {
+  static async createSubcategory(req: MulterRequest, res: Response) {
     try {
       const { name, parentCategoryId } = req.body;
 
-      // Ensure parent exists (and is a parent or at least not missing)
+      // Ensure parent exists
       const [parent] = await db
         .select({ id: categories.id })
         .from(categories)
@@ -64,14 +87,28 @@ class CategoryController {
         .limit(1);
 
       if (!parent) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Parent category not found" });
+        return res.status(404).json({
+          success: false,
+          message: "Parent category not found",
+        });
+      }
+
+      let imageData: { name: string; url: string } | undefined;
+
+      if (req.file) {
+        imageData = {
+          name: req.file.originalname,
+          url: req.file.location,
+        };
       }
 
       const [row] = await db
         .insert(categories)
-        .values({ name, parentCategoryId })
+        .values({
+          name,
+          parentCategoryId,
+          ...(imageData && { image: imageData }),
+        })
         .returning();
 
       await invalidateCategoryCaches(parentCategoryId);
@@ -83,17 +120,21 @@ class CategoryController {
       });
     } catch (error) {
       console.error("createSubcategory error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
 
-  // Update Category (name and/or parent move)
-  static async updateCategory(req: Request, res: Response) {
+  // Update Category
+  static async updateCategory(req: MulterRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { name, parentCategoryId } = req.body as {
+      const { name, parentCategoryId, removeImage } = req.body as {
         name?: string;
         parentCategoryId?: string | null;
+        removeImage?: string; // "true" if user wants to remove image
       };
 
       if (parentCategoryId === id) {
@@ -103,7 +144,7 @@ class CategoryController {
         });
       }
 
-      // If moving under a parent, ensure parent exists (or allow null to become parent)
+      // If moving under a parent, ensure parent exists
       if (parentCategoryId) {
         const [parent] = await db
           .select({ id: categories.id })
@@ -111,29 +152,49 @@ class CategoryController {
           .where(eq(categories.id, parentCategoryId))
           .limit(1);
         if (!parent) {
-          return res
-            .status(404)
-            .json({ success: false, message: "New parent category not found" });
+          return res.status(404).json({
+            success: false,
+            message: "New parent category not found",
+          });
         }
+      }
+
+      let imageData: { name: string; url: string } | null | undefined;
+
+      if (removeImage === "true") {
+        imageData = null; // Explicitly set to null to remove image
+      } else if (req.file) {
+        imageData = {
+          name: req.file.originalname,
+          url: req.file.location,
+        };
+      }
+
+      const updateData: any = {
+        ...(name !== undefined && { name }),
+        ...(parentCategoryId !== undefined && { parentCategoryId }),
+      };
+
+      // Only update image if explicitly provided or being removed
+      if (imageData !== undefined) {
+        updateData.image = imageData;
       }
 
       const [updated] = await db
         .update(categories)
-        .set({
-          ...(name !== undefined && { name }),
-          ...(parentCategoryId !== undefined && { parentCategoryId }),
-        })
+        .set(updateData)
         .where(eq(categories.id, id))
         .returning();
 
       if (!updated) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Category not found" });
+        return res.status(404).json({
+          success: false,
+          message: "Category not found",
+        });
       }
 
       await invalidateCategoryCaches(parentCategoryId ?? undefined);
-      await invalidateCategoryCaches(id); // in case this was a parent
+      await invalidateCategoryCaches(id);
 
       return res.status(200).json({
         success: true,
@@ -142,10 +203,12 @@ class CategoryController {
       });
     } catch (error) {
       console.error("updateCategory error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
-
   // Delete Category (cascade deletes subs because FK onDelete: cascade)
   static async deleteCategory(req: Request, res: Response) {
     try {

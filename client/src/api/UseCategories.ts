@@ -7,7 +7,7 @@ export interface Category {
   id: string;
   name: string;
   parentCategoryId: string | null;
-  image?: { name: string; url: string };
+  image?: { name: string; url: string } | null;
   createdAt: string;
   updatedAt: string;
   subcategories?: Category[];
@@ -27,6 +27,25 @@ export interface CategoriesResponse {
 export interface TreeResponse {
   success: boolean;
   categories: Category[];
+}
+
+export interface CreateParentCategoryPayload {
+  name: string;
+  image?: File;
+}
+
+export interface CreateSubcategoryPayload {
+  name: string;
+  parentCategoryId: string;
+  image?: File;
+}
+
+export interface UpdateCategoryPayload {
+  id: string;
+  name?: string;
+  parentCategoryId?: string | null;
+  image?: File;
+  removeImage?: boolean;
 }
 
 const useInvalidateAll = () => {
@@ -113,10 +132,22 @@ export const useSubcategoriesOfCategory = (categoryId: string) => {
 export const useCreateParentCategory = () => {
   const invalidateAll = useInvalidateAll();
   return useMutation({
-    mutationFn: async (payload: { name: string }) => {
+    mutationFn: async (payload: CreateParentCategoryPayload) => {
+      const formData = new FormData();
+      formData.append("name", payload.name);
+
+      if (payload.image) {
+        formData.append("image", payload.image);
+      }
+
       const response = await axiosPrivate.post(
         "/categories/createParentCategory",
-        payload
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
       return response.data;
     },
@@ -130,10 +161,23 @@ export const useCreateParentCategory = () => {
 export const useCreateSubcategory = () => {
   const invalidateAll = useInvalidateAll();
   return useMutation({
-    mutationFn: async (payload: { name: string; parentCategoryId: string }) => {
+    mutationFn: async (payload: CreateSubcategoryPayload) => {
+      const formData = new FormData();
+      formData.append("name", payload.name);
+      formData.append("parentCategoryId", payload.parentCategoryId);
+
+      if (payload.image) {
+        formData.append("image", payload.image);
+      }
+
       const response = await axiosPrivate.post(
         "/categories/createSubCategory",
-        payload
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
       return response.data;
     },
@@ -147,17 +191,34 @@ export const useCreateSubcategory = () => {
 export const useUpdateCategory = () => {
   const invalidateAll = useInvalidateAll();
   return useMutation({
-    mutationFn: async ({
-      id,
-      ...payload
-    }: {
-      id: string;
-      name?: string;
-      parentCategoryId?: string | null;
-    }) => {
+    mutationFn: async (payload: UpdateCategoryPayload) => {
+      const { id, ...updateData } = payload;
+      const formData = new FormData();
+
+      if (updateData.name !== undefined) {
+        formData.append("name", updateData.name);
+      }
+
+      if (updateData.parentCategoryId !== undefined) {
+        formData.append("parentCategoryId", updateData.parentCategoryId || "");
+      }
+
+      if (updateData.image) {
+        formData.append("image", updateData.image);
+      }
+
+      if (updateData.removeImage) {
+        formData.append("removeImage", "true");
+      }
+
       const response = await axiosPrivate.put(
         `/categories/updateCategory/${id}`,
-        payload
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
       return response.data;
     },
