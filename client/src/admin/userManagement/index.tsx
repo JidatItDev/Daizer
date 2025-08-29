@@ -295,8 +295,8 @@ const UserManagement = () => {
       filters.status.active && !filters.status.disable
         ? true
         : !filters.status.active && filters.status.disable
-        ? false
-        : undefined,
+          ? false
+          : undefined,
     pricingGroupIds:
       selectedPricingGroupIds.length > 0 ? selectedPricingGroupIds : undefined,
     sortField: sort.field,

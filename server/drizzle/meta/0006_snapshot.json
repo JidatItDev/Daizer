@@ -1,6 +1,6 @@
 {
-  "id": "37efe0e8-273a-4e46-9d9e-f5ec1a1f90c4",
-  "prevId": "aea80c7c-0af4-4301-8755-919e9e81beac",
+  "id": "b191c30d-9ea3-480f-a237-d5c4293dc87e",
+  "prevId": "51a63ef3-6a45-4236-accc-b319a202841f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -329,6 +329,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "subcategory_name": {
+          "name": "subcategory_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -393,6 +399,92 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.signup_links": {
+      "name": "signup_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pricing_group_id": {
+          "name": "pricing_group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_used": {
+          "name": "is_used",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "signup_links_pricing_group_id_pricing_groups_id_fk": {
+          "name": "signup_links_pricing_group_id_pricing_groups_id_fk",
+          "tableFrom": "signup_links",
+          "tableTo": "pricing_groups",
+          "columnsFrom": [
+            "pricing_group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "signup_links_token_unique": {
+          "name": "signup_links_token_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
