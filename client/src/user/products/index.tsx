@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 
 interface Product {
   id: string;
+  quantity?: string;
   name: string;
   description?: string; // Change from string to string | undefined
   pricingGroupPrices: Array<{
@@ -74,6 +75,9 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
             <span className="h-2 w-2 bg-success rounded-full"></span>
             <span>{pricingGroupName}</span>
           </p>
+        </div>
+        <div>
+          <p className="font-poppins text-sm ">{product.quantity}</p>
         </div>
         <h3 className="font-poppins text-lg mb-1 truncate flex items-center justify-center bg-primary-dark text-white rounded-full px-3 py-1.5 mt-4">
           ${displayPrice.toFixed(2)}

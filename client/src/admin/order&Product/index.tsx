@@ -4,7 +4,6 @@ import { ReusableTabs } from "../../components/common/TableTabs";
 import { Button } from "../../components/common/Button";
 import { Table, type TableColumn } from "../../components/common/Table";
 import CategoryManagementModal from "../../components/admin/orders&Products/CategoryManagementModal";
-import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { Edit, Trash2, Eye, Package } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -36,7 +35,7 @@ const ProductsManagement = () => {
     total: 0,
   });
 
-  const { data, isPending, isFetching, refetch } = useProducts({
+  const { data, isFetching, refetch } = useProducts({
     page: pagination.current,
     limit: pagination.pageSize,
   });

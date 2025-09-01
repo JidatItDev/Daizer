@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { X } from "lucide-react";
 import { Button } from "../../common/Button";
 import { Input } from "../../common/Input";
 
@@ -19,6 +18,7 @@ interface CreateProductModalProps {
 
 interface FormData {
   name: string;
+  quantity: string;
   description: string;
   subcategoryId: string;
   image: File | null;
@@ -31,6 +31,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
+    quantity: "",
     description: "",
     subcategoryId: "",
     image: null,
@@ -80,6 +81,11 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       newErrors.name = "Product name is required";
     }
 
+    // Quantity validation (optional field)
+    if (formData.quantity && isNaN(parseFloat(formData.quantity))) {
+      newErrors.quantity = "Quantity must be a valid number";
+    }
+
     // Description validation
     if (!formData.description.trim()) {
       newErrors.description = "Product description is required";
@@ -110,9 +116,13 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     });
 
     if (missingPrices.length > 0) {
-      newErrors.pricingGroupPrices = `Price is required for: ${missingPrices.join(", ")}`;
+      newErrors.pricingGroupPrices = `Price is required for: ${missingPrices.join(
+        ", "
+      )}`;
     } else if (invalidPrices.length > 0) {
-      newErrors.pricingGroupPrices = `Invalid price for: ${invalidPrices.join(", ")}`;
+      newErrors.pricingGroupPrices = `Invalid price for: ${invalidPrices.join(
+        ", "
+      )}`;
     }
 
     setErrors(newErrors);
@@ -136,9 +146,10 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
           }
         }
       );
-
+      console.log("quantity//", formData.quantity);
       await createProductMutation.mutateAsync({
         name: formData.name,
+        quantity: formData.quantity || undefined,
         description: formData.description,
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
@@ -161,6 +172,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   const handleClose = () => {
     setFormData({
       name: "",
+      quantity: "",
       description: "",
       subcategoryId: "",
       image: null,
@@ -180,26 +192,38 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       subheading=""
       widthClass="w-[920px] max-h-[90vh] overflow-y-auto "
     >
-      {/* Content */}
-
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Left and Right Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left Column */}
           <div className="space-y-6">
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name <span className="text-red-500">*</span>
-              </label>
-              <Input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder=""
-                error={errors.name}
-                required
-              />
+            <div className="flex gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  placeholder=""
+                  error={errors.name}
+                  required
+                />
+              </div>
+              {/* Quantity - Add this section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity
+                </label>
+                <Input
+                  type="text"
+                  value={formData.quantity}
+                  onChange={(e) =>
+                    handleInputChange("quantity", e.target.value)
+                  }
+                  placeholder="e.g 80 uc"
+                  error={errors.quantity}
+                />
+              </div>
             </div>
 
             {/* Select Category */}

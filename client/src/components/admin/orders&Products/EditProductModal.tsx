@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { X } from "lucide-react";
 import { Button } from "../../common/Button";
 import { Input } from "../../common/Input";
 import { usePricingGroups } from "../../../api/pricingGroup";
@@ -24,6 +23,7 @@ interface EditProductModalProps {
 
 interface FormData {
   name: string;
+  quantity: string;
   description: string;
   subcategoryId: string;
   image: File | null;
@@ -37,6 +37,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
+    quantity: "",
     description: "",
     subcategoryId: "",
     image: null,
@@ -68,6 +69,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
       setFormData({
         name: product.name,
+        quantity: product.quantity || "",
         description: product.description || "",
         subcategoryId: product.subcategoryId,
         image: null,
@@ -107,6 +109,9 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       newErrors.subcategoryId = "Please select a category";
     }
 
+    if (formData.quantity && isNaN(parseFloat(formData.quantity))) {
+      newErrors.quantity = "Quantity must be a valid number";
+    }
     // Validate that at least one pricing group has a price
     const hasValidPrice = Object.values(formData.pricingGroupPrices).some(
       (price) => price && parseFloat(price) > 0
@@ -142,6 +147,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       await updateProductMutation.mutateAsync({
         id: product.id,
         name: formData.name,
+        quantity: formData.quantity || undefined,
         description: formData.description,
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
@@ -165,6 +171,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const handleClose = () => {
     setFormData({
       name: "",
+      quantity: "",
       description: "",
       subcategoryId: "",
       image: null,
@@ -190,18 +197,34 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
           {/* Left Column */}
           <div className="space-y-6">
             {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name
-              </label>
-              <Input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder=""
-                error={errors.name}
-                required
-              />
+            <div className="flex gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
+                <Input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  placeholder=""
+                  error={errors.name}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity
+                </label>
+                <Input
+                  type="text"
+                  value={formData.quantity}
+                  onChange={(e) =>
+                    handleInputChange("quantity", e.target.value)
+                  }
+                  placeholder="Optional quantity"
+                  error={errors.quantity}
+                />
+              </div>
             </div>
 
             {/* Select Category */}

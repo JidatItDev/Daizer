@@ -16,6 +16,7 @@ const parseJsonString = z.string().transform((str, ctx) => {
 export const createProductSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().optional(),
+  quantity: z.string().max(255).optional(),
   // Handle pricingGroupPrices as either object or JSON string
   pricingGroupPrices: z
     .union([
@@ -37,6 +38,7 @@ export const createProductSchemaSimple = z.object({
 // Update Product Schema
 export const updateProductSchema = z.object({
   name: z.string().min(2).max(100).optional(),
+  quantity: z.string().max(255).optional(),
   description: z.string().optional(),
   pricingGroupPrices: z
     .union([

@@ -405,7 +405,6 @@ const UserManagement = () => {
       };
       console.log("payload", payload);
 
-      // await new Promise((resolve) => setTimeout(resolve, 1000));
       const response = await createSignupLink(payload);
       console.log(response);
 
@@ -415,7 +414,6 @@ const UserManagement = () => {
         fullName: "",
         email: "",
         pricingGroup: "",
-        // balance: "",
       });
       setIsCreateModalOpen(false);
 

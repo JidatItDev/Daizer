@@ -9,7 +9,6 @@ import {
   X,
   Loader2,
   ChevronsRight,
-  Image as ImageIcon,
 } from "lucide-react";
 import type { Category } from "../../../api/UseCategories";
 import { Input } from "../../common/Input";

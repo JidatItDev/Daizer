@@ -3,12 +3,23 @@ import { db } from "../db/dbConnection";
 import { categories } from "../db/schema/categories.schema";
 import { eq, isNull, and, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
-interface MulterRequest extends Request {
-  file?: {
-    location: string;
-    key: string;
-    originalname: string;
-  };
+
+interface S3File extends Express.Multer.File {
+  location: string; // AWS S3 gives this
+  key: string;
+}
+
+export interface MulterRequest extends Request {
+  file?: S3File;
+}
+
+interface S3File extends Express.Multer.File {
+  location: string; // AWS S3 gives this
+  key: string;
+}
+
+export interface MulterRequest extends Request {
+  file?: S3File;
 }
 // ---- Cache helpers ----
 const invalidateCategoryCaches = async (categoryId?: string) => {
@@ -175,7 +186,6 @@ class CategoryController {
         ...(parentCategoryId !== undefined && { parentCategoryId }),
       };
 
-      // Only update image if explicitly provided or being removed
       if (imageData !== undefined) {
         updateData.image = imageData;
       }
@@ -209,7 +219,6 @@ class CategoryController {
       });
     }
   }
-  // Delete Category (cascade deletes subs because FK onDelete: cascade)
   static async deleteCategory(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -236,7 +245,6 @@ class CategoryController {
     }
   }
 
-  // List ALL categories (parents + subs) paginated
   static async getAllCategories(req: Request, res: Response) {
     try {
       const page = Number(req.query.page ?? 1);
@@ -277,7 +285,6 @@ class CategoryController {
     }
   }
 
-  // List only PARENT categories (parentCategoryId IS NULL)
   static async getParentCategories(req: Request, res: Response) {
     try {
       const page = Number(req.query.page ?? 1);
@@ -322,7 +329,6 @@ class CategoryController {
     }
   }
 
-  // List only SUBCATEGORIES (parentCategoryId NOT NULL)
   static async getAllSubcategories(req: Request, res: Response) {
     try {
       const page = Number(req.query.page ?? 1);

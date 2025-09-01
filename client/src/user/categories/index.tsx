@@ -41,7 +41,7 @@ const CategoryCard = ({ category }: CategoryCardProps) => {
           <div className="text-gray-400 text-lg font-medium">No Image</div>
         )}
       </div>
-      <div className="p-4 border-primary-dark border-2 rounded-bl-[20px] rounded-br-[20px]">
+      <div className="px-4 py-1  border-primary-dark border-2 rounded-bl-[20px] rounded-br-[20px] ">
         <h3 className="font-poppins  text-lg mb-1 truncate font-medium flex items-center justify-center  text-primary-dark px-3 py-1.5">
           {category.name}
         </h3>

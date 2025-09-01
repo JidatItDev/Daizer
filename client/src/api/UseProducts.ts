@@ -6,6 +6,7 @@ import { queryClient } from "../main";
 export interface Product {
   id: string;
   name: string;
+  quantity?: string;
   description?: string;
   pricingGroupPrices: {
     id: string;
@@ -59,6 +60,7 @@ export interface PricingGroupsResponse {
 export interface CreateProductPayload {
   name: string;
   description?: string;
+  quantity?: string;
   pricingGroupPrices: Record<string, number>;
   subcategoryId: string;
   image?: File;
@@ -67,6 +69,7 @@ export interface CreateProductPayload {
 export interface UpdateProductPayload {
   name?: string;
   description?: string;
+  quantity?: string;
   pricingGroupPrices?: Record<string, number>;
   subcategoryId?: string;
   image?: File;
@@ -160,7 +163,10 @@ export const useCreateProduct = () => {
       if (payload.image) {
         formData.append("image", payload.image);
       }
-
+      if (payload.quantity) {
+        formData.append("quantity", payload.quantity);
+      }
+      console.log("form data", formData);
       const response = await axiosPrivate.post(
         "/products/createProduct",
         formData,
@@ -178,7 +184,6 @@ export const useCreateProduct = () => {
   });
 };
 
-// Update product
 export const useUpdateProduct = () => {
   const invalidateProducts = useInvalidateProducts();
 
@@ -191,6 +196,7 @@ export const useUpdateProduct = () => {
       if (payload.name) formData.append("name", payload.name);
       if (payload.description)
         formData.append("description", payload.description);
+      if (payload.quantity) formData.append("quantity", payload.quantity);
       if (payload.pricingGroupPrices) {
         formData.append(
           "pricingGroupPrices",

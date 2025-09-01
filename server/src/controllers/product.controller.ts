@@ -30,7 +30,10 @@ class ProductController {
   static async createProduct(req: Request, res: Response) {
     try {
       const body = req.body || {};
-      let { name, description, pricingGroupPrices, subcategoryId } = body;
+      let { name, description, pricingGroupPrices, subcategoryId, quantity } =
+        body;
+
+      console.log("body", body);
 
       // Parse JSON if it's string
       if (typeof pricingGroupPrices === "string") {
@@ -72,14 +75,17 @@ class ProductController {
           }
         : null;
 
+      console.log("quantity//", quantity);
+
       const [newProduct] = await db
         .insert(products)
         .values({
           name,
+          quantity,
           description,
           pricingGroupPrices: enrichedPricingGroups,
           subcategoryId: subcategory.id,
-          subcategoryName: subcategory.name, // ✅ Added this field
+          subcategoryName: subcategory.name,
           image,
         })
         .returning();
@@ -97,12 +103,11 @@ class ProductController {
     }
   }
 
-  // ✅ Update Product
-  // ✅ Update Product - FIXED
   static async updateProduct(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      let { name, description, pricingGroupPrices, subcategoryId } = req.body;
+      let { name, description, pricingGroupPrices, subcategoryId, quantity } =
+        req.body;
 
       // Parse JSON if it's string (same as createProduct)
       if (typeof pricingGroupPrices === "string") {
@@ -126,6 +131,7 @@ class ProductController {
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description;
       if (image !== undefined) updateData.image = image;
+      if (quantity !== undefined) updateData.quantity = quantity; // ✅ NEW FIELD
 
       // ✅ Process pricingGroupPrices the SAME way as createProduct
       if (pricingGroupPrices !== undefined) {
