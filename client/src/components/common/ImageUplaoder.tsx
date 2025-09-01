@@ -11,7 +11,7 @@ interface ImageUploaderProps {
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImageChange,
   currentImage,
-  label = "Product Image",
+  label = "",
   error,
 }) => {
   const [preview, setPreview] = useState<string | null>(currentImage || null);

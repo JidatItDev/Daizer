@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from "react";
-
-import { Search, Plus, X, Check, Loader2 } from "lucide-react";
-
+import { Search, Plus, Loader2 } from "lucide-react";
 import { Button } from "../../common/Button";
 import Modal from "../../common/Modal";
 import CategoryAccordion from "./CategoryAccordion";
+
 import {
   useCategoriesTree,
   useCreateParentCategory,
@@ -12,8 +11,14 @@ import {
   useDeleteCategory,
   useUpdateCategory,
   type Category,
+  type CreateParentCategoryPayload,
+  type CreateSubcategoryPayload,
+  type UpdateCategoryPayload,
 } from "../../../api/UseCategories";
 import ConfirmationModalNew from "../../common/NewConfirmationModal";
+import { Input } from "../../common/Input";
+
+import CategoryImageUpload from "./CategoryImageUploader";
 
 interface CategoryManagementModalProps {
   isOpen: boolean;
@@ -27,6 +32,8 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryImage, setNewCategoryImage] = useState<File | null>(null);
+  const [newImagePreview, setNewImagePreview] = useState<string>("");
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -69,22 +76,40 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
       .filter(Boolean) as Category[];
   }, [treeData?.categories, searchTerm]);
 
+  const handleImageSelect = (file: File | null) => {
+    if (file) {
+      setNewCategoryImage(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setNewImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setNewCategoryImage(null);
+      setNewImagePreview("");
+    }
+  };
+
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
 
     try {
       if (selectedParentId) {
-        await createSubMutation.mutateAsync({
+        (await createSubMutation.mutateAsync({
           name: newCategoryName.trim(),
           parentCategoryId: selectedParentId,
-        });
+          image: newCategoryImage || undefined,
+        })) as CreateSubcategoryPayload;
       } else {
-        await createParentMutation.mutateAsync({
+        (await createParentMutation.mutateAsync({
           name: newCategoryName.trim(),
-        });
+          image: newCategoryImage || undefined,
+        })) as CreateParentCategoryPayload;
       }
 
       setNewCategoryName("");
+      setNewCategoryImage(null);
+      setNewImagePreview("");
       setSelectedParentId(null);
       setShowCreateForm(false);
     } catch (error) {
@@ -92,11 +117,37 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
     }
   };
 
-  const handleUpdateCategory = async (id: string, name: string) => {
+  const handleUpdateCategory = async (
+    id: string,
+    name: string,
+    image?: File,
+    removeImage?: boolean
+  ) => {
     try {
-      await updateMutation.mutateAsync({ id, name });
+      (await updateMutation.mutateAsync({
+        id,
+        name,
+        image,
+        removeImage,
+      })) as UpdateCategoryPayload;
     } catch (error) {
       console.error("Error updating category:", error);
+    }
+  };
+
+  const handleCreateSubcategory = async (
+    parentId: string,
+    name: string,
+    image?: File
+  ) => {
+    try {
+      (await createSubMutation.mutateAsync({
+        name,
+        parentCategoryId: parentId,
+        image,
+      })) as CreateSubcategoryPayload;
+    } catch (error) {
+      console.error("Error creating subcategory:", error);
     }
   };
 
@@ -114,6 +165,8 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
   const handleCancelCreate = () => {
     setShowCreateForm(false);
     setNewCategoryName("");
+    setNewCategoryImage(null);
+    setNewImagePreview("");
     setSelectedParentId(null);
   };
 
@@ -127,7 +180,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         onClose={onClose}
         heading="Manage Categories"
         subheading="Create, edit, and organize your product categories"
-        widthClass="w-[800px] max-h-[90vh] overflow-y-auto"
+        widthClass="w-[700px] max-h-[90vh] overflow-y-auto"
       >
         <div className="space-y-6">
           {/* Search Bar */}
@@ -156,18 +209,18 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
 
           {/* Create Category Form */}
           {showCreateForm && (
-            <div className="bg-gray-50 p-4 rounded-lg border">
+            <div className="bg-gray-50 p-6 rounded-lg border">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category Name
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder="Enter category name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-dark focus:border-transparent"
+                    className="w-full px-3 py-2"
                     autoFocus
                   />
                 </div>
@@ -192,26 +245,30 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
                   </select>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="max-w-md">
+                  <CategoryImageUpload
+                    onImageSelect={handleImageSelect}
+                    preview={newImagePreview}
+                    disabled={isCreating}
+                    label="Category Image (Optional)"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-4">
                   <Button
                     onClick={handleCreateCategory}
                     disabled={!newCategoryName.trim() || isCreating}
-                    className="bg-primary-dark hover:bg-primary-dark/80 text-white px-4 py-2 rounded-full flex items-center gap-2"
+                    className="bg-primary-dark hover:bg-primary-dark/80 text-white px-6 py-2 rounded-full flex items-center gap-2"
                   >
-                    {isCreating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4" />
-                    )}
+                    {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isCreating ? "Creating..." : "Create"}
                   </Button>
                   <Button
                     onClick={handleCancelCreate}
                     disabled={isCreating}
                     variant="outline"
-                    className="px-4 py-2 rounded-lg flex items-center gap-2"
+                    className="rounded-full flex items-center gap-2"
                   >
-                    <X className="h-4 w-4" />
                     Cancel
                   </Button>
                 </div>
@@ -220,7 +277,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
           )}
 
           {/* Categories List */}
-          <div className="space-y-2 rounded-full">
+          <div className="space-y-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary-dark" />
@@ -250,12 +307,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
                   onDelete={(cat) =>
                     setDeleteConfirmation({ isOpen: true, category: cat })
                   }
-                  onCreateSubcategory={(parentId, name) =>
-                    createSubMutation.mutateAsync({
-                      name,
-                      parentCategoryId: parentId,
-                    })
-                  }
+                  onCreateSubcategory={handleCreateSubcategory}
                   isUpdating={updateMutation.isPending}
                   isCreatingSubcategory={createSubMutation.isPending}
                 />

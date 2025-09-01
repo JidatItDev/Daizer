@@ -188,12 +188,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
 
               {/* Product ID */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-2">Product ID</h4>
-                <code className="text-xs text-gray-600 bg-white px-2 py-1 rounded border font-mono">
-                  {product.id}
-                </code>
-              </div>
             </div>
           </div>
         </div>

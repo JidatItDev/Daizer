@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { IoLogOut } from "react-icons/io5";
-
+import logo from "../../../public/logo.png";
 interface MenuItem {
   name: string;
   icon: React.ReactNode;
@@ -46,9 +46,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className={`flex items-center justify-center py-4`}>
         <div className="flex items-center justify-center gap-4">
           <img
-            src="./assets/logo.png"
+            src={logo}
             alt="Daizer-logo"
-            className="md:h-10 h-8  lg:h-12   object-contain"
+            className="md:h-10 h-8 lg:h-12 object-contain"
           />
           {isOpen && (
             <h2 className="font-jaffna  text-[24px] md:text-[26px] 3xl:text-[28px] text-primary-dark">

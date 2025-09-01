@@ -15,6 +15,7 @@ import {
 import { CreateProductModal } from "../../components/admin/orders&Products/CreateProductModal";
 import { EditProductModal } from "../../components/admin/orders&Products/EditProductModal";
 import { ProductDetailModal } from "../../components/admin/orders&Products/ProductDetailModal";
+import ConfirmationModalNew from "../../components/common/NewConfirmationModal";
 
 // Updated Product interface to match API response
 
@@ -35,7 +36,7 @@ const ProductsManagement = () => {
     total: 0,
   });
 
-  const { data, isLoading, refetch } = useProducts({
+  const { data, isPending, isFetching, refetch } = useProducts({
     page: pagination.current,
     limit: pagination.pageSize,
   });
@@ -206,7 +207,7 @@ const ProductsManagement = () => {
             <Table
               columns={productColumns}
               data={products}
-              loading={isLoading}
+              loading={isFetching}
               pagination={{
                 ...pagination,
                 onChange: handlePageChange,
@@ -312,7 +313,7 @@ const ProductsManagement = () => {
       />
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <ConfirmationModalNew
         isOpen={isDeleteModalOpen}
         onClose={() => {
           setIsDeleteModalOpen(false);
@@ -323,6 +324,7 @@ const ProductsManagement = () => {
         message={`Are you sure you want to delete "${selectedProduct?.name}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
+        isLoading={deleteProductMutation.isPending}
         variant="danger"
       />
     </>
