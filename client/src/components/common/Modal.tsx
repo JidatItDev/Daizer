@@ -31,7 +31,7 @@ const Modal: React.FC<ModalProps> = ({
       <div
         className={`relative bg-white rounded-xl shadow-xl w-full mx-4 modal-content ${widthClass}`}
       >
-        <div className="py-[56px] px-[84px]">
+        <div className="py-[56px] px-[34px]">
           {/* Heading */}
           <h2 className="font-roboto font-medium text-3xl text-center leading-[52px] tracking-tight mb-2 text-primary-dark">
             {heading}

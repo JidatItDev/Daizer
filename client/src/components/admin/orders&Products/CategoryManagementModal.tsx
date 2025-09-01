@@ -180,7 +180,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         onClose={onClose}
         heading="Manage Categories"
         subheading="Create, edit, and organize your product categories"
-        widthClass="w-[800px] max-h-[90vh] overflow-y-auto"
+        widthClass="w-[700px] max-h-[90vh] overflow-y-auto"
       >
         <div className="space-y-6">
           {/* Search Bar */}

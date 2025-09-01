@@ -10,6 +10,7 @@ import { useCreateProduct, type PricingGroup } from "../../../api/UseProducts";
 import { TreeSelect } from "../../common/TreeSelect";
 import { ImageUploader } from "../../common/ImageUplaoder";
 import { AxiosError } from "axios";
+import Modal from "../../common/Modal";
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -172,118 +173,99 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      heading="Create Product"
+      subheading=""
+      widthClass="w-[920px] max-h-[90vh] overflow-y-auto "
+    >
+      {/* Content */}
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Left and Right Column Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Name */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900">
-                Create Product
-              </h3>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder=""
+                error={errors.name}
+                required
+              />
             </div>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={24} />
-            </button>
-          </div>
 
-          {/* Content */}
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Left and Right Column Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Left Column */}
-                <div className="space-y-6">
-                  {/* Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Name <span className="text-red-500">*</span>
+            {/* Select Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Category <span className="text-red-500">*</span>
+              </label>
+              <TreeSelect
+                data={categories}
+                value={formData.subcategoryId}
+                onChange={(value) => handleInputChange("subcategoryId", value)}
+                placeholder="Select Category"
+                error={errors.subcategoryId}
+              />
+            </div>
+
+            {/* Pricing Groups */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Pricing Groups <span className="text-red-500">*</span>
+              </label>
+              {errors.pricingGroupPrices && (
+                <p className="text-sm text-red-600 mb-3">
+                  {errors.pricingGroupPrices}
+                </p>
+              )}
+              <div className="space-y-4">
+                {pricingGroups.map((group: PricingGroup) => (
+                  <div key={group.id}>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Enter {group.name} Price:{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <Input
-                      type="text"
-                      value={formData.name}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="py-1.5"
+                      value={formData.pricingGroupPrices[group.id] || ""}
                       onChange={(e) =>
-                        handleInputChange("name", e.target.value)
+                        handlePricingGroupPriceChange(group.id, e.target.value)
                       }
-                      placeholder=""
-                      error={errors.name}
+                      placeholder="Type here..."
                       required
                     />
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                  {/* Select Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Category <span className="text-red-500">*</span>
-                    </label>
-                    <TreeSelect
-                      data={categories}
-                      value={formData.subcategoryId}
-                      onChange={(value) =>
-                        handleInputChange("subcategoryId", value)
-                      }
-                      placeholder="Select Category"
-                      error={errors.subcategoryId}
-                    />
-                  </div>
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Upload Image */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Image <span className="text-red-500">*</span>
+              </label>
+              <ImageUploader
+                onImageChange={(file) => handleInputChange("image", file)}
+                error={errors.image}
+              />
+            </div>
 
-                  {/* Pricing Groups */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-4">
-                      Pricing Groups <span className="text-red-500">*</span>
-                    </label>
-                    {errors.pricingGroupPrices && (
-                      <p className="text-sm text-red-600 mb-3">
-                        {errors.pricingGroupPrices}
-                      </p>
-                    )}
-                    <div className="space-y-4">
-                      {pricingGroups.map((group: PricingGroup) => (
-                        <div key={group.id}>
-                          <label className="block text-sm text-gray-600 mb-1">
-                            Enter {group.name} Price:{" "}
-                            <span className="text-red-500">*</span>
-                          </label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.pricingGroupPrices[group.id] || ""}
-                            onChange={(e) =>
-                              handlePricingGroupPriceChange(
-                                group.id,
-                                e.target.value
-                              )
-                            }
-                            placeholder="Type here..."
-                            required
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-6">
-                  {/* Upload Image */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Upload Image <span className="text-red-500">*</span>
-                    </label>
-                    <ImageUploader
-                      onImageChange={(file) => handleInputChange("image", file)}
-                      error={errors.image}
-                    />
-                  </div>
-
-                  {/* Multiple API Links Section */}
-                  <div>
+            {/* Multiple API Links Section */}
+            {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Multiple API Links
                     </label>
@@ -292,47 +274,39 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                         API Links functionality can be added here
                       </p>
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
-                  }
-                  placeholder=""
-                  rows={4}
-                  className="w-full py-3 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-                {errors.description && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {errors.description}
-                  </p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-center pt-6 border-t border-gray-200">
-                <Button
-                  type="submit"
-                  loading={createProductMutation.isPending}
-                  disabled={isLoadingPricingGroups || isLoadingCategories}
-                  className="px-12 py-3"
-                >
-                  Create Product
-                </Button>
-              </div>
-            </form>
+                  </div> */}
           </div>
         </div>
-      </div>
-    </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={formData.description}
+            onChange={(e) => handleInputChange("description", e.target.value)}
+            placeholder=""
+            className="w-full py-3 px-4 "
+            required
+          />
+          {errors.description && (
+            <p className="text-sm text-red-600 mt-1">{errors.description}</p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-center pt-6 border-t border-gray-200">
+          <Button
+            type="submit"
+            loading={createProductMutation.isPending}
+            disabled={isLoadingPricingGroups || isLoadingCategories}
+            className="px-12 py-3"
+          >
+            Create Product
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };

@@ -325,7 +325,7 @@ const CategoryAccordion: React.FC<CategoryAccordionProps> = ({
               autoFocus
             />
 
-            <div className="max-w-xs">
+            <div className="">
               <CategoryImageUpload
                 onImageSelect={(file) => handleImageSelect(file, "new")}
                 preview={newSubImagePreview}

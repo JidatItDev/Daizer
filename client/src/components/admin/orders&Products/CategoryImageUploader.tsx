@@ -62,13 +62,13 @@ const CategoryImageUpload: React.FC<CategoryImageUploadProps> = ({
   const displayImage = preview || currentImage?.url;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full">
       <label className="block text-sm font-medium text-gray-700">{label}</label>
 
-      <div className="space-y-3">
+      <div className="space-x-3 flex items-center">
         {/* Current/Preview Image */}
         {displayImage && (
-          <div className="relative inline-block">
+          <div className="relative inline-block w-[45%]">
             <img
               src={displayImage}
               alt="Category"
@@ -88,7 +88,7 @@ const CategoryImageUpload: React.FC<CategoryImageUploadProps> = ({
         {/* Upload Area */}
         <div
           className={`
-            relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
+            relative border-2 border-dashed p-4 rounded-lg text-center w-[45%] cursor-pointer transition-colors
             ${
               dragActive
                 ? "border-primary-dark bg-primary-dark/5"

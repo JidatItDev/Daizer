@@ -14,6 +14,7 @@ import {
   type Product,
 } from "../../../api/UseProducts";
 import { ImageUploader } from "../../common/ImageUplaoder";
+import Modal from "../../common/Modal";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -176,160 +177,120 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   if (!isOpen || !product) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      heading="Edit Product"
+      subheading=""
+      widthClass="w-[920px] max-h-[90vh] overflow-y-auto "
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Left and Right Column Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Name */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900">
-                Edit Product
-              </h3>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Name
+              </label>
+              <Input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                placeholder=""
+                error={errors.name}
+                required
+              />
             </div>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={24} />
-            </button>
-          </div>
 
-          {/* Content */}
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Left and Right Column Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Left Column */}
-                <div className="space-y-6">
-                  {/* Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Name
+            {/* Select Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Category
+              </label>
+              <TreeSelect
+                data={categories}
+                value={formData.subcategoryId}
+                onChange={(value) => handleInputChange("subcategoryId", value)}
+                placeholder="Select Category"
+                error={errors.subcategoryId}
+              />
+            </div>
+
+            {/* Pricing Groups */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Pricing Groups
+              </label>
+              {errors.pricingGroupPrices && (
+                <p className="text-sm text-red-600 mb-3">
+                  {errors.pricingGroupPrices}
+                </p>
+              )}
+              <div className="space-y-4">
+                {pricingGroups.map((group: PricingGroup) => (
+                  <div key={group.id}>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Enter {group.name} Price:
                     </label>
                     <Input
-                      type="text"
-                      value={formData.name}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.pricingGroupPrices[group.id] || ""}
                       onChange={(e) =>
-                        handleInputChange("name", e.target.value)
+                        handlePricingGroupPriceChange(group.id, e.target.value)
                       }
-                      placeholder=""
-                      error={errors.name}
-                      required
+                      placeholder="Type here..."
                     />
                   </div>
-
-                  {/* Select Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Category
-                    </label>
-                    <TreeSelect
-                      data={categories}
-                      value={formData.subcategoryId}
-                      onChange={(value) =>
-                        handleInputChange("subcategoryId", value)
-                      }
-                      placeholder="Select Category"
-                      error={errors.subcategoryId}
-                    />
-                  </div>
-
-                  {/* Pricing Groups */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-4">
-                      Pricing Groups
-                    </label>
-                    {errors.pricingGroupPrices && (
-                      <p className="text-sm text-red-600 mb-3">
-                        {errors.pricingGroupPrices}
-                      </p>
-                    )}
-                    <div className="space-y-4">
-                      {pricingGroups.map((group: PricingGroup) => (
-                        <div key={group.id}>
-                          <label className="block text-sm text-gray-600 mb-1">
-                            Enter {group.name} Price:
-                          </label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={formData.pricingGroupPrices[group.id] || ""}
-                            onChange={(e) =>
-                              handlePricingGroupPriceChange(
-                                group.id,
-                                e.target.value
-                              )
-                            }
-                            placeholder="Type here..."
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-6">
-                  {/* Upload Image */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Upload Image
-                    </label>
-                    <ImageUploader
-                      onImageChange={(file) => handleInputChange("image", file)}
-                      currentImage={product.image?.url}
-                      error={errors.image}
-                    />
-                  </div>
-
-                  {/* Multiple API Links Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Multiple API Links
-                    </label>
-                    <div className="border border-gray-300 rounded-md p-4 bg-gray-50">
-                      <p className="text-sm text-gray-500">
-                        API Links functionality can be added here
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
+            </div>
+          </div>
 
-              {/* Description - Full width below columns */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    handleInputChange("description", e.target.value)
-                  }
-                  placeholder=""
-                  rows={4}
-                  className="w-full py-3 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-center pt-6 border-t border-gray-200">
-                <Button
-                  type="submit"
-                  loading={updateProductMutation.isPending}
-                  disabled={isLoadingPricingGroups || isLoadingCategories}
-                  className="px-12 py-3"
-                >
-                  Update Product
-                </Button>
-              </div>
-            </form>
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Upload Image */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Image
+              </label>
+              <ImageUploader
+                onImageChange={(file) => handleInputChange("image", file)}
+                currentImage={product.image?.url}
+                error={errors.image}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        {/* Description - Full width below columns */}
+        <div>
+          <label className="text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <Input
+            value={formData.description}
+            onChange={(e) => handleInputChange("description", e.target.value)}
+            placeholder=""
+            className="w-full py-3 px-4 "
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-center pt-6 border-t border-gray-200">
+          <Button
+            type="submit"
+            loading={updateProductMutation.isPending}
+            disabled={isLoadingPricingGroups || isLoadingCategories}
+            className="px-12 py-3"
+          >
+            Update Product
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
