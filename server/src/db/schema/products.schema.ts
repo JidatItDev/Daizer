@@ -27,12 +27,14 @@ export const products = pgTable(
       onDelete: "set null", // product still exists even if category deleted
     }),
     subcategoryName: varchar("subcategory_name", { length: 255 }),
+    serviceId: varchar("service_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (product) => ({
     nameIdx: index("products_name_idx").on(product.name),
     subcategoryIdx: index("products_subcategory_idx").on(product.subcategoryId),
+    serviceIdx: index("products_service_idx").on(product.serviceId),
   })
 );
 export const productsRelations = relations(products, ({ one }) => ({

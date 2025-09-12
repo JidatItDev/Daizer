@@ -8,12 +8,26 @@ import { TreeSelect } from "../../common/TreeSelect";
 
 import toast from "react-hot-toast";
 import {
+  type ExternalService,
   useUpdateProduct,
   type PricingGroup,
   type Product,
 } from "../../../api/UseProducts";
 import { ImageUploader } from "../../common/ImageUplaoder";
 import Modal from "../../common/Modal";
+import { useProductServices } from "../../../api/UseProducts";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../../ui/command";
+import { Button as PopButton } from "../../ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "../../../lib/utils";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -28,6 +42,11 @@ interface FormData {
   subcategoryId: string;
   image: File | null;
   pricingGroupPrices: Record<string, string>;
+  serviceId?: string;
+}
+
+interface ServiceResponse {
+  services?: ExternalService[];
 }
 
 export const EditProductModal: React.FC<EditProductModalProps> = ({
@@ -42,7 +61,11 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     subcategoryId: "",
     image: null,
     pricingGroupPrices: {},
+    serviceId: "",
   });
+  // const { data: services = [] } = useProductServices();
+  const { data: servicesData } = useProductServices();
+  const services = (servicesData as ServiceResponse)?.services || [];
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -74,6 +97,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         subcategoryId: product.subcategoryId,
         image: null,
         pricingGroupPrices,
+        serviceId: product.serviceId?.toString() || "",
       });
     }
   }, [product, isOpen]);
@@ -152,6 +176,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
         pricingGroupPrices,
+        serviceId: formData.serviceId?.toString() || "",
       });
 
       toast.success("Product updated successfully");
@@ -189,7 +214,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       onClose={onClose}
       heading="Edit Product"
       subheading=""
-      widthClass="w-[920px] max-h-[90vh] overflow-y-auto "
+      widthClass="max-w-[920px] max-h-[90vh] overflow-y-auto "
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Left and Right Column Layout */}
@@ -285,6 +310,76 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 currentImage={product.image?.url}
                 error={errors.image}
               />
+            </div>
+            {/* Select Service */}
+            <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Service
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <PopButton
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {/* {formData.serviceId
+                      ? services?.find(
+                          (s: any) =>
+                            s.ServiceApiID.toString() === formData.serviceId
+                        )?.ServiceName
+                      : "Select service..."} */}
+                    {formData.serviceId
+                      ? (() => {
+                          const selectedService = services?.find(
+                            (s: any) =>
+                              s.ServiceApiID.toString() === formData.serviceId
+                          );
+                          return selectedService
+                            ? `${selectedService.ServiceName} - $${selectedService.Price}`
+                            : "Select service...";
+                        })()
+                      : "Select service..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </PopButton>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="p-0 w-[var(--radix-popover-trigger-width)]"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput placeholder="Search services..." />
+                    <CommandList>
+                      <CommandEmpty>No services found.</CommandEmpty>
+                      <CommandGroup>
+                        {services?.map((service: any) => (
+                          <CommandItem
+                            key={service.ServiceApiID}
+                            value={service.ServiceName}
+                            onSelect={() => {
+                              handleInputChange(
+                                "serviceId",
+                                service.ServiceApiID.toString()
+                              );
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.serviceId ===
+                                  service.ServiceApiID.toString()
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {service.ServiceName} - {service.Price}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

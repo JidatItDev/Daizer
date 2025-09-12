@@ -57,6 +57,20 @@
       "when": 1756717913377,
       "tag": "0007_peaceful_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1757488962808,
+      "tag": "0008_long_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1757498850539,
+      "tag": "0009_peaceful_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

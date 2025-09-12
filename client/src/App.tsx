@@ -20,6 +20,7 @@ import Categories from "./user/categories";
 import Subcategory from "./user/categories/Subcategory";
 import Products from "./user/products";
 import { Toaster } from "react-hot-toast";
+import Checkout from "./user/products/Checkout";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -80,6 +81,7 @@ function App() {
           <Route path="/browse-categories" element={<Categories />} />
           <Route path="/browse-categories/:id" element={<Subcategory />} />
           <Route path="/products/:id" element={<Products />} />
+          <Route path="/checkout/:id" element={<Checkout />} />
 
           <Route path="/change-password" element={<Changepassword />} />
         </Route>

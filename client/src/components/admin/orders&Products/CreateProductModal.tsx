@@ -5,11 +5,28 @@ import { Input } from "../../common/Input";
 import toast from "react-hot-toast";
 import { usePricingGroups } from "../../../api/pricingGroup";
 import { useCategoriesTree } from "../../../api/UseCategories";
-import { useCreateProduct, type PricingGroup } from "../../../api/UseProducts";
+import {
+  useCreateProduct,
+  useProductServices,
+  type ExternalService,
+  type PricingGroup,
+} from "../../../api/UseProducts";
 import { TreeSelect } from "../../common/TreeSelect";
 import { ImageUploader } from "../../common/ImageUplaoder";
 import { AxiosError } from "axios";
 import Modal from "../../common/Modal";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../../ui/command";
+import { Button as PopButton } from "../../ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "../../../lib/utils";
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -23,6 +40,11 @@ interface FormData {
   subcategoryId: string;
   image: File | null;
   pricingGroupPrices: Record<string, string>;
+  serviceId?: string;
+}
+
+interface ServiceResponse {
+  services?: ExternalService[];
 }
 
 export const CreateProductModal: React.FC<CreateProductModalProps> = ({
@@ -36,7 +58,10 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     subcategoryId: "",
     image: null,
     pricingGroupPrices: {},
+    serviceId: "",
   });
+
+  console.log("formData", formData);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -45,6 +70,10 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   const { data: categoriesData, isLoading: isLoadingCategories } =
     useCategoriesTree();
   const createProductMutation = useCreateProduct();
+
+  // const { data: services = [] } = useProductServices();
+  const { data: servicesData } = useProductServices();
+  const services = (servicesData as ServiceResponse)?.services || [];
 
   const pricingGroups = pricingGroupsData?.pricingGroups || [];
   const categories = categoriesData?.categories || [];
@@ -101,6 +130,10 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       newErrors.image = "Product image is required";
     }
 
+    if (!formData.serviceId) {
+      newErrors.serviceId = "Please select a service";
+    }
+
     // Pricing groups validation - ALL pricing groups must have valid prices
     const missingPrices: string[] = [];
     const invalidPrices: string[] = [];
@@ -154,6 +187,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
         pricingGroupPrices,
+        serviceId: formData.serviceId?.toString() || "",
       });
 
       toast.success("Product created successfully");
@@ -190,7 +224,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       onClose={onClose}
       heading="Create Product"
       subheading=""
-      widthClass="w-[920px] max-h-[90vh] overflow-y-auto "
+      widthClass="max-w-[920px] max-h-[90vh] overflow-y-auto "
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -288,17 +322,72 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
               />
             </div>
 
-            {/* Multiple API Links Section */}
-            {/* <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Multiple API Links
-                    </label>
-                    <div className="border border-gray-300 rounded-md p-4 bg-gray-50">
-                      <p className="text-sm text-gray-500">
-                        API Links functionality can be added here
-                      </p>
-                    </div>
-                  </div> */}
+            <div className="w-full">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <PopButton
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {/* {formData.serviceId
+                      ? services?.find(
+                          (s: any) =>
+                            s.ServiceApiID.toString() === formData.serviceId
+                        )?.ServiceName
+                      : "Select service..."} */}
+                    {formData.serviceId
+                      ? (() => {
+                          const selectedService = services?.find(
+                            (s: any) =>
+                              s.ServiceApiID.toString() === formData.serviceId
+                          );
+                          return selectedService
+                            ? `${selectedService.ServiceName} - $${selectedService.Price}`
+                            : "Select service...";
+                        })()
+                      : "Select service..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </PopButton>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="p-0 w-[var(--radix-popover-trigger-width)]"
+                  align="start"
+                >
+                  <Command>
+                    <CommandInput placeholder="Search services..." />
+                    <CommandList>
+                      <CommandEmpty>No services found.</CommandEmpty>
+                      <CommandGroup>
+                        {services?.map((service: any) => (
+                          <CommandItem
+                            key={service.ServiceApiID}
+                            value={service.ServiceName}
+                            onSelect={() => {
+                              handleInputChange(
+                                "serviceId",
+                                service.ServiceApiID.toString()
+                              );
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.serviceId ===
+                                  service.ServiceApiID.toString()
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {service.ServiceName} - {service.Price}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
 

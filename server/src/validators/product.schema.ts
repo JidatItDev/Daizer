@@ -25,6 +25,9 @@ export const createProductSchema = z.object({
     ])
     .optional(),
   subcategoryId: z.string().uuid(),
+  serviceId: z
+    .union([z.string(), z.number()])
+    .transform((val) => val.toString()),
 });
 
 // Alternative simpler approach - let the middleware handle JSON parsing
@@ -33,6 +36,9 @@ export const createProductSchemaSimple = z.object({
   description: z.string().optional(),
   pricingGroupPrices: z.record(z.string(), z.number().positive()).optional(),
   subcategoryId: z.string().uuid(),
+  serviceId: z
+    .union([z.string(), z.number()])
+    .transform((val) => val.toString()),
 });
 
 // Update Product Schema
@@ -47,6 +53,10 @@ export const updateProductSchema = z.object({
     ])
     .optional(),
   subcategoryId: z.string().uuid().optional(),
+  serviceId: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val) => val && val.toString()),
 });
 
 // Delete Product

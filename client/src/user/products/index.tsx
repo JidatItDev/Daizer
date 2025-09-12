@@ -34,6 +34,7 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
+  const navigate = useNavigate();
   // Find the price for the user's pricing group
   const userPrice = product.pricingGroupPrices.find(
     (price) => price.id === userPricingGroupId
@@ -79,9 +80,15 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
         <div>
           <p className="font-poppins text-sm ">{product.quantity}</p>
         </div>
-        <h3 className="font-poppins text-lg mb-1 truncate flex items-center justify-center bg-primary-dark text-white rounded-full px-3 py-1.5 mt-4">
+        <button
+          onClick={() => {
+            console.log("Add to cart clicked for product:", product.id);
+            navigate(`/checkout/${product.id}`);
+          }}
+          className="font-poppins w-full text-lg mb-1 truncate flex items-center justify-center bg-primary-dark text-white rounded-full px-3 py-1.5 mt-4"
+        >
           ${displayPrice.toFixed(2)}
-        </h3>
+        </button>
       </div>
     </div>
   );

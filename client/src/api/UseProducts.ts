@@ -14,6 +14,7 @@ export interface Product {
     price: number;
   }[];
   subcategoryId: string;
+  serviceId: string;
   image?: {
     name: string;
     url: string;
@@ -63,6 +64,7 @@ export interface CreateProductPayload {
   quantity?: string;
   pricingGroupPrices: Record<string, number>;
   subcategoryId: string;
+  serviceId: string;
   image?: File;
 }
 
@@ -73,6 +75,30 @@ export interface UpdateProductPayload {
   pricingGroupPrices?: Record<string, number>;
   subcategoryId?: string;
   image?: File;
+  serviceId?: string;
+}
+export interface ExternalService {
+  ServiceGroup: string;
+  ServiceIcon: string;
+  ServiceApiID: number;
+  ServiceName: string;
+  Service_AR_Name: string;
+  recommended: number;
+  DoTime: string;
+  Price: number;
+  QntAllow: boolean;
+  Requires: {
+    fieldname: string;
+    en_name: string;
+    ar_name: string;
+    required: boolean;
+  }[];
+}
+
+export interface ProductServicesResponse {
+  success: boolean;
+  count: number;
+  services: ExternalService[];
 }
 
 const useInvalidateProducts = () => {
@@ -166,6 +192,8 @@ export const useCreateProduct = () => {
       if (payload.quantity) {
         formData.append("quantity", payload.quantity);
       }
+      formData.append("serviceId", payload.serviceId.toString());
+
       console.log("form data", formData);
       const response = await axiosPrivate.post(
         "/products/createProduct",
@@ -205,6 +233,7 @@ export const useUpdateProduct = () => {
       }
       if (payload.subcategoryId)
         formData.append("subcategoryId", payload.subcategoryId);
+      if (payload.serviceId) formData.append("serviceId", payload.serviceId);
       if (payload.image) formData.append("image", payload.image);
 
       const response = await axiosPrivate.put(
@@ -238,5 +267,24 @@ export const useDeleteProduct = () => {
     onSuccess: () => {
       invalidateProducts();
     },
+  });
+};
+
+export const useProductServices = () => {
+  return useQuery({
+    queryKey: ["productServices"],
+    queryFn: async (): Promise<ProductServicesResponse> => {
+      const response = await axiosPrivate.post(
+        "/products/getProductServices",
+        { request: "servicelist" }, // ✅ still send body for consistency
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      return response.data;
+    },
+    staleTime: 10 * 60 * 1000,
   });
 };

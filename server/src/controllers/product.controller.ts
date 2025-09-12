@@ -5,6 +5,7 @@ import { pricingGroups } from "../db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { categories } from "../db/schema/categories.schema";
+import axios from "axios";
 
 // Helper → Invalidate product caches
 const invalidateProductsCache = async () => {
@@ -30,8 +31,14 @@ class ProductController {
   static async createProduct(req: Request, res: Response) {
     try {
       const body = req.body || {};
-      let { name, description, pricingGroupPrices, subcategoryId, quantity } =
-        body;
+      let {
+        name,
+        description,
+        pricingGroupPrices,
+        subcategoryId,
+        quantity,
+        serviceId,
+      } = body;
 
       console.log("body", body);
 
@@ -86,6 +93,7 @@ class ProductController {
           pricingGroupPrices: enrichedPricingGroups,
           subcategoryId: subcategory.id,
           subcategoryName: subcategory.name,
+          serviceId,
           image,
         })
         .returning();
@@ -106,8 +114,14 @@ class ProductController {
   static async updateProduct(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      let { name, description, pricingGroupPrices, subcategoryId, quantity } =
-        req.body;
+      let {
+        name,
+        description,
+        pricingGroupPrices,
+        subcategoryId,
+        quantity,
+        serviceId,
+      } = req.body;
 
       // Parse JSON if it's string (same as createProduct)
       if (typeof pricingGroupPrices === "string") {
@@ -132,6 +146,9 @@ class ProductController {
       if (description !== undefined) updateData.description = description;
       if (image !== undefined) updateData.image = image;
       if (quantity !== undefined) updateData.quantity = quantity; // ✅ NEW FIELD
+      if (serviceId !== undefined) {
+        updateData.serviceId = req.body.serviceId; // ✅
+      }
 
       // ✅ Process pricingGroupPrices the SAME way as createProduct
       if (pricingGroupPrices !== undefined) {
@@ -412,7 +429,6 @@ class ProductController {
         }
       }
 
-      // Save in Redis
       await redisClient.setEx(cacheKey, 3600, JSON.stringify(enrichedProduct));
 
       return res.status(200).json({
@@ -423,6 +439,58 @@ class ProductController {
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Error fetching product by ID" });
+    }
+  }
+
+  static async getProductServices(req: Request, res: Response) {
+    try {
+      const apiUrl = process.env.EXTERNAL_PRODUCT_API;
+      if (!apiUrl) {
+        return res.status(500).json({
+          success: false,
+          message: "External API URL not configured",
+        });
+      }
+
+      const cacheKey = "external:productServices";
+
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        console.log("Returning product services from cache");
+        return res.status(200).json(JSON.parse(cached));
+      }
+
+      const formData = new URLSearchParams();
+      formData.append("request", "servicelist");
+
+      const { data } = await axios.post(apiUrl, formData, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      if (!data || !data.status) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to fetch services",
+          raw: data,
+        });
+      }
+
+      const response = {
+        success: true,
+        count: data.ServiceCount,
+        services: data.ServiceList,
+      };
+
+      await redisClient.setEx(cacheKey, 600, JSON.stringify(response));
+
+      console.log("Returning product services from external API");
+      return res.status(200).json(response);
+    } catch (error: any) {
+      console.error("getProductServices error:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching external product services",
+      });
     }
   }
 }

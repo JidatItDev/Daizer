@@ -71,4 +71,6 @@ productRouter.get("/getPricingGroups", ProductController.getPricingGroups);
 // getProductById/:id
 productRouter.get("/getProductById/:id", ProductController.getProductById);
 
+productRouter.post("/getProductServices", ProductController.getProductServices);
+
 export default productRouter;
