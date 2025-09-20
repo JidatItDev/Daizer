@@ -138,7 +138,7 @@ const Categories = () => {
             size="md"
             className="border-2 border-primary-dark px-6 !py-2"
           >
-            Create Category
+            My Orders
           </Button>
         </div>
       </div>

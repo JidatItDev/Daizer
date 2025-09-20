@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../db/dbConnection";
 import { products } from "../db/schema/products.schema";
-import { pricingGroups } from "../db/schema";
+import { pricingGroups, transactions, users, wallets } from "../db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { categories } from "../db/schema/categories.schema";
@@ -288,8 +288,6 @@ class ProductController {
     }
   }
 
-  // ✅ Fetch Pricing Groups (no caching, always latest)
-  // ✅ Fetch Pricing Groups (cached with Redis)
   static async getPricingGroups(_req: Request, res: Response) {
     try {
       const cacheKey = "pricingGroups:all";
@@ -490,6 +488,220 @@ class ProductController {
       return res.status(500).json({
         success: false,
         message: "Error fetching external product services",
+      });
+    }
+  }
+  // Add this method to your ProductController class
+  static async purchaseProduct(req: Request, res: Response) {
+    try {
+      const { productId } = req.params;
+      const userId = req.user!.id;
+      const { playerId } = req.body;
+
+      if (!playerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Player ID is required",
+        });
+      }
+
+      // 1. Get product details
+      const product = await db.query.products.findFirst({
+        where: eq(products.id, productId),
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
+      }
+
+      // 2. Get user and wallet details
+      const [user] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          pricingGroupId: users.pricingGroupId,
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      const [wallet] = await db
+        .select()
+        .from(wallets)
+        .where(eq(wallets.userId, userId));
+
+      if (!wallet) {
+        return res.status(404).json({
+          success: false,
+          message: "Wallet not found",
+        });
+      }
+
+      // 3. Get price based on user's pricing group
+      // const pricingGroupPrice = product.pricingGroupPrices.find(
+      //   (pg: any) => pg.id === user.pricingGroupId
+      // );
+
+      // if (!pricingGroupPrice) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: "Price not configured for user's pricing group",
+      //   });
+      // }
+
+      const pricingGroupPrice = product.pricingGroupPrices?.find(
+        (pg: any) => pg.id === user.pricingGroupId
+      );
+
+      if (!pricingGroupPrice) {
+        return res.status(400).json({
+          success: false,
+          message: "Price not configured for user's pricing group",
+        });
+      }
+
+      // const productPrice = parseFloat(pricingGroupPrice.price);
+      const productPrice = parseFloat(pricingGroupPrice.price.toString());
+      const currentBalance = parseFloat(wallet.balance);
+
+      // 4. Check if user has sufficient balance
+      if (currentBalance < productPrice) {
+        return res.status(400).json({
+          success: false,
+          message: "Insufficient balance",
+          required: productPrice,
+          current: currentBalance,
+        });
+      }
+
+      // 5. Call external service
+      const apiUrl = process.env.EXTERNAL_PRODUCT_API;
+      if (!apiUrl) {
+        return res.status(500).json({
+          success: false,
+          message: "External API URL not configured",
+        });
+      }
+
+      // Generate a unique reference number (below 40 as required)
+      const referenceNumber = Math.floor(Math.random() * 40);
+
+      const formData = new URLSearchParams();
+      formData.append("request", "neworder");
+      formData.append("service", product.serviceId.toString());
+      formData.append("reference", referenceNumber.toString());
+      formData.append("player_id", playerId);
+
+      console.log("Calling external service with:", {
+        service: product.serviceId,
+        reference: referenceNumber,
+        playerId: playerId,
+      });
+
+      const { data } = await axios.post(apiUrl, formData, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: 30000, // 30 second timeout
+      });
+
+      if (!data || !data.status) {
+        return res.status(500).json({
+          success: false,
+          message: "External service failed",
+          externalResponse: data,
+        });
+      }
+
+      // 6. Deduct amount from wallet
+      const newBalance = currentBalance - productPrice;
+
+      await db
+        .update(wallets)
+        .set({
+          balance: newBalance.toString(),
+          updatedAt: new Date(),
+        })
+        .where(eq(wallets.userId, userId));
+
+      // 7. Create purchase transaction
+      await db.insert(transactions).values({
+        walletId: wallet.id,
+        userId,
+        type: "purchase",
+        amount: `-${productPrice}`, // Negative amount for purchase
+        currency: wallet.currency,
+        status: "completed",
+        referenceId: `${data.orderid}`,
+        metadata: JSON.stringify({
+          productId: product.id,
+          productName: product.name,
+          serviceId: product.serviceId,
+          playerId: playerId,
+          referenceNumber: referenceNumber,
+          pricingGroupId: user.pricingGroupId,
+          originalBalance: wallet.balance,
+          newBalance: newBalance.toString(),
+          externalResponse: data,
+        }),
+      });
+
+      // 8. Invalidate caches
+      await Promise.all([
+        invalidateProductsCache(),
+        // Invalidate user transactions cache
+        (async () => {
+          const pattern = `transactions:${userId}:*`;
+          const keys = await redisClient.keys(pattern);
+          if (keys.length > 0) {
+            await redisClient.del(keys);
+          }
+        })(),
+        // Invalidate wallet balance cache
+        (async () => {
+          const pattern = `wallet:balance:${userId}`;
+          await redisClient.del(pattern);
+        })(),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        message: "Product purchased successfully",
+        product: product.name,
+        amount: productPrice,
+        newBalance: newBalance,
+        externalResponse: data,
+      });
+    } catch (error: any) {
+      console.error("Purchase product error:", error.message);
+
+      if (error.code === "ECONNABORTED") {
+        return res.status(504).json({
+          success: false,
+          message: "External service timeout",
+        });
+      }
+
+      if (error.response) {
+        // External API error
+        return res.status(502).json({
+          success: false,
+          message: "External service error",
+          externalError: error.response.data,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
       });
     }
   }

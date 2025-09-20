@@ -7,8 +7,6 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { categories } from "./categories.schema";
-import { relations } from "drizzle-orm";
 
 export const products = pgTable(
   "products",
@@ -23,9 +21,7 @@ export const products = pgTable(
     // JSONB for image object
     image: jsonb("image").$type<{ name: string; url: string }>(),
     // Each product belongs to a subcategory
-    subcategoryId: uuid("subcategory_id").references(() => categories.id, {
-      onDelete: "set null", // product still exists even if category deleted
-    }),
+    subcategoryId: uuid("subcategory_id"),
     subcategoryName: varchar("subcategory_name", { length: 255 }),
     serviceId: varchar("service_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -37,9 +33,9 @@ export const products = pgTable(
     serviceIdx: index("products_service_idx").on(product.serviceId),
   })
 );
-export const productsRelations = relations(products, ({ one }) => ({
-  subcategory: one(categories, {
-    fields: [products.subcategoryId],
-    references: [categories.id],
-  }),
-}));
+// export const productsRelations = relations(products, ({ one }) => ({
+//   subcategory: one(categories, {
+//     fields: [products.subcategoryId],
+//     references: [categories.id],
+//   }),
+// }));

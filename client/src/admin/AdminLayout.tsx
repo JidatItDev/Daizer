@@ -20,6 +20,11 @@ const AdminLayout = () => {
       path: "pricing-groups",
     },
     {
+      name: "Wallet Management",
+      icon: <BsFillCreditCardFill />,
+      path: "wallet",
+    },
+    {
       name: "Orders & Products",
       icon: <MdDashboard />,
       path: "orders-products",

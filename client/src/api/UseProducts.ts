@@ -101,6 +101,20 @@ export interface ProductServicesResponse {
   services: ExternalService[];
 }
 
+export interface PurchaseProductPayload {
+  productId: string;
+  playerId: string;
+}
+
+export interface PurchaseProductResponse {
+  success: boolean;
+  message: string;
+  product: string;
+  amount: number;
+  newBalance: number;
+  externalResponse?: any;
+}
+
 const useInvalidateProducts = () => {
   return () =>
     queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
@@ -286,5 +300,25 @@ export const useProductServices = () => {
       return response.data;
     },
     staleTime: 10 * 60 * 1000,
+  });
+};
+
+export const usePurchaseProduct = () => {
+  return useMutation({
+    mutationFn: async (
+      payload: PurchaseProductPayload
+    ): Promise<PurchaseProductResponse> => {
+      const response = await axiosPrivate.post(
+        `/products/${payload.productId}/purchase`,
+        { playerId: payload.playerId }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries after successful purchase
+      queryClient.invalidateQueries({ queryKey: ["wallet", "balance"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet", "transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
   });
 };

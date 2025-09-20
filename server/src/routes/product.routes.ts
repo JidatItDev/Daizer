@@ -59,6 +59,11 @@ productRouter.delete(
   ProductController.deleteProduct
 );
 
+productRouter.post(
+  "/:productId/purchase",
+  authenticate,
+  ProductController.purchaseProduct
+);
 // getProductsByCategory
 productRouter.get(
   "/getProductsByCategory/:categoryId",

@@ -3,3 +3,7 @@ export * from "./pricingGroup.schema";
 export * from "./signupLinks.schema";
 export * from "./products.schema";
 export * from "./categories.schema";
+export * from "./wallets.schema";
+export * from "./transactions.schema";
+export * from "./refundRequests.schema";
+export * from "./relations";

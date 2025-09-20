@@ -6,7 +6,6 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { pricingGroups } from "./pricingGroup.schema"; // assuming you have this schema
 
 export const users = pgTable(
   "users",
@@ -17,12 +16,7 @@ export const users = pgTable(
     password: varchar("password", { length: 255 }).notNull(),
     role: varchar("role", { length: 50 }).default("user"),
     isActive: boolean("is_active").default(false),
-    pricingGroupId: uuid("pricing_group_id").references(
-      () => pricingGroups.id,
-      {
-        onDelete: "set null",
-      }
-    ),
+    pricingGroupId: uuid("pricing_group_id"),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

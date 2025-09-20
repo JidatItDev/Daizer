@@ -4,7 +4,7 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   heading: string;
-  subheading: string;
+  subheading?: string;
   children: React.ReactNode;
   widthClass?: string;
 }
@@ -13,7 +13,7 @@ const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   heading,
-  subheading,
+  subheading = "",
   children,
   widthClass = "max-w-lg",
 }) => {
@@ -29,7 +29,7 @@ const Modal: React.FC<ModalProps> = ({
 
       {/* Modal */}
       <div
-        className={`relative bg-white rounded-xl shadow-xl w-full mx-4 modal-content ${widthClass}`}
+        className={`relative max-h-[90%] overflow-auto bg-white rounded-xl shadow-xl w-full mx-4 modal-content ${widthClass}`}
       >
         <div className="py-[56px] px-[34px]">
           {/* Heading */}

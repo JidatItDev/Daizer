@@ -3,6 +3,7 @@ import Cookies from "js-cookie";
 import CryptoJS from "crypto-js";
 import type { AuthContextType, User } from "../types/auth/user.types";
 import toast from "react-hot-toast";
+import { queryClient } from "../main";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -100,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("userData");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    queryClient.clear();
 
     setUser(null);
     setAccessToken(null);

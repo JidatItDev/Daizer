@@ -21,6 +21,9 @@ import Subcategory from "./user/categories/Subcategory";
 import Products from "./user/products";
 import { Toaster } from "react-hot-toast";
 import Checkout from "./user/products/Checkout";
+import Wallet from "./user/wallet";
+import Topup from "./user/wallet/Topup";
+import WalletManagement from "./admin/WalletManagement";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -62,6 +65,7 @@ function App() {
         >
           <Route index element={<UserManagement />} />
           <Route path="dashboard" element={<UserManagement />} />
+          <Route path="wallet" element={<WalletManagement />} />
           <Route path="pricing-groups" element={<PricingGroup />} />
           <Route path="orders-products" element={<ProductsManagement />} />
         </Route>
@@ -76,12 +80,13 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<ClientDashboard />} />
-          <Route path="/dashboard" element={<ClientDashboard />} />
+          <Route index element={<Wallet />} />
+          <Route path="/dashboard" element={<Wallet />} />
           <Route path="/browse-categories" element={<Categories />} />
           <Route path="/browse-categories/:id" element={<Subcategory />} />
           <Route path="/products/:id" element={<Products />} />
           <Route path="/checkout/:id" element={<Checkout />} />
+          <Route path="/topup" element={<Topup />} />
 
           <Route path="/change-password" element={<Changepassword />} />
         </Route>
