@@ -13,7 +13,6 @@ const invalidateProductsCache = async () => {
     const keys = await redisClient.keys("products:page:*");
     if (keys.length > 0) {
       await redisClient.del(keys);
-      console.log("Cache invalidated for products:", keys);
     }
   } catch (err) {
     console.error("Error invalidating product cache:", err);
@@ -39,8 +38,6 @@ class ProductController {
         quantity,
         serviceId,
       } = body;
-
-      console.log("body", body);
 
       // Parse JSON if it's string
       if (typeof pricingGroupPrices === "string") {
@@ -81,8 +78,6 @@ class ProductController {
             mimetype: file.mimetype,
           }
         : null;
-
-      console.log("quantity//", quantity);
 
       const [newProduct] = await db
         .insert(products)
@@ -223,7 +218,6 @@ class ProductController {
       // Try Redis cache
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("Returning products from cache");
         return res.status(200).json(JSON.parse(cached));
       }
 
@@ -255,7 +249,6 @@ class ProductController {
       // Save to cache
       await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
 
-      console.log("Returning products from DB");
       return res.status(200).json(response);
     } catch (error) {
       console.error("Fetch products error:", error);
@@ -295,7 +288,6 @@ class ProductController {
       // 1️⃣ Try cache first
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("Returning pricing groups from cache");
         return res.status(200).json({
           success: true,
           source: "cache",
@@ -309,7 +301,6 @@ class ProductController {
       // 3️⃣ Save to cache
       await redisClient.setEx(cacheKey, 600, JSON.stringify(groups)); // cache for 10 min
 
-      console.log("Returning pricing groups from DB");
       return res.status(200).json({
         success: true,
         source: "db",
@@ -337,7 +328,6 @@ class ProductController {
       // 🔹 Try Redis cache
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("Returning products by category from cache");
         return res.status(200).json(JSON.parse(cached));
       }
 
@@ -364,7 +354,6 @@ class ProductController {
       // 🔹 Cache for 5 minutes
       await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
 
-      console.log("Returning products by category from DB");
       return res.status(200).json(response);
     } catch (error) {
       console.error("Fetch products by category error:", error);
@@ -454,7 +443,6 @@ class ProductController {
 
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("Returning product services from cache");
         return res.status(200).json(JSON.parse(cached));
       }
 
@@ -481,7 +469,6 @@ class ProductController {
 
       await redisClient.setEx(cacheKey, 600, JSON.stringify(response));
 
-      console.log("Returning product services from external API");
       return res.status(200).json(response);
     } catch (error: any) {
       console.error("getProductServices error:", error.message);
@@ -601,12 +588,6 @@ class ProductController {
       formData.append("service", product.serviceId.toString());
       formData.append("reference", referenceNumber.toString());
       formData.append("player_id", playerId);
-
-      console.log("Calling external service with:", {
-        service: product.serviceId,
-        reference: referenceNumber,
-        playerId: playerId,
-      });
 
       const { data } = await axios.post(apiUrl, formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

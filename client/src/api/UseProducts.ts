@@ -208,7 +208,7 @@ export const useCreateProduct = () => {
       }
       formData.append("serviceId", payload.serviceId.toString());
 
-      console.log("form data", formData);
+      // console.log("form data", formData);
       const response = await axiosPrivate.post(
         "/products/createProduct",
         formData,

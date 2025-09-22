@@ -134,10 +134,10 @@ export default function AdminLogin() {
         });
 
         const data = await response.data;
-        console.log(response);
+        // console.log(response);
 
         if (data.success) {
-          console.log("being called");
+          // console.log("being called");
           login(data.user, data.accessToken, data.refreshToken);
         }
         toast.success("login successfull");

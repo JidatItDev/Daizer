@@ -106,8 +106,6 @@ export default function Register() {
 
   useEffect(() => {
     if (signupLinkData && signupLinkData.success) {
-      console.log("signupLinkData", signupLinkData);
-      console.log("called");
       setIsSignupLink(true);
       const nameParts = signupLinkData.link.name.split(" ");
       const firstName = nameParts[0];
@@ -281,17 +279,14 @@ export default function Register() {
       try {
         if (isSignupLink && token) {
           // Use the register with link method
-          console.log("this one called");
           const response = await registerWithLinkMutation.mutateAsync({
             token,
             password: formData.password,
           });
 
           const data = await response;
-          console.log(response);
 
           if (data.success) {
-            console.log("Registration with link successful");
             login(data.user, data.accessToken, data.refreshToken);
             navigate("/");
             toast.success("Registration successful");
@@ -307,13 +302,10 @@ export default function Register() {
           });
 
           const data = await response.data;
-          console.log(response);
 
           if (data.success) {
-            console.log("being called");
             login(data.user, data.accessToken, data.refreshToken);
           }
-          console.log("Registration successful:", response.data);
           navigate("/");
           toast.success("Registration successful");
         }

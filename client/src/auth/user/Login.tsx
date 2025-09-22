@@ -115,7 +115,7 @@ export default function Login() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    console.log("hit login");
+    // console.log("hit login");
 
     // Validate all fields
     const emailError = validateEmail(formData.email);
@@ -137,10 +137,10 @@ export default function Login() {
         });
 
         const data = await response.data;
-        console.log(response);
+        // console.log(response);
 
         if (data.success) {
-          console.log("called");
+          // console.log("called");
           login(data.user, data.accessToken, data.refreshToken);
         }
         toast.success("login successfull");

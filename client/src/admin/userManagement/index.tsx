@@ -277,7 +277,7 @@ const UserManagement = () => {
     }
   }, [signupLinksData]);
 
-  console.log("signupLinks", signupLinksData);
+  // console.log("signupLinks", signupLinksData);
 
   const [sort, setSort] = useState<SortState>({
     field: "name",
@@ -323,7 +323,8 @@ const UserManagement = () => {
   };
 
   const handleViewDetails = (userId: string) => {
-    console.log("View details for user:", userId);
+    console.log(userId);
+    // console.log("View details for user:", userId);
   };
 
   const handleEdit = (user: User) => {
@@ -390,7 +391,7 @@ const UserManagement = () => {
     setIsSubmitting(true);
 
     try {
-      console.log("Creating account with:", createFormData);
+      // console.log("Creating account with:", createFormData);
       let pricingGroupId = createFormData.pricingGroup;
       if (!pricingGroupId) {
         const defaultPricingGroup = pricingGroups.find(
@@ -403,10 +404,10 @@ const UserManagement = () => {
         name: createFormData?.fullName || "",
         pricingGroupId: pricingGroupId || null,
       };
-      console.log("payload", payload);
+      // console.log("payload", payload);
 
-      const response = await createSignupLink(payload);
-      console.log(response);
+      await createSignupLink(payload);
+      // console.log(response);
 
       toast.success("Signup link created successfully");
 
@@ -417,13 +418,13 @@ const UserManagement = () => {
       });
       setIsCreateModalOpen(false);
 
-      console.log("Account created successfully//");
+      // console.log("Account created successfully//");
     } catch (error: any) {
       if (error?.response?.status === 409) {
-        console.log("error if called");
+        // console.log("error if called");
         toast.error("Email already exists.");
       }
-      console.log("Failed to create account:", error);
+      // console.log("Failed to create account:", error);
       toast.error(`Failed to create account`);
     } finally {
       setIsSubmitting(false);
@@ -477,8 +478,9 @@ const UserManagement = () => {
     field: AllFormFields,
     value: string
   ) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
     console.log(formData);
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    // console.log(formData);
   };
 
   const handleFilterChange = (filterType: keyof FilterState, value: string) => {

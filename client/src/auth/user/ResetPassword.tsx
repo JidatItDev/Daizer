@@ -162,15 +162,11 @@ export default function ResetPassword() {
     // If no errors, proceed with password reset
     if (Object.keys(newErrors).length === 0 && token) {
       try {
-        const response = await axiosPublic.post(
-          API_ENDPOINTS.AUTH.RESET_PASSWORD,
-          {
-            token: token,
-            newPassword: formData.newPassword,
-          }
-        );
+        await axiosPublic.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
+          token: token,
+          newPassword: formData.newPassword,
+        });
 
-        console.log("Password reset successful:", response.data);
         toast.success("Password has been reset successfully");
         setIsSuccess(true);
 

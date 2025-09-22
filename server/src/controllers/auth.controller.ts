@@ -407,7 +407,6 @@ class AuthController {
         sortField = "createdAt",
         sortOrder = "desc",
       } = req.query;
-      console.log("req.query", req.query);
 
       const offset = (Number(page) - 1) * Number(limit);
 
@@ -425,10 +424,7 @@ class AuthController {
         conditions.push(inArray(users.pricingGroupId, ids as string[]));
       }
 
-      console.log("object filters", {
-        status,
-        pricingGroupIds,
-      });
+     
 
       const whereClause =
         conditions.length > 0 ? and(...conditions) : undefined;
@@ -444,7 +440,6 @@ class AuthController {
       const orderDirection =
         String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
 
-      console.log("whereClause", whereClause);
 
       const [result, countResult] = await Promise.all([
         db

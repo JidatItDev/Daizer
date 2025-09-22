@@ -202,7 +202,6 @@ const Checkout = () => {
 
       if (result.success) {
         // Show success message or redirect
-        console.log("Purchase successful:", result);
         // You can show a success notification here
         toast.success("Purchase successful! Your order has been processed.");
         navigate(-1); // Redirect to orders page

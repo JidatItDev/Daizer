@@ -172,7 +172,7 @@ export default function ChangePassword() {
           userId: user?.id, // Assuming your auth context provides the user object with id
         };
 
-        console.log("Submitting password change:", payload);
+        // console.log("Submitting password change:", payload);
 
         // Uncomment to actually call the API
         const response = await axiosPrivate.post(

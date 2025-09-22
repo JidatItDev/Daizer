@@ -82,7 +82,6 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
         </div>
         <button
           onClick={() => {
-            console.log("Add to cart clicked for product:", product.id);
             navigate(`/checkout/${product.id}`);
           }}
           className="font-poppins w-full text-lg mb-1 truncate flex items-center justify-center bg-primary-dark text-white rounded-full px-3 py-1.5 mt-4"

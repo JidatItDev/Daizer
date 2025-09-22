@@ -10,7 +10,6 @@ const invalidatePricingGroupsCache = async () => {
     const keys = await redisClient.keys("pricingGroups:page:*");
     if (keys.length > 0) {
       await redisClient.del(keys);
-      console.log("Cache invalidated for pricingGroups:", keys);
     }
   } catch (err) {
     console.error("Error invalidating cache:", err);
@@ -104,7 +103,6 @@ class PricingGroupController {
 
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log("cached return");
         return res.status(200).json(JSON.parse(cached));
       }
 
@@ -127,7 +125,6 @@ class PricingGroupController {
 
       const [{ count }] = countResult;
 
-      console.log("db return");
 
       const response = {
         success: true,
@@ -142,7 +139,6 @@ class PricingGroupController {
 
       await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
 
-      console.log("db return");
       return res.status(200).json(response);
     } catch (error) {
       console.error("Get pricing groups error:", error);

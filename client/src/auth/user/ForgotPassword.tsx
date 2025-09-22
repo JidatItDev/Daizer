@@ -70,14 +70,11 @@ export default function ForgotPassword() {
     // If no errors, proceed with password reset request
     if (!emailError) {
       try {
-        const response = await axiosPublic.post(
-          API_ENDPOINTS.AUTH.FORGOT_PASSWORD,
-          {
-            email: formData.email,
-          }
-        );
+        await axiosPublic.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+          email: formData.email,
+        });
 
-        console.log("Password reset request successful:", response.data);
+        // console.log("Password reset request successful:", response.data);
         toast.success("Password reset link sent to your email");
         setIsSubmitted(true);
       } catch (error: any) {

@@ -61,7 +61,6 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     serviceId: "",
   });
 
-  console.log("formData", formData);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -179,7 +178,6 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
           }
         }
       );
-      console.log("quantity//", formData.quantity);
       await createProductMutation.mutateAsync({
         name: formData.name,
         quantity: formData.quantity || undefined,
