@@ -175,6 +175,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Button } from "../../components/common/Button";
 import { useWalletBalance } from "../../api/Wallets";
 import { usePurchaseProduct } from "../../api/UseProducts"; // Import the new hook
+import toast from "react-hot-toast";
 
 const Checkout = () => {
   const { id } = useParams<{ id: string }>();
@@ -203,10 +204,10 @@ const Checkout = () => {
         // Show success message or redirect
         console.log("Purchase successful:", result);
         // You can show a success notification here
-        alert("Purchase successful! Your order has been processed.");
-        navigate("/orders"); // Redirect to orders page
+        toast.success("Purchase successful! Your order has been processed.");
+        navigate(-1); // Redirect to orders page
       } else {
-        alert(`Purchase failed: ${result.message}`);
+        toast.error(`Purchase failed: ${result.message}`);
       }
     } catch (error: any) {
       console.error("Purchase error:", error);
@@ -337,12 +338,6 @@ const Checkout = () => {
                 </p>
               )}
 
-              {/* {purchaseProduct.isError && (
-                <p className="text-sm text-red-600">
-                  {purchaseProduct.error.response?.data?.message ||
-                    "Purchase failed. Please try again."}
-                </p>
-              )} */}
               {purchaseProduct.isError && (
                 <p className="text-sm text-red-600">
                   {purchaseProduct.error instanceof Error
