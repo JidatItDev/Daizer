@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { API_ENDPOINTS } from "../../config/api";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useConfigContext } from "../../context/ConfigContext";
 
 interface FormErrors {
   email?: string;
@@ -23,6 +24,8 @@ export default function AdminLogin() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const config = useConfigContext();
+  const logo = config?.logoUrl || "";
   const [formData, setFormData] = useState<FormData>({
     email: "",
     password: "",
@@ -158,7 +161,7 @@ export default function AdminLogin() {
       <div className="w-full max-w-[615px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px]   px-[45px] py-[35px] shadow-2xl">
         <div className="flex justify-center mb-6">
           <div className="relative w-36 h-36">
-            <img src="./assets/logo.png" alt="" />
+            <img src={logo} alt="" />
           </div>
         </div>
 

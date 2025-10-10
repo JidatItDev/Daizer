@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 import axiosPrivate from "../../AxiosInstances/PrivateAxiosInstance";
 import { API_ENDPOINTS } from "../../config/api";
+import { useConfigContext } from "../../context/ConfigContext";
 
 interface FormErrors {
   currentPassword?: string;
@@ -39,6 +40,8 @@ export default function ChangePassword() {
     confirmPassword: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const config = useConfigContext();
+  const logo = config?.logoUrl || "";
 
   // Validation functions
   const validatePassword = (
@@ -219,7 +222,7 @@ export default function ChangePassword() {
       <div className="w-full max-w-[520px]  3xl:max-w-[615px] 4xl:max-w-[800px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] p-4  md:px-[20px] md:py-[20px]">
         <div className="flex justify-center mb-6">
           <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
-            <img src="./assets/logo.png" alt="" />
+            <img src={logo} alt="" />
           </div>
         </div>
 

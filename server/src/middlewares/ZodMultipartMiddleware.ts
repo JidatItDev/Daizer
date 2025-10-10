@@ -4,12 +4,12 @@ import { ZodSchema } from "zod";
 export const multiPartValidateSchema = (schema: ZodSchema<any>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      // console.log("Original req.body:", req.body);
-      // console.log("Content-Type:", req.headers["content-type"]);
-      // console.log(
-      //   "File uploaded:",
-      //   req.file ? req.file.originalname : "No file"
-      // );
+      console.log("Original req.body:", req.body);
+      console.log("Content-Type:", req.headers["content-type"]);
+      console.log(
+        "File uploaded:",
+        req.file ? req.file.originalname : "No file"
+      );
 
       // Handle different content types
       let dataToValidate = req.body || {};

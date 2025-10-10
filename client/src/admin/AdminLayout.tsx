@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { LiaUsersCogSolid } from "react-icons/lia";
 import { BsFillCreditCardFill } from "react-icons/bs";
+import { TbUserDollar } from "react-icons/tb";
 
 import Sidebar from "../components/common/Sidebar";
 import Header from "../components/common/Header";
 import { MdDashboard } from "react-icons/md";
+import { IoSettingsSharp } from "react-icons/io5";
 
 const AdminLayout = () => {
   const menuItems = [
@@ -16,7 +18,7 @@ const AdminLayout = () => {
     },
     {
       name: "Pricing Group",
-      icon: <BsFillCreditCardFill />,
+      icon: <TbUserDollar />,
       path: "pricing-groups",
     },
     {
@@ -28,6 +30,11 @@ const AdminLayout = () => {
       name: "Orders & Products",
       icon: <MdDashboard />,
       path: "orders-products",
+    },
+    {
+      name: "Platform Setting",
+      icon: <IoSettingsSharp />,
+      path: "settings",
     },
   ];
   const isMobile = window.innerWidth < 768;

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { db } from "../db/dbConnection";
-import { pricingGroups, users } from "../db/schema";
+import { pricingGroups, users, wallets } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql, lt } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../utils/crypto.utils";
 import {
@@ -19,6 +19,7 @@ class AuthController {
   static async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
 
       const [user] = await db
         .select({
@@ -31,7 +32,7 @@ class AuthController {
           pricingGroupId: users.pricingGroupId,
         })
         .from(users)
-        .where(eq(users.email, email))
+        .where(eq(users.email, normalizedEmail))
         .limit(1);
 
       if (!user) return res.status(404).json({ message: "User not found" });
@@ -223,11 +224,12 @@ class AuthController {
   static async register(req: Request, res: Response) {
     try {
       const { email, password, name, pricingGroupId } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
 
       const [existingUser] = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.email, email))
+        .where(eq(users.email, normalizedEmail))
         .limit(1);
 
       if (existingUser) {
@@ -251,7 +253,7 @@ class AuthController {
         .insert(users)
         .values({
           name,
-          email,
+          email: normalizedEmail,
           password: hashedPassword,
           role: "user",
           isActive: true,
@@ -265,6 +267,10 @@ class AuthController {
           pricingGroupId: users.pricingGroupId,
           createdAt: users.createdAt,
         });
+      await db.insert(wallets).values({
+        userId: newUser.id,
+        balance: "0",
+      });
 
       if (!newUser.id || !newUser.role) {
         return res.status(500).json({ message: "User data is incomplete" });
@@ -341,6 +347,11 @@ class AuthController {
           pricingGroupId: users.pricingGroupId,
           createdAt: users.createdAt,
         });
+
+      await db.insert(wallets).values({
+        userId: newUser.id,
+        balance: "0",
+      });
 
       await redisClient.del("users:page:*");
 
@@ -424,8 +435,6 @@ class AuthController {
         conditions.push(inArray(users.pricingGroupId, ids as string[]));
       }
 
-     
-
       const whereClause =
         conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -439,7 +448,6 @@ class AuthController {
         allowedSortFields[String(sortField)] || users.createdAt;
       const orderDirection =
         String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
-
 
       const [result, countResult] = await Promise.all([
         db
@@ -519,12 +527,13 @@ class AuthController {
   static async createSignupLink(req: Request, res: Response) {
     try {
       const { email, name, pricingGroupId } = req.body;
+      const normalizedEmail = email.toLowerCase().trim();
 
       // check if email already used
       const [existingUser] = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.email, email))
+        .where(eq(users.email, normalizedEmail))
         .limit(1);
       if (existingUser) {
         return res.status(409).json({ message: "Email already in use" });
@@ -537,7 +546,7 @@ class AuthController {
       const [link] = await db
         .insert(signupLinks)
         .values({
-          email,
+          email: normalizedEmail,
           name,
           pricingGroupId,
           token,
@@ -593,6 +602,11 @@ class AuthController {
           pricingGroupId: link.pricingGroupId,
         })
         .returning();
+
+      await db.insert(wallets).values({
+        userId: newUser.id,
+        balance: "0",
+      });
 
       // mark link as used
       await db

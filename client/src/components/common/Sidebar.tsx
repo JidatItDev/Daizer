@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { IoLogOut } from "react-icons/io5";
-import logo from "../../../public/logo.png";
+import { useConfigContext } from "../../context/ConfigContext";
 interface MenuItem {
   name: string;
   icon: React.ReactNode;
@@ -23,6 +23,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const config = useConfigContext();
+  const logo = config?.logoUrl || "";
 
   const handleItemClick = () => {
     if (window.innerWidth < 768) {

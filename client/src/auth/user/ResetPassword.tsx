@@ -7,6 +7,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import axiosPublic from "../../AxiosInstances/PublicAxiosInstance";
 import { API_ENDPOINTS } from "../../config/api";
 import toast from "react-hot-toast";
+import { useConfigContext } from "../../context/ConfigContext";
 
 interface FormErrors {
   newPassword?: string;
@@ -36,6 +37,8 @@ export default function ResetPassword() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+  const config = useConfigContext();
+  const logo = config?.logoUrl || "";
 
   // Validate token on mount
   useEffect(() => {
@@ -206,7 +209,7 @@ export default function ResetPassword() {
           <div className="text-center space-y-6">
             <div className="flex justify-center mb-6">
               <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
-                <img src="./assets/logo.png" alt="" />
+                <img src={logo} alt="" />
               </div>
             </div>
             <h1 className="text-lg lg:text-2xl 3xl:text-[36px] font-tajawal font-bold text-black mb-2 uppercase">
@@ -235,7 +238,7 @@ export default function ResetPassword() {
           <div className="text-center space-y-6">
             <div className="flex justify-center mb-6">
               <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
-                <img src="./assets/logo.png" alt="" />
+                <img src={logo} alt="" />
               </div>
             </div>
             <div className="flex justify-center">
@@ -261,7 +264,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-[520px]  3xl:max-w-[615px] 4xl:max-w-[800px]  bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px] px-[45px] py-[35px] shadow-2xl">
         <div className="flex justify-center mb-6">
           <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
-            <img src="./assets/logo.png" alt="" />
+            <img src={logo} alt="" />
           </div>
         </div>
 

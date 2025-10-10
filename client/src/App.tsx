@@ -24,6 +24,7 @@ import Checkout from "./user/products/Checkout";
 import Wallet from "./user/wallet";
 import Topup from "./user/wallet/Topup";
 import WalletManagement from "./admin/WalletManagement";
+import Settings from "./admin/platformSettings";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -68,6 +69,7 @@ function App() {
           <Route path="wallet" element={<WalletManagement />} />
           <Route path="pricing-groups" element={<PricingGroup />} />
           <Route path="orders-products" element={<ProductsManagement />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         <Route

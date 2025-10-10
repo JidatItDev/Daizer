@@ -8,6 +8,7 @@ import axiosPublic from "../../AxiosInstances/PublicAxiosInstance";
 import { useAuth } from "../../context/AuthContext";
 import { API_ENDPOINTS } from "../../config/api";
 import toast from "react-hot-toast";
+import { useConfigContext } from "../../context/ConfigContext";
 
 interface FormErrors {
   email?: string;
@@ -27,6 +28,8 @@ export default function Login() {
     email: "",
     password: "",
   });
+  const config = useConfigContext();
+  const logo = config?.logoUrl || "";
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ email: boolean; password: boolean }>(
     {
@@ -190,7 +193,7 @@ export default function Login() {
       <div className="w-full max-w-[520px]  3xl:max-w-[615px] 4xl:max-w-[800px] bg-white rounded-tl-[20px] rounded-br-[20px] rounded-tr-[80px] rounded-bl-[80px]   px-[45px] py-[35px] shadow-2xl">
         <div className="flex justify-center mb-6">
           <div className="relative w-16 h-16 3xl:w-24 3xl:h-24">
-            <img src="./assets/logo.png" alt="" />
+            <img src={logo} alt="" />
           </div>
         </div>
 
