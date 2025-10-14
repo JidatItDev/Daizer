@@ -186,7 +186,10 @@ class AuthController {
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
-    await EmailService.sendPasswordResetLinkEmail(email, resetLink);
+    await EmailService.sendTemplateEmail("forgotPassword", email, {
+      link: resetLink,
+      resetLink,
+    });
 
     return res.json({
       success: true,
@@ -556,8 +559,11 @@ class AuthController {
 
       const signupUrl = `${process.env.FRONTEND_URL}/register?token=${token}`;
 
-      // Send email to invited user
-      await EmailService.sendSignupLinkEmail(email, signupUrl);
+      await EmailService.sendTemplateEmail("signupLink", email, {
+        name,
+        signupUrl,
+        email,
+      });
 
       return res.status(201).json({
         success: true,

@@ -7,3 +7,4 @@ export * from "./wallets.schema";
 export * from "./transactions.schema";
 export * from "./refundRequests.schema";
 export * from "./relations";
+export * from "./emailTemplate.schema";

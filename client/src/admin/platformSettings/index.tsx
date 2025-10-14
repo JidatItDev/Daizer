@@ -2,23 +2,55 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { Button } from "../../components/common/Button";
 import Heading from "../../components/common/Heading";
 import { Input } from "../../components/common/Input";
+import { Table, type TableColumn } from "../../components/common/Table";
+import Modal from "../../components/common/Modal";
 import { useConfig, useUpdateOrCreateConfig } from "../../api/useConfig";
 import { useConfigContext } from "../../context/ConfigContext";
+
+import { Edit } from "lucide-react";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
+import {
+  useEmailTemplates,
+  useUpdateEmailTemplate,
+} from "../../api/useEmailTemplates";
+import toast from "react-hot-toast";
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  type: string;
+  subject: string;
+  body: string;
+}
 
 const Settings = () => {
   const { data: config } = useConfig();
   const updateConfig = useUpdateOrCreateConfig();
-  // const { logoUrl } = useConfigContext();
   const configobj = useConfigContext();
   const logoUrl = configobj?.logoUrl || "";
+
+  const { data, isLoading } = useEmailTemplates();
+  const { mutateAsync: updateTemplate } = useUpdateEmailTemplate();
+  const templates = data?.templates || [];
+  const pagination = data?.pagination;
 
   const [editMode, setEditMode] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [minBalance, setMinBalance] = useState("0");
 
+  // Email templates modal state
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<EmailTemplate | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    subject: "",
+    body: "",
+  });
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
   useEffect(() => {
     if (config?.config) {
-      console.log("object", config?.config);
       setMinBalance(config?.config?.minimumBalanceRequirement || "0");
     }
   }, [config?.config]);
@@ -32,12 +64,11 @@ const Settings = () => {
 
   const handleSave = () => {
     const formData = new FormData();
-    // const mainBalanceRequirement = minBalance.toString();
     const mainBalanceRequirement = String(minBalance);
     formData.append("minimumBalanceRequirement", mainBalanceRequirement);
 
     if (logoFile) {
-      formData.append("logo", logoFile); // backend should accept "logo"
+      formData.append("logo", logoFile);
     }
 
     updateConfig.mutate(formData, {
@@ -53,6 +84,92 @@ const Settings = () => {
       setMinBalance(config.minBalance || "1000");
     }
     setLogoFile(null);
+  };
+
+  // Email templates handlers
+  const handleEditTemplate = (template: EmailTemplate) => {
+    setSelectedTemplate(template);
+    setTemplateForm({
+      subject: template.subject,
+      body: template.body,
+    });
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!selectedTemplate) return;
+
+    setIsSavingTemplate(true);
+    try {
+      await updateTemplate({
+        id: selectedTemplate.id,
+        payload: {
+          subject: templateForm.subject,
+          body: templateForm.body,
+        },
+      });
+      setIsTemplateModalOpen(false);
+      setSelectedTemplate(null);
+      toast.success("Template updated successfully");
+    } catch (error) {
+      console.error("Failed to update template:", error);
+      toast.error("Failed to update template");
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
+  const handleCloseTemplateModal = () => {
+    setIsTemplateModalOpen(false);
+    setSelectedTemplate(null);
+    setTemplateForm({ subject: "", body: "" });
+  };
+
+  // Table columns for email templates
+  const templateColumns: TableColumn<EmailTemplate>[] = [
+    {
+      key: "name",
+      title: "Template Name",
+    },
+    {
+      key: "type",
+      title: "Type",
+    },
+    {
+      key: "subject",
+      title: "Subject",
+      render: (_, record) => (
+        <div className="max-w-xs truncate" title={record.subject}>
+          {record.subject}
+        </div>
+      ),
+    },
+    {
+      key: "action",
+      title: "Action",
+      align: "center",
+      render: (_, record) => (
+        <button
+          onClick={() => handleEditTemplate(record)}
+          className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
+        >
+          <Edit size={16} />
+        </button>
+      ),
+    },
+  ];
+  const modules = {
+    toolbar: [
+      [{ header: [1, 2, 3, 4, 5, 6, false] }],
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      [{ color: [] }],
+      ["link"],
+      ["clean"],
+    ],
+  };
+  const handleQuillChange = (content: string) => {
+    setTemplateForm((prev) => ({ ...prev, body: content }));
   };
 
   return (
@@ -144,6 +261,27 @@ const Settings = () => {
           </div>
         </div>
 
+        {/* Email Templates Section */}
+        <div className="mt-12">
+          <div className="flex justify-between items-center mb-6">
+            <Heading>Email Templates</Heading>
+          </div>
+
+          <div className="bg-white border-t-2 border-black/50">
+            <Table
+              columns={templateColumns}
+              data={templates}
+              loading={isLoading}
+              pagination={{
+                current: 1,
+                pageSize: 10,
+                total: pagination?.length,
+                onChange: () => {}, // Add pagination logic if needed
+              }}
+            />
+          </div>
+        </div>
+
         {editMode && (
           <div className="flex justify-end gap-4 mt-8">
             <Button variant="secondary" size="md" onClick={handleCancel}>
@@ -160,6 +298,90 @@ const Settings = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Template Modal */}
+      <Modal
+        isOpen={isTemplateModalOpen}
+        onClose={handleCloseTemplateModal}
+        heading="Edit Email Template"
+        subheading={`Modify the ${selectedTemplate?.name} template`}
+        widthClass="max-w-[920px] max-h-[90vh] overflow-y-auto"
+      >
+        <div className="space-y-6 mt-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Template Name
+            </label>
+            <Input
+              type="text"
+              value={selectedTemplate?.name || ""}
+              disabled
+              className="bg-gray-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Template Type
+            </label>
+            <Input
+              type="text"
+              value={selectedTemplate?.type || ""}
+              disabled
+              className="bg-gray-50"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Subject
+            </label>
+            <Input
+              type="text"
+              value={templateForm.subject}
+              onChange={(e) =>
+                setTemplateForm((prev) => ({
+                  ...prev,
+                  subject: e.target.value,
+                }))
+              }
+              placeholder="Enter email subject"
+            />
+          </div>
+
+          <div className="mb-4 h-full">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Body
+            </label>
+
+            <ReactQuill
+              theme="snow"
+              value={templateForm.body}
+              onChange={handleQuillChange}
+              modules={modules}
+              style={{ height: 250 }}
+            />
+          </div>
+
+          <div className="flex justify-end gap-4 pt-[40px]">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={handleCloseTemplateModal}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleSaveTemplate}
+              disabled={isSavingTemplate}
+            >
+              {isSavingTemplate ? "Saving..." : "Save Template"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

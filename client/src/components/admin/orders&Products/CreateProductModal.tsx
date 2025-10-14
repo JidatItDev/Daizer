@@ -61,7 +61,6 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     serviceId: "",
   });
 
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: pricingGroupsData, isLoading: isLoadingPricingGroups } =
@@ -180,7 +179,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       );
       await createProductMutation.mutateAsync({
         name: formData.name,
-        quantity: formData.quantity || undefined,
+        quantity: formData.quantity?.toString() || undefined,
         description: formData.description,
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,

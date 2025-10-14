@@ -4,6 +4,8 @@ import { wallets, transactions, refundRequests, users } from "../db/schema";
 import { and, asc, desc, eq, inArray, ne, SQL, sql } from "drizzle-orm";
 import { checkoutNodeJssdk, paypalClient } from "../config/paypal";
 import redisClient from "../config/redis";
+import { EmailService } from "../services/email.service";
+import { email } from "zod";
 
 async function invalidateUserTransactionsCache(userId: string) {
   const pattern = `transactions:${userId}:*`;
@@ -153,19 +155,107 @@ class WalletController {
     return res.json({ refundRequests: list });
   }
 
-  static async requestRefund(req: Request, res: Response) {
-    const userId = req.user!.id;
-    const { amount } = req.body;
+  // static async requestRefund(req: Request, res: Response) {
+  //   const userId = req.user!.id;
+  //   const { amount } = req.body;
 
-    const [rr] = await db
-      .insert(refundRequests)
-      .values({ userId, amount })
-      .returning();
+  //   const [user] = await db
+  //     .select({
+  //       id: users.id,
+  //       name: users.name,
+  //       email: users.email,
+  //     })
+  //     .from(users)
+  //     .where(eq(users.id, userId))
+  //     .limit(1);
 
-    return res.status(201).json({ success: true, refundRequest: rr });
-  }
+  //   if (!user) {
+  //     return res.status(404).json({ message: "User not found" });
+  //   }
+
+  //   const [rr] = await db
+  //     .insert(refundRequests)
+  //     .values({ userId, amount })
+  //     .returning();
+
+  //   console.log("request refund called!!", rr);
+  //   await EmailService.sendTemplateEmail("userPartialRequest", user.email, {
+  //     requestedBy: user.name,
+  //     name: user.name,
+  //     email: user.email,
+  //     status: rr.status || "pending",
+  //     amount,
+  //     refundAmount: amount,
+  //   });
+
+  //   return res.status(201).json({ success: true, refundRequest: rr });
+  // }
 
   // Admin APIs
+
+  static async requestRefund(req: Request, res: Response) {
+    try {
+      const userId = req.user!.id;
+      const { amount } = req.body;
+
+      // fetch requesting user
+      const [user] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const [rr] = await db
+        .insert(refundRequests)
+        .values({ userId, amount })
+        .returning();
+
+      console.log("request refund called!!", rr);
+
+      const admins = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        })
+        .from(users)
+        .where(eq(users.role, "admin"));
+
+      for (const admin of admins) {
+        await EmailService.sendTemplateEmail(
+          "refundRequestAdminNotification",
+          admin.email,
+          {
+            adminName: admin.name,
+            admin: admin.name,
+            requestedBy: user.name,
+            name: user.name,
+            requesterEmail: user.email,
+            email: user.email,
+            amount,
+            refundAmount: amount,
+            refundId: rr.id,
+            id: rr.id,
+            status: rr.status || "pending",
+          }
+        );
+      }
+
+      return res.status(201).json({ success: true, refundRequest: rr });
+    } catch (err) {
+      console.error("requestRefund error:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
   static async getAllWallets(req: Request, res: Response) {
     const result = await db.query.wallets.findMany({
       with: { user: true },
@@ -542,6 +632,31 @@ class WalletController {
         // invalidateWalletCaches(refund.userId)a,
       ]);
 
+      const [user] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        })
+        .from(users)
+        .where(eq(users.id, refund.userId));
+
+      if (user) {
+        await EmailService.sendTemplateEmail(
+          "refundApprovedNotification",
+          user.email,
+          {
+            name: user.name,
+            refundId: refund.id,
+            amount: refund.amount.toString(),
+            newBalance: newBalance.toString(),
+            destination,
+            sentBy,
+            status: approvedRefund.status || "accepted",
+          }
+        );
+      }
+
       return res.json({
         success: true,
         refund: approvedRefund,
@@ -581,6 +696,27 @@ class WalletController {
 
       // Invalidate refund request cache only (no transaction created, no wallet change)
       // await invalidateRefundRequestCaches();
+      const [user] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        })
+        .from(users)
+        .where(eq(users.id, refund.userId));
+
+      if (user) {
+        await EmailService.sendTemplateEmail(
+          "refundRejectedNotification",
+          user.email,
+          {
+            name: user.name,
+            refundId: refund.id,
+            amount: refund.amount.toString(),
+            status: rejectedRefund.status || "rejected",
+          }
+        );
+      }
 
       return res.json({
         success: true,
@@ -603,7 +739,20 @@ class WalletController {
           .json({ message: "Type must be 'credit' or 'debit'" });
       }
 
-      // Get the wallet
+      const [user] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
       const [wallet] = await db
         .select()
         .from(wallets)
@@ -613,7 +762,6 @@ class WalletController {
         return res.status(404).json({ message: "Wallet not found" });
       }
 
-      // Calculate new balance
       let newBalance: number;
       if (type === "credit") {
         newBalance = Number(wallet.balance) + Number(amount);
@@ -625,14 +773,12 @@ class WalletController {
         newBalance = Number(wallet.balance) - Number(amount);
       }
 
-      // Update wallet balance
       const [updatedWallet] = await db
         .update(wallets)
         .set({ balance: newBalance.toString() })
         .where(eq(wallets.userId, userId))
         .returning();
 
-      // Create transaction with both destination and sentBy/receivedInto
       await db.insert(transactions).values({
         walletId: wallet.id,
         userId,
@@ -650,7 +796,42 @@ class WalletController {
           newBalance: newBalance.toString(),
         }),
       });
+
       await invalidateTransactionCaches();
+
+      if (type === "debit") {
+        await EmailService.sendTemplateEmail("debit", user.email, {
+          name: user.name,
+          email: user.email,
+          amount: amount.toString(),
+          debitAmount: amount.toString(),
+          currency: wallet.currency,
+          newBalance: newBalance.toString(),
+          balance: newBalance.toString(),
+          originalBalance: wallet.balance,
+          oldBalance: wallet.balance,
+          destination: destination,
+          sentBy: sentReceived,
+          sent: sentReceived,
+        });
+      }
+      if (type === "credit") {
+        await EmailService.sendTemplateEmail("credit", user.email, {
+          name: user.name,
+          email: user.email,
+          amount: amount.toString(),
+          creditAmount: amount.toString(),
+          currency: wallet.currency,
+          newBalance: newBalance.toString(),
+          balance: newBalance.toString(),
+          originalBalance: wallet.balance,
+          oldBalance: wallet.balance,
+          destination: destination,
+          receivedInto: sentReceived,
+          received: sentReceived,
+        });
+      }
+
       return res.json({
         success: true,
         wallet: updatedWallet,
@@ -765,6 +946,28 @@ class WalletController {
         console.log("updatedwallet", updatedwallet);
 
         await invalidateUserTransactionsCache(userId);
+        const [user] = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+          })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        if (user) {
+          await EmailService.sendTemplateEmail("topup", user.email, {
+            name: user.name,
+            amount,
+            currency,
+            newBalance: (
+              parseFloat(transaction.amount) + parseFloat(amount)
+            ).toString(),
+            referenceId: captureId,
+            date: new Date().toLocaleString(),
+          });
+        }
 
         return res.json({
           success: true,

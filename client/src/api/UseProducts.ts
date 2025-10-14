@@ -204,7 +204,7 @@ export const useCreateProduct = () => {
         formData.append("image", payload.image);
       }
       if (payload.quantity) {
-        formData.append("quantity", payload.quantity);
+        formData.append("quantity", payload.quantity?.toString());
       }
       formData.append("serviceId", payload.serviceId.toString());
 

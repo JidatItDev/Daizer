@@ -10,6 +10,7 @@ import CategoryRoutes from "./routes/category.routes";
 import productRouter from "./routes/product.routes";
 import walletRouter from "./routes/wallet.routes";
 import configRouter from "./routes/config.routes";
+import emailTemplateRouter from "./routes/emailTemplate.routes";
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use("/api/v1/categories", CategoryRoutes);
 app.use("/api/v1/pricing-groups", pricingGroupRouter);
 app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/config", configRouter);
+app.use("/api/v1/emailTemplate", emailTemplateRouter);
 
 app.get("/", (_, res) => {
   res.send(`

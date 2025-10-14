@@ -6,6 +6,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { categories } from "../db/schema/categories.schema";
 import axios from "axios";
+import { EmailService } from "../services/email.service";
 
 // Helper → Invalidate product caches
 const invalidateProductsCache = async () => {
@@ -26,7 +27,6 @@ type ProductWithSubcategory = typeof products.$inferSelect & {
     | null;
 };
 class ProductController {
-  // ✅ Create Product
   static async createProduct(req: Request, res: Response) {
     try {
       const body = req.body || {};
@@ -210,6 +210,7 @@ class ProductController {
       });
     }
   }
+
   static async getAllProducts(req: Request, res: Response) {
     try {
       const { page = 1, limit = 20 } = req.query;
@@ -255,7 +256,7 @@ class ProductController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
-  // ✅ Delete Product
+
   static async deleteProduct(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -363,6 +364,7 @@ class ProductController {
       });
     }
   }
+
   static async getProductById(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -534,18 +536,6 @@ class ProductController {
         });
       }
 
-      // 3. Get price based on user's pricing group
-      // const pricingGroupPrice = product.pricingGroupPrices.find(
-      //   (pg: any) => pg.id === user.pricingGroupId
-      // );
-
-      // if (!pricingGroupPrice) {
-      //   return res.status(400).json({
-      //     success: false,
-      //     message: "Price not configured for user's pricing group",
-      //   });
-      // }
-
       const pricingGroupPrice = product.pricingGroupPrices?.find(
         (pg: any) => pg.id === user.pricingGroupId
       );
@@ -591,7 +581,7 @@ class ProductController {
 
       const { data } = await axios.post(apiUrl, formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        timeout: 30000, // 30 second timeout
+        timeout: 30000,
       });
 
       if (!data || !data.status) {
@@ -653,13 +643,22 @@ class ProductController {
         })(),
       ]);
 
+      await EmailService.sendTemplateEmail("productPurchase", user.email, {
+        name: user.name,
+        productName: product.name,
+        amount: productPrice.toString(),
+        newBalance: newBalance.toString(),
+        referenceId: data.orderid,
+        playerId: playerId,
+        date: new Date().toLocaleString(),
+      });
+
       return res.status(200).json({
         success: true,
         message: "Product purchased successfully",
         product: product.name,
         amount: productPrice,
         newBalance: newBalance,
-        externalResponse: data,
       });
     } catch (error: any) {
       console.error("Purchase product error:", error.message);

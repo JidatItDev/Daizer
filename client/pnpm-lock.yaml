@@ -56,6 +56,9 @@ importers:
       lucide-react:
         specifier: ^0.534.0
         version: 0.534.0(react@19.1.1)
+      quill:
+        specifier: ^2.0.3
+        version: 2.0.3
       react:
         specifier: ^19.1.0
         version: 19.1.1
@@ -71,6 +74,12 @@ importers:
       react-icons:
         specifier: ^5.5.0
         version: 5.5.0(react@19.1.1)
+      react-quill:
+        specifier: ^2.0.0
+        version: 2.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      react-quill-new:
+        specifier: ^3.6.0
+        version: 3.6.0(quill-delta@5.1.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react-redux:
         specifier: ^9.2.0
         version: 9.2.0(@types/react@19.1.9)(react@19.1.1)(redux@5.0.1)
@@ -958,6 +967,9 @@ packages:
   '@types/node@24.3.1':
     resolution: {integrity: sha512-3vXmQDXy+woz+gnrTvuvNrPzekOi+Ds0ReMxw0LzBiK3a+1k0kQn9f2NWk+lgD4rJehFUmYy2gMhJ2ZI+7YP9g==}
 
+  '@types/quill@1.3.10':
+    resolution: {integrity: sha512-IhW3fPW+bkt9MLNlycw8u8fWb7oO7W5URC9MfZYHBlA24rex9rs23D5DETChu1zvgVdc5ka64ICjJOgQMr6Shw==}
+
   '@types/react-dom@19.1.7':
     resolution: {integrity: sha512-i5ZzwYpqjmrKenzkoLM2Ibzt6mAsM7pxB6BCIouEVVmgiqaMj1TjaK7hnA36hbW5aZv20kx7Lw6hWzPWg0Rurw==}
     peerDependencies:
@@ -1119,6 +1131,14 @@ packages:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
     engines: {node: '>= 0.4'}
 
+  call-bind@1.0.8:
+    resolution: {integrity: sha512-oKlSFMcMwpUg2ednkhQ454wfWiU/ul3CkJe/PEHcTKuiX6RpbehUiFMXu13HalGZxfUwCQzZG747YXBn1im9ww==}
+    engines: {node: '>= 0.4'}
+
+  call-bound@1.0.4:
+    resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
+    engines: {node: '>= 0.4'}
+
   callsites@3.1.0:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
@@ -1140,6 +1160,10 @@ packages:
 
   class-variance-authority@0.7.1:
     resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
+
+  clone@2.1.2:
+    resolution: {integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==}
+    engines: {node: '>=0.8'}
 
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
@@ -1203,8 +1227,20 @@ packages:
       supports-color:
         optional: true
 
+  deep-equal@1.1.2:
+    resolution: {integrity: sha512-5tdhKF6DbU7iIzrIOa1AOUt39ZRm13cmL1cGEh//aqR8x9+tNfbywRf0n5FD/18OKMdo7DNEtrX2t22ZAkI+eg==}
+    engines: {node: '>= 0.4'}
+
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
+
+  define-data-property@1.1.4:
+    resolution: {integrity: sha512-rBMvIzlpA8v6E+SJZoo++HAYqsLrkg7MSfIinMPFhmkorw7X+dOXVJQs+QT69zGkzMyfDnIMN2Wid1+NbL3T+A==}
+    engines: {node: '>= 0.4'}
+
+  define-properties@1.2.1:
+    resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
+    engines: {node: '>= 0.4'}
 
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
@@ -1317,8 +1353,23 @@ packages:
     resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
     engines: {node: '>=0.10.0'}
 
+  eventemitter3@2.0.3:
+    resolution: {integrity: sha512-jLN68Dx5kyFHaePoXWPsCGW5qdyZQtLYHkxkg02/Mz6g0kYpDx4FyP6XfArhQdlOC4b8Mv+EMxPo/8La7Tzghg==}
+
+  eventemitter3@5.0.1:
+    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
+
+  extend@3.0.2:
+    resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
+
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
+
+  fast-diff@1.1.2:
+    resolution: {integrity: sha512-KaJUt+M9t1qaIteSvjc6P3RbMdXsNhK61GRftR6SNxqmhthcd9MGIi4T+o0jD8LUSpSnSKXE20nLtJ3fOHxQig==}
+
+  fast-diff@1.3.0:
+    resolution: {integrity: sha512-VxPP4NqbUjj6MaAOafWeUn2cXWLcCtljklUtZf0Ind4XQ+QPtmA0b18zZy0jIQx+ExRVCR/ZQpBmik5lXshNsw==}
 
   fast-glob@3.3.3:
     resolution: {integrity: sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg==}
@@ -1388,6 +1439,9 @@ packages:
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
 
+  functions-have-names@1.2.3:
+    resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
+
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
@@ -1440,6 +1494,9 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
+  has-property-descriptors@1.0.2:
+    resolution: {integrity: sha512-55JNKuIW+vq4Ke1BjOTjM2YctQIvCT7GFzHwmfZPGo5wnrgkid0YQtnAleFSqumZm4az3n2BS+erby5ipJdgrg==}
+
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
     engines: {node: '>= 0.4'}
@@ -1471,12 +1528,20 @@ packages:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
     engines: {node: '>=0.8.19'}
 
+  is-arguments@1.2.0:
+    resolution: {integrity: sha512-7bVbi0huj/wrIAOzb8U1aszg9kdi3KN/CyU19CTI7tAoZYEZoL9yCDXpbXN+uPsuWnP02cyug1gleqq+TU+YCA==}
+    engines: {node: '>= 0.4'}
+
   is-binary-path@2.1.0:
     resolution: {integrity: sha512-ZMERYes6pDydyuGidse7OsHxtbI7WVeUEozgR/g7rd0xUimYNlvZRE/K2MgZTjWy725IfelLeVcEM97mmtRGXw==}
     engines: {node: '>=8'}
 
   is-core-module@2.16.1:
     resolution: {integrity: sha512-UfoeMA6fIJ8wTYFEUjelnaGI67v6+N7qXJEvQuIGa99l4xsCruSYOVSQ0uPANn4dAzm8lkYPaKLrrijLq7x23w==}
+    engines: {node: '>= 0.4'}
+
+  is-date-object@1.1.0:
+    resolution: {integrity: sha512-PwwhEakHVKTdRNVOw+/Gyh0+MzlCl4R6qKvkhuvLtPMggI1WAHt9sOwZxQLSGpUaDnrdyDsomoRgNnCfKNSXXg==}
     engines: {node: '>= 0.4'}
 
   is-extglob@2.1.1:
@@ -1494,6 +1559,10 @@ packages:
   is-number@7.0.0:
     resolution: {integrity: sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==}
     engines: {node: '>=0.12.0'}
+
+  is-regex@1.2.1:
+    resolution: {integrity: sha512-MjYsKHO5O7mCsmRGxWcLWheFqN9DJ/2TmngvjKXihe6efViPqc274+Fx/4fYj/r03+ESvBdTXK0V6tA3rgez1g==}
+    engines: {node: '>= 0.4'}
 
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
@@ -1553,8 +1622,21 @@ packages:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
 
+  lodash-es@4.17.21:
+    resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
+
+  lodash.clonedeep@4.5.0:
+    resolution: {integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==}
+
+  lodash.isequal@4.5.0:
+    resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
+    deprecated: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
+
+  lodash@4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
@@ -1631,6 +1713,14 @@ packages:
     resolution: {integrity: sha512-RSn9F68PjH9HqtltsSnqYC1XXoWe9Bju5+213R98cNGttag9q9yAOTzdbsqvIa7aNm5WffBZFpWYr2aWrklWAw==}
     engines: {node: '>= 6'}
 
+  object-is@1.1.6:
+    resolution: {integrity: sha512-F8cZ+KfGlSGi09lJT7/Nd6KJZ9ygtvYC0/UYYLI9nmQKLMnydpB9yvbv9K1uSkEu7FU9vYPmVwLg328tX+ot3Q==}
+    engines: {node: '>= 0.4'}
+
+  object-keys@1.1.1:
+    resolution: {integrity: sha512-NuAESUOUMrlIXOfHKzD6bpPu3tYt3xvjNdRIQ+FeT0lNb4K8WR70CaDxhuNguS2XG+GjkyMwOzsN5ZktImfhLA==}
+    engines: {node: '>= 0.4'}
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -1645,6 +1735,12 @@ packages:
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
+
+  parchment@1.1.4:
+    resolution: {integrity: sha512-J5FBQt/pM2inLzg4hEWmzQx/8h8D0CiDxaG3vyp9rKrQRSDgBlhjdP5jQGgosEajXPSQouXGHOmVdgo7QmJuOg==}
+
+  parchment@3.0.0:
+    resolution: {integrity: sha512-HUrJFQ/StvgmXRcQ1ftY6VEZUq3jA2t9ncFN4F84J/vN0/FPpQF+8FKXb3l6fLces6q0uOHj6NJn+2xvZnxO6A==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -1739,6 +1835,21 @@ packages:
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
+  quill-delta@3.6.3:
+    resolution: {integrity: sha512-wdIGBlcX13tCHOXGMVnnTVFtGRLoP0imqxM696fIPwIf5ODIYUHIvHbZcyvGlZFiFhK5XzDC2lpjbxRhnM05Tg==}
+    engines: {node: '>=0.10'}
+
+  quill-delta@5.1.0:
+    resolution: {integrity: sha512-X74oCeRI4/p0ucjb5Ma8adTXd9Scumz367kkMK5V/IatcX6A0vlgLgKbzXWy5nZmCGeNJm2oQX0d2Eqj+ZIlCA==}
+    engines: {node: '>= 12.0.0'}
+
+  quill@1.3.7:
+    resolution: {integrity: sha512-hG/DVzh/TiknWtE6QmWAF/pxoZKYxfe3J/d/+ShUWkDvvkZQVTPeVmUJVu1uE6DDooC4fWTiCLh84ul89oNz5g==}
+
+  quill@2.0.3:
+    resolution: {integrity: sha512-xEYQBqfYx/sfb33VJiKnSJp8ehloavImQ2A6564GAbqG55PGw1dAWUn1MUbQB62t0azawUS2CZZhWCjO8gRvTw==}
+    engines: {npm: '>=8.2.3'}
+
   react-dom@19.1.1:
     resolution: {integrity: sha512-Dlq/5LAZgF0Gaz6yiqZCf6VCcZs1ghAJyrsu84Q/GT0gV+mCxbfmKNoGRKBYMJ8IEdGPqu49YWXD02GCknEDkw==}
     peerDependencies:
@@ -1761,6 +1872,19 @@ packages:
     resolution: {integrity: sha512-MEFcXdkP3dLo8uumGI5xN3lDFNsRtrjbOEKDLD7yv76v4wpnEq2Lt2qeHaQOr34I/wPN3s3+N08WkQ+CW37Xiw==}
     peerDependencies:
       react: '*'
+
+  react-quill-new@3.6.0:
+    resolution: {integrity: sha512-weU6YfB2+7Cujw5Hjgmi0aN/qJd3B6ADWrxgUJMp2MO3tEvKX5kfB0sg3P0UdOVfU0z8icsKFzlnEIpeW1mLhw==}
+    peerDependencies:
+      quill-delta: ^5.1.0
+      react: ^16 || ^17 || ^18 || ^19
+      react-dom: ^16 || ^17 || ^18 || ^19
+
+  react-quill@2.0.0:
+    resolution: {integrity: sha512-4qQtv1FtCfLgoD3PXAur5RyxuUbPXQGOHgTlFie3jtxp43mXDtzCKaOgQ3mLyZfi1PUlyjycfivKelFhy13QUg==}
+    peerDependencies:
+      react: ^16 || ^17 || ^18
+      react-dom: ^16 || ^17 || ^18
 
   react-redux@9.2.0:
     resolution: {integrity: sha512-ROY9fvHhwOD9ySfrF0wmvu//bKCQ6AeZZq1nJNtbDC+kk5DuSuNX/n6YWYF/SYy7bSba4D4FSz8DJeKY/S/r+g==}
@@ -1844,6 +1968,10 @@ packages:
   redux@5.0.1:
     resolution: {integrity: sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==}
 
+  regexp.prototype.flags@1.5.4:
+    resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
+    engines: {node: '>= 0.4'}
+
   reselect@5.1.1:
     resolution: {integrity: sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w==}
 
@@ -1882,6 +2010,14 @@ packages:
 
   set-cookie-parser@2.7.1:
     resolution: {integrity: sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ==}
+
+  set-function-length@1.2.2:
+    resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
+    engines: {node: '>= 0.4'}
+
+  set-function-name@2.0.2:
+    resolution: {integrity: sha512-7PGFlmtwsEADb0WYyvCMa1t+yke6daIG4Wirafur5kcf+MhUnPms1UeR0CKQdTZD81yESwMHbtn+TR+dMviakQ==}
+    engines: {node: '>= 0.4'}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -2816,6 +2952,10 @@ snapshots:
     dependencies:
       undici-types: 7.10.0
 
+  '@types/quill@1.3.10':
+    dependencies:
+      parchment: 1.1.4
+
   '@types/react-dom@19.1.7(@types/react@19.1.9)':
     dependencies:
       '@types/react': 19.1.9
@@ -3018,6 +3158,18 @@ snapshots:
       es-errors: 1.3.0
       function-bind: 1.1.2
 
+  call-bind@1.0.8:
+    dependencies:
+      call-bind-apply-helpers: 1.0.2
+      es-define-property: 1.0.1
+      get-intrinsic: 1.3.0
+      set-function-length: 1.2.2
+
+  call-bound@1.0.4:
+    dependencies:
+      call-bind-apply-helpers: 1.0.2
+      get-intrinsic: 1.3.0
+
   callsites@3.1.0: {}
 
   camelcase-css@2.0.1: {}
@@ -3044,6 +3196,8 @@ snapshots:
   class-variance-authority@0.7.1:
     dependencies:
       clsx: 2.1.1
+
+  clone@2.1.2: {}
 
   clsx@2.1.1: {}
 
@@ -3095,7 +3249,28 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  deep-equal@1.1.2:
+    dependencies:
+      is-arguments: 1.2.0
+      is-date-object: 1.1.0
+      is-regex: 1.2.1
+      object-is: 1.1.6
+      object-keys: 1.1.1
+      regexp.prototype.flags: 1.5.4
+
   deep-is@0.1.4: {}
+
+  define-data-property@1.1.4:
+    dependencies:
+      es-define-property: 1.0.1
+      es-errors: 1.3.0
+      gopd: 1.2.0
+
+  define-properties@1.2.1:
+    dependencies:
+      define-data-property: 1.1.4
+      has-property-descriptors: 1.0.2
+      object-keys: 1.1.1
 
   delayed-stream@1.0.0: {}
 
@@ -3244,7 +3419,17 @@ snapshots:
 
   esutils@2.0.3: {}
 
+  eventemitter3@2.0.3: {}
+
+  eventemitter3@5.0.1: {}
+
+  extend@3.0.2: {}
+
   fast-deep-equal@3.1.3: {}
+
+  fast-diff@1.1.2: {}
+
+  fast-diff@1.3.0: {}
 
   fast-glob@3.3.3:
     dependencies:
@@ -3308,6 +3493,8 @@ snapshots:
 
   function-bind@1.1.2: {}
 
+  functions-have-names@1.2.3: {}
+
   gensync@1.0.0-beta.2: {}
 
   get-intrinsic@1.3.0:
@@ -3361,6 +3548,10 @@ snapshots:
 
   has-flag@4.0.0: {}
 
+  has-property-descriptors@1.0.2:
+    dependencies:
+      es-define-property: 1.0.1
+
   has-symbols@1.1.0: {}
 
   has-tostringtag@1.0.2:
@@ -3384,6 +3575,11 @@ snapshots:
 
   imurmurhash@0.1.4: {}
 
+  is-arguments@1.2.0:
+    dependencies:
+      call-bound: 1.0.4
+      has-tostringtag: 1.0.2
+
   is-binary-path@2.1.0:
     dependencies:
       binary-extensions: 2.3.0
@@ -3391,6 +3587,11 @@ snapshots:
   is-core-module@2.16.1:
     dependencies:
       hasown: 2.0.2
+
+  is-date-object@1.1.0:
+    dependencies:
+      call-bound: 1.0.4
+      has-tostringtag: 1.0.2
 
   is-extglob@2.1.1: {}
 
@@ -3401,6 +3602,13 @@ snapshots:
       is-extglob: 2.1.1
 
   is-number@7.0.0: {}
+
+  is-regex@1.2.1:
+    dependencies:
+      call-bound: 1.0.4
+      gopd: 1.2.0
+      has-tostringtag: 1.0.2
+      hasown: 2.0.2
 
   isexe@2.0.0: {}
 
@@ -3447,7 +3655,15 @@ snapshots:
     dependencies:
       p-locate: 5.0.0
 
+  lodash-es@4.17.21: {}
+
+  lodash.clonedeep@4.5.0: {}
+
+  lodash.isequal@4.5.0: {}
+
   lodash.merge@4.6.2: {}
+
+  lodash@4.17.21: {}
 
   lru-cache@10.4.3: {}
 
@@ -3506,6 +3722,13 @@ snapshots:
 
   object-hash@3.0.0: {}
 
+  object-is@1.1.6:
+    dependencies:
+      call-bind: 1.0.8
+      define-properties: 1.2.1
+
+  object-keys@1.1.1: {}
+
   optionator@0.9.4:
     dependencies:
       deep-is: 0.1.4
@@ -3524,6 +3747,10 @@ snapshots:
       p-limit: 3.1.0
 
   package-json-from-dist@1.0.1: {}
+
+  parchment@1.1.4: {}
+
+  parchment@3.0.0: {}
 
   parent-module@1.0.1:
     dependencies:
@@ -3595,6 +3822,34 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
+  quill-delta@3.6.3:
+    dependencies:
+      deep-equal: 1.1.2
+      extend: 3.0.2
+      fast-diff: 1.1.2
+
+  quill-delta@5.1.0:
+    dependencies:
+      fast-diff: 1.3.0
+      lodash.clonedeep: 4.5.0
+      lodash.isequal: 4.5.0
+
+  quill@1.3.7:
+    dependencies:
+      clone: 2.1.2
+      deep-equal: 1.1.2
+      eventemitter3: 2.0.3
+      extend: 3.0.2
+      parchment: 1.1.4
+      quill-delta: 3.6.3
+
+  quill@2.0.3:
+    dependencies:
+      eventemitter3: 5.0.1
+      lodash-es: 4.17.21
+      parchment: 3.0.0
+      quill-delta: 5.1.0
+
   react-dom@19.1.1(react@19.1.1):
     dependencies:
       react: 19.1.1
@@ -3614,6 +3869,22 @@ snapshots:
   react-icons@5.5.0(react@19.1.1):
     dependencies:
       react: 19.1.1
+
+  react-quill-new@3.6.0(quill-delta@5.1.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+    dependencies:
+      lodash-es: 4.17.21
+      quill: 2.0.3
+      quill-delta: 5.1.0
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
+
+  react-quill@2.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+    dependencies:
+      '@types/quill': 1.3.10
+      lodash: 4.17.21
+      quill: 1.3.7
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
 
   react-redux@9.2.0(@types/react@19.1.9)(react@19.1.1)(redux@5.0.1):
     dependencies:
@@ -3683,6 +3954,15 @@ snapshots:
 
   redux@5.0.1: {}
 
+  regexp.prototype.flags@1.5.4:
+    dependencies:
+      call-bind: 1.0.8
+      define-properties: 1.2.1
+      es-errors: 1.3.0
+      get-proto: 1.0.1
+      gopd: 1.2.0
+      set-function-name: 2.0.2
+
   reselect@5.1.1: {}
 
   resolve-from@4.0.0: {}
@@ -3732,6 +4012,22 @@ snapshots:
   semver@7.7.2: {}
 
   set-cookie-parser@2.7.1: {}
+
+  set-function-length@1.2.2:
+    dependencies:
+      define-data-property: 1.1.4
+      es-errors: 1.3.0
+      function-bind: 1.1.2
+      get-intrinsic: 1.3.0
+      gopd: 1.2.0
+      has-property-descriptors: 1.0.2
+
+  set-function-name@2.0.2:
+    dependencies:
+      define-data-property: 1.1.4
+      es-errors: 1.3.0
+      functions-have-names: 1.2.3
+      has-property-descriptors: 1.0.2
 
   shebang-command@2.0.0:
     dependencies:
