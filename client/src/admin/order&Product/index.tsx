@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import {
   useDeleteProduct,
   useProducts,
+  useUpdateProduct,
   type Product,
 } from "../../api/UseProducts";
 import { CreateProductModal } from "../../components/admin/orders&Products/CreateProductModal";
@@ -34,7 +35,7 @@ const ProductsManagement = () => {
     pageSize: 10,
     total: 0,
   });
-
+  const updateProductMutation = useUpdateProduct();
   const { data, isFetching, refetch } = useProducts({
     page: pagination.current,
     limit: pagination.pageSize,
@@ -43,6 +44,7 @@ const ProductsManagement = () => {
   const deleteProductMutation = useDeleteProduct();
 
   const products: Product[] = data?.products ?? [];
+  console.log("products", products);
 
   const totalProducts = data?.pagination?.totalProducts ?? 0;
 
@@ -112,6 +114,23 @@ const ProductsManagement = () => {
     return product.subcategoryName || "Uncategorized";
   };
 
+  const getStatus = (product: Product) => {
+    console.log("product", product);
+
+    return product.isActive ? (
+      <span className="text-success"> Active</span>
+    ) : (
+      <span className="text-error"> Disabled</span>
+    );
+  };
+
+  const handleToggleStatus = (product: Product) => {
+    updateProductMutation.mutate({
+      id: product.id,
+      isActive: !product.isActive,
+    });
+  };
+
   const productColumns: TableColumn<Product>[] = [
     {
       key: "name",
@@ -163,6 +182,34 @@ const ProductsManagement = () => {
         <span className="text-sm text-gray-500">
           {new Date(record.createdAt).toLocaleDateString()}
         </span>
+      ),
+    },
+    {
+      key: "isActive",
+      title: "Status",
+      render: (_, record) => (
+        <span className="text-sm font-medium text-gray-900">
+          {getStatus(record)}
+        </span>
+      ),
+    },
+    {
+      key: "isActive",
+      title: "Status",
+      render: (_, record) => (
+        <button
+          type="button"
+          onClick={() => handleToggleStatus(record)}
+          className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
+            record.isActive ? "bg-green-500" : "bg-gray-300"
+          }`}
+        >
+          <div
+            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition ${
+              record.isActive ? "translate-x-6" : "translate-x-0"
+            }`}
+          />
+        </button>
       ),
     },
     {

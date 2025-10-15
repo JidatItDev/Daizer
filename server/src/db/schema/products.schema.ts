@@ -6,6 +6,7 @@ import {
   jsonb,
   timestamp,
   index,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const products = pgTable(
@@ -20,7 +21,7 @@ export const products = pgTable(
     >(),
     // JSONB for image object
     image: jsonb("image").$type<{ name: string; url: string }>(),
-    // Each product belongs to a subcategory
+    isActive: boolean("is_active").default(true).notNull(),
     subcategoryId: uuid("subcategory_id"),
     subcategoryName: varchar("subcategory_name", { length: 255 }),
     serviceId: varchar("service_id", { length: 255 }).notNull(),

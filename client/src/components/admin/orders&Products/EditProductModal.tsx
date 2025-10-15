@@ -43,6 +43,7 @@ interface FormData {
   image: File | null;
   pricingGroupPrices: Record<string, string>;
   serviceId?: string;
+  isActive: boolean;
 }
 
 interface ServiceResponse {
@@ -62,6 +63,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     image: null,
     pricingGroupPrices: {},
     serviceId: "",
+    isActive: true,
   });
   // const { data: services = [] } = useProductServices();
   const { data: servicesData } = useProductServices();
@@ -98,6 +100,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         image: null,
         pricingGroupPrices,
         serviceId: product.serviceId?.toString() || "",
+        isActive: product.isActive ?? true,
       });
     }
   }, [product, isOpen]);
@@ -168,6 +171,18 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         }
       );
 
+      console.log("payload", {
+        id: product.id,
+        name: formData.name,
+        quantity: formData.quantity || undefined,
+        description: formData.description,
+        subcategoryId: formData.subcategoryId,
+        image: formData.image || undefined,
+        pricingGroupPrices,
+        serviceId: formData.serviceId?.toString() || "",
+        isActive: formData.isActive,
+      });
+
       await updateProductMutation.mutateAsync({
         id: product.id,
         name: formData.name,
@@ -177,6 +192,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         image: formData.image || undefined,
         pricingGroupPrices,
         serviceId: formData.serviceId?.toString() || "",
+        isActive: formData.isActive,
       });
 
       toast.success("Product updated successfully");
@@ -201,6 +217,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       subcategoryId: "",
       image: null,
       pricingGroupPrices: {},
+      isActive: true,
     });
     setErrors({});
     onClose();
@@ -221,6 +238,26 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column */}
           <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3  py-3 border-b-[2px] border-gray-300">
+              <label className="block text-sm font-medium text-gray-700  ">
+                Active Status
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  handleInputChange("isActive", !formData.isActive)
+                }
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
+                  formData.isActive ? "bg-green-500" : "bg-gray-300"
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition ${
+                    formData.isActive ? "translate-x-6" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
             {/* Name */}
             <div className="flex gap-2">
               <div>

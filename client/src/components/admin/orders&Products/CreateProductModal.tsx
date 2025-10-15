@@ -41,6 +41,7 @@ interface FormData {
   image: File | null;
   pricingGroupPrices: Record<string, string>;
   serviceId?: string;
+  isActive: boolean;
 }
 
 interface ServiceResponse {
@@ -59,6 +60,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     image: null,
     pricingGroupPrices: {},
     serviceId: "",
+    isActive: true,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -177,6 +179,16 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
           }
         }
       );
+      console.log("payload", {
+        name: formData.name,
+        quantity: formData.quantity?.toString() || undefined,
+        description: formData.description,
+        subcategoryId: formData.subcategoryId,
+        image: formData.image || undefined,
+        pricingGroupPrices,
+        serviceId: formData.serviceId?.toString() || "",
+        isActive: formData.isActive,
+      });
       await createProductMutation.mutateAsync({
         name: formData.name,
         quantity: formData.quantity?.toString() || undefined,
@@ -185,6 +197,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
         image: formData.image || undefined,
         pricingGroupPrices,
         serviceId: formData.serviceId?.toString() || "",
+        isActive: formData.isActive,
       });
 
       toast.success("Product created successfully");
@@ -208,6 +221,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       subcategoryId: "",
       image: null,
       pricingGroupPrices: {},
+      isActive: true,
     });
     setErrors({});
     onClose();
@@ -226,6 +240,26 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3  py-3 border-b-[2px] border-gray-300">
+              <label className="block text-sm font-medium text-gray-700  ">
+                Active Status
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  handleInputChange("isActive", !formData.isActive)
+                }
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
+                  formData.isActive ? "bg-green-500" : "bg-gray-300"
+                }`}
+              >
+                <div
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform transition ${
+                    formData.isActive ? "translate-x-6" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
             <div className="flex gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

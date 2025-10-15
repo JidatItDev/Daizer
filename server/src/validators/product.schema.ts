@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const booleanFromString = z
+  .union([z.string(), z.boolean()])
+  .transform((val) => {
+    if (typeof val === "boolean") return val;
+    if (val === "true") return true;
+    if (val === "false") return false;
+    return false; // or throw
+  });
 // Create Product
 const parseJsonString = z.string().transform((str, ctx) => {
   try {
@@ -17,7 +25,7 @@ export const createProductSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().optional(),
   quantity: z.string().max(255).optional(),
-  // Handle pricingGroupPrices as either object or JSON string
+  isActive: booleanFromString.optional(),
   pricingGroupPrices: z
     .union([
       z.record(z.string(), z.number().positive()), // Direct object
@@ -34,6 +42,7 @@ export const createProductSchema = z.object({
 export const createProductSchemaSimple = z.object({
   name: z.string().min(2).max(100),
   description: z.string().optional(),
+  isActive: booleanFromString.optional(),
   pricingGroupPrices: z.record(z.string(), z.number().positive()).optional(),
   subcategoryId: z.string().uuid(),
   serviceId: z
@@ -46,6 +55,7 @@ export const updateProductSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   quantity: z.string().max(255).optional(),
   description: z.string().optional(),
+  isActive: booleanFromString.optional(),
   pricingGroupPrices: z
     .union([
       z.record(z.string(), z.number().positive()),

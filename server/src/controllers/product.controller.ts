@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { db } from "../db/dbConnection";
 import { products } from "../db/schema/products.schema";
 import { pricingGroups, transactions, users, wallets } from "../db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { categories } from "../db/schema/categories.schema";
 import axios from "axios";
@@ -37,6 +37,7 @@ class ProductController {
         subcategoryId,
         quantity,
         serviceId,
+        isActive,
       } = body;
 
       // Parse JSON if it's string
@@ -90,6 +91,7 @@ class ProductController {
           subcategoryName: subcategory.name,
           serviceId,
           image,
+          isActive: isActive ?? true,
         })
         .returning();
 
@@ -116,6 +118,7 @@ class ProductController {
         subcategoryId,
         quantity,
         serviceId,
+        isActive,
       } = req.body;
 
       // Parse JSON if it's string (same as createProduct)
@@ -144,8 +147,9 @@ class ProductController {
       if (serviceId !== undefined) {
         updateData.serviceId = req.body.serviceId; // ✅
       }
+      if (isActive !== undefined) updateData.isActive = isActive;
+      console.log("isActive", isActive);
 
-      // ✅ Process pricingGroupPrices the SAME way as createProduct
       if (pricingGroupPrices !== undefined) {
         // --- Fetch pricing groups with names (SAME AS CREATE) ---
         const pricingGroupsData = await db
@@ -181,6 +185,8 @@ class ProductController {
         updateData.subcategoryName = subcategory.name;
         updateData.subcategory = { id: subcategory.id, name: subcategory.name };
       }
+
+      console.log("updateData", updateData);
 
       const [updatedProduct] = await db
         .update(products)
@@ -336,7 +342,12 @@ class ProductController {
       const result = await db
         .select()
         .from(products)
-        .where(eq(products.subcategoryId, categoryId));
+        .where(
+          and(
+            eq(products.subcategoryId, categoryId),
+            eq(products.isActive, true)
+          )
+        );
 
       if (!result || result.length === 0) {
         return res.status(404).json({

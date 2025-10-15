@@ -7,6 +7,7 @@ export interface Product {
   id: string;
   name: string;
   quantity?: string;
+  isActive: boolean;
   description?: string;
   pricingGroupPrices: {
     id: string;
@@ -66,6 +67,7 @@ export interface CreateProductPayload {
   subcategoryId: string;
   serviceId: string;
   image?: File;
+  isActive: boolean;
 }
 
 export interface UpdateProductPayload {
@@ -76,7 +78,9 @@ export interface UpdateProductPayload {
   subcategoryId?: string;
   image?: File;
   serviceId?: string;
+  isActive?: boolean;
 }
+
 export interface ExternalService {
   ServiceGroup: string;
   ServiceIcon: string;
@@ -120,7 +124,6 @@ const useInvalidateProducts = () => {
     queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
 };
 
-// Get all products with pagination
 export const useProducts = (
   filters: { page?: number; limit?: number } = {}
 ) => {
@@ -195,6 +198,11 @@ export const useCreateProduct = () => {
       if (payload.description) {
         formData.append("description", payload.description);
       }
+      console.log("called");
+      // if (payload.isActive !== undefined) {
+      formData.append("isActive", String(payload.isActive));
+      // }
+
       formData.append(
         "pricingGroupPrices",
         JSON.stringify(payload.pricingGroupPrices)
@@ -249,6 +257,9 @@ export const useUpdateProduct = () => {
         formData.append("subcategoryId", payload.subcategoryId);
       if (payload.serviceId) formData.append("serviceId", payload.serviceId);
       if (payload.image) formData.append("image", payload.image);
+      if (payload.isActive !== undefined) {
+        formData.append("isActive", String(payload.isActive));
+      }
 
       const response = await axiosPrivate.put(
         `/products/updateProduct/${id}`,
