@@ -636,7 +636,6 @@ class ProductController {
             await redisClient.del(keys);
           }
         })(),
-        // Invalidate wallet balance cache
         (async () => {
           const pattern = `wallet:balance:${userId}`;
           await redisClient.del(pattern);

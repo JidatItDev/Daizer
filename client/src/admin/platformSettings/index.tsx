@@ -29,8 +29,12 @@ const Settings = () => {
   const updateConfig = useUpdateOrCreateConfig();
   const configobj = useConfigContext();
   const logoUrl = configobj?.logoUrl || "";
+  const [paginationState, setPaginationState] = useState({
+    page: 1,
+    limit: 10,
+  });
 
-  const { data, isLoading } = useEmailTemplates();
+  const { data, isLoading } = useEmailTemplates(paginationState);
   const { mutateAsync: updateTemplate } = useUpdateEmailTemplate();
   const templates = data?.templates || [];
   const pagination = data?.pagination;
@@ -48,6 +52,13 @@ const Settings = () => {
     body: "",
   });
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  const handlePaginationChange = (page: number, pageSize: number) => {
+    setPaginationState({
+      page,
+      limit: pageSize,
+    });
+  };
 
   useEffect(() => {
     if (config?.config) {
@@ -260,28 +271,6 @@ const Settings = () => {
             )}
           </div>
         </div>
-
-        {/* Email Templates Section */}
-        <div className="mt-12">
-          <div className="flex justify-between items-center mb-6">
-            <Heading>Email Templates</Heading>
-          </div>
-
-          <div className="bg-white border-t-2 border-black/50">
-            <Table
-              columns={templateColumns}
-              data={templates}
-              loading={isLoading}
-              pagination={{
-                current: 1,
-                pageSize: 10,
-                total: pagination?.length,
-                onChange: () => {}, // Add pagination logic if needed
-              }}
-            />
-          </div>
-        </div>
-
         {editMode && (
           <div className="flex justify-end gap-4 mt-8">
             <Button variant="secondary" size="md" onClick={handleCancel}>
@@ -297,6 +286,27 @@ const Settings = () => {
             </Button>
           </div>
         )}
+
+        {/* Email Templates Section */}
+        <div className="mt-12">
+          <div className="flex justify-between items-center mb-6">
+            <Heading>Email Templates</Heading>
+          </div>
+
+          <div className="bg-white border-t-2 border-black/50">
+            <Table
+              columns={templateColumns}
+              data={templates}
+              loading={isLoading}
+              pagination={{
+                current: paginationState.page,
+                pageSize: paginationState.limit,
+                total: pagination?.totalTemplates,
+                onChange: handlePaginationChange,
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Edit Template Modal */}
