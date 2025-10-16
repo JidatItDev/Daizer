@@ -44,7 +44,7 @@ const ProductsManagement = () => {
   const deleteProductMutation = useDeleteProduct();
 
   const products: Product[] = data?.products ?? [];
-  console.log("products", products);
+  // console.log("products", products);
 
   const totalProducts = data?.pagination?.totalProducts ?? 0;
 
@@ -115,7 +115,7 @@ const ProductsManagement = () => {
   };
 
   const getStatus = (product: Product) => {
-    console.log("product", product);
+    // console.log("product", product);
 
     return product.isActive ? (
       <span className="text-success"> Active</span>

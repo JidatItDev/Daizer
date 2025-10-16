@@ -73,8 +73,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     newAccessToken: string,
     newRefreshToken: string
   ) => {
-    console.log("log in auth being called");
-
     const encryptedUser = encryptData(newUser);
     const encryptedAccess = encryptData(newAccessToken);
     const encryptedRefresh = encryptData(newRefreshToken);

@@ -4,12 +4,12 @@ import { ZodSchema } from "zod";
 export const multiPartValidateSchema = (schema: ZodSchema<any>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      console.log("Original req.body:", req.body);
-      console.log("Content-Type:", req.headers["content-type"]);
-      console.log(
-        "File uploaded:",
-        req.file ? req.file.originalname : "No file"
-      );
+      // console.log("Original req.body:", req.body);
+      // console.log("Content-Type:", req.headers["content-type"]);
+      // console.log(
+      //   "File uploaded:",
+      //   req.file ? req.file.originalname : "No file"
+      // );
 
       // Handle different content types
       let dataToValidate = req.body || {};
@@ -29,9 +29,9 @@ export const multiPartValidateSchema = (schema: ZodSchema<any>) => {
                 dataToValidate[key] = JSON.parse(value);
                 // console.log(`Parsed ${key}:`, dataToValidate[key]);
               } catch (parseError) {
-                console.log(
-                  `Failed to parse ${key} as JSON, keeping as string`
-                );
+                // console.log(
+                //   `Failed to parse ${key} as JSON, keeping as string`
+                // );
                 // Keep as string if parsing fails
               }
             }

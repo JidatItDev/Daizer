@@ -7,18 +7,36 @@ import redisClient from "../config/redis";
 import { categories } from "../db/schema/categories.schema";
 import axios from "axios";
 import { EmailService } from "../services/email.service";
+import { config } from "../db/schema/config.schema";
 
 // Helper → Invalidate product caches
+// const invalidateProductsCache = async () => {
+//   try {
+//     const keys = await redisClient.keys("products:page:*");
+//     if (keys.length > 0) {
+//       await redisClient.del(keys);
+//     }
+//   } catch (err) {
+//     console.error("Error invalidating product cache:", err);
+//   }
+// };
+
 const invalidateProductsCache = async () => {
   try {
+    // Collect both paginated and category-based product keys
     const keys = await redisClient.keys("products:page:*");
-    if (keys.length > 0) {
-      await redisClient.del(keys);
+    const categoryKeys = await redisClient.keys("products:category:*");
+
+    const allKeys = [...keys, ...categoryKeys];
+
+    if (allKeys.length > 0) {
+      await redisClient.del(allKeys);
     }
   } catch (err) {
     console.error("Error invalidating product cache:", err);
   }
 };
+
 type ProductWithSubcategory = typeof products.$inferSelect & {
   subcategory?:
     | (typeof categories.$inferSelect & {
@@ -26,6 +44,7 @@ type ProductWithSubcategory = typeof products.$inferSelect & {
       })
     | null;
 };
+
 class ProductController {
   static async createProduct(req: Request, res: Response) {
     try {
@@ -148,7 +167,6 @@ class ProductController {
         updateData.serviceId = req.body.serviceId; // ✅
       }
       if (isActive !== undefined) updateData.isActive = isActive;
-      console.log("isActive", isActive);
 
       if (pricingGroupPrices !== undefined) {
         // --- Fetch pricing groups with names (SAME AS CREATE) ---
@@ -185,8 +203,6 @@ class ProductController {
         updateData.subcategoryName = subcategory.name;
         updateData.subcategory = { id: subcategory.id, name: subcategory.name };
       }
-
-      console.log("updateData", updateData);
 
       const [updatedProduct] = await db
         .update(products)
@@ -558,11 +574,26 @@ class ProductController {
         });
       }
 
+      const [appConfig] = await db.select().from(config).limit(1);
+
+      const minimumBalanceRequirement = parseFloat(
+        appConfig?.minimumBalanceRequirement?.toString() || "0"
+      );
+
       // const productPrice = parseFloat(pricingGroupPrice.price);
       const productPrice = parseFloat(pricingGroupPrice.price.toString());
       const currentBalance = parseFloat(wallet.balance);
 
       // 4. Check if user has sufficient balance
+      if (currentBalance < minimumBalanceRequirement) {
+        return res.status(400).json({
+          success: false,
+          message: `You must have at least ${minimumBalanceRequirement} in your wallet to make purchases`,
+          required: minimumBalanceRequirement,
+          current: currentBalance,
+        });
+      }
+
       if (currentBalance < productPrice) {
         return res.status(400).json({
           success: false,

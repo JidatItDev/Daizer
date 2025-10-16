@@ -171,18 +171,6 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         }
       );
 
-      console.log("payload", {
-        id: product.id,
-        name: formData.name,
-        quantity: formData.quantity || undefined,
-        description: formData.description,
-        subcategoryId: formData.subcategoryId,
-        image: formData.image || undefined,
-        pricingGroupPrices,
-        serviceId: formData.serviceId?.toString() || "",
-        isActive: formData.isActive,
-      });
-
       await updateProductMutation.mutateAsync({
         id: product.id,
         name: formData.name,

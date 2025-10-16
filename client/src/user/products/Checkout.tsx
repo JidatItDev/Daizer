@@ -167,7 +167,7 @@
 
 // export default Checkout;
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { IoCaretBackOutline } from "react-icons/io5";
 import { useProduct } from "../../api/UseProducts";
@@ -176,9 +176,12 @@ import { Button } from "../../components/common/Button";
 import { useWalletBalance } from "../../api/Wallets";
 import { usePurchaseProduct } from "../../api/UseProducts"; // Import the new hook
 import toast from "react-hot-toast";
+import { useConfigContext } from "../../context/ConfigContext";
 
 const Checkout = () => {
   const { id } = useParams<{ id: string }>();
+  const config = useConfigContext();
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const [gameId, setGameId] = useState("");
@@ -210,7 +213,7 @@ const Checkout = () => {
       }
     } catch (error: any) {
       console.error("Purchase error:", error);
-      alert(
+      toast.error(
         error.response?.data?.message || "Purchase failed. Please try again."
       );
     } finally {
@@ -236,7 +239,14 @@ const Checkout = () => {
   // Check if user has sufficient balance
   const hasSufficientBalance =
     balanceData && parseFloat(balanceData.balance) >= total;
-  const canPurchase = gameId && hasSufficientBalance && !isProcessing;
+
+  const hasMinimumBalance =
+    config?.minimumBalanceRequirement &&
+    parseFloat(balanceData?.balance) >=
+      parseFloat(config?.minimumBalanceRequirement);
+
+  const canPurchase =
+    gameId && hasSufficientBalance && !isProcessing && hasMinimumBalance;
 
   return (
     <div className="bg-white min-h-screen ">
@@ -336,13 +346,17 @@ const Checkout = () => {
                   {balanceData.balance} {balanceData.currency}
                 </p>
               )}
+              {!hasMinimumBalance && balanceData && hasSufficientBalance && (
+                <p className="text-sm text-red-600">
+                  Insufficient Minimum Balance. You need atleast{" "}
+                  {balanceData.currency} {config?.minimumBalanceRequirement} to
+                  purchase a product but have {balanceData.balance}{" "}
+                  {balanceData.currency} in your Wallet
+                </p>
+              )}
 
               {purchaseProduct.isError && (
-                <p className="text-sm text-red-600">
-                  {purchaseProduct.error instanceof Error
-                    ? purchaseProduct.error.message
-                    : "Purchase failed. Please try again."}
-                </p>
+                <p>{"Purchase failed. Please try again."}</p>
               )}
             </div>
 

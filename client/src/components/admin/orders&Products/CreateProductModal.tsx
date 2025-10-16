@@ -179,16 +179,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
           }
         }
       );
-      console.log("payload", {
-        name: formData.name,
-        quantity: formData.quantity?.toString() || undefined,
-        description: formData.description,
-        subcategoryId: formData.subcategoryId,
-        image: formData.image || undefined,
-        pricingGroupPrices,
-        serviceId: formData.serviceId?.toString() || "",
-        isActive: formData.isActive,
-      });
+
       await createProductMutation.mutateAsync({
         name: formData.name,
         quantity: formData.quantity?.toString() || undefined,

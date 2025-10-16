@@ -198,7 +198,6 @@ export const useCreateProduct = () => {
       if (payload.description) {
         formData.append("description", payload.description);
       }
-      console.log("called");
       // if (payload.isActive !== undefined) {
       formData.append("isActive", String(payload.isActive));
       // }

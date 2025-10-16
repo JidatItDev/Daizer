@@ -72,7 +72,7 @@ class WalletController {
         return res.json(payload);
       }
 
-      console.log("called transactions of user", userId);
+      // console.log("called transactions of user", userId);
 
       // let whereCondition = eq(transactions.userId, userId);
 
@@ -218,7 +218,7 @@ class WalletController {
         .values({ userId, amount })
         .returning();
 
-      console.log("request refund called!!", rr);
+      // console.log("request refund called!!", rr);
 
       const admins = await db
         .select({
@@ -936,13 +936,14 @@ class WalletController {
           return res.status(404).json({ message: "Transaction not found" });
         }
 
-        console.log("transaction", transaction);
+        // console.log("transaction", transaction);
         const userId = transaction.userId;
 
-        const updatedwallet = await db
+        const [updatedwallet] = await db
           .update(wallets)
           .set({ balance: sql`${wallets.balance} + ${parseFloat(amount)}` })
-          .where(eq(wallets.userId, userId));
+          .where(eq(wallets.userId, userId))
+          .returning();
         console.log("updatedwallet", updatedwallet);
 
         await invalidateUserTransactionsCache(userId);
@@ -961,9 +962,7 @@ class WalletController {
             name: user.name,
             amount,
             currency,
-            newBalance: (
-              parseFloat(transaction.amount) + parseFloat(amount)
-            ).toString(),
+            newBalance: updatedwallet.balance.toString(),
             referenceId: captureId,
             date: new Date().toLocaleString(),
           });
@@ -991,7 +990,7 @@ class WalletController {
   static async handlePayPalWebhook(req: Request, res: Response) {
     try {
       const event = req.body;
-      console.log("hook called");
+      // console.log("hook called");
       // TODO: verify webhook signature using PayPal headers (important for security)
       if (event.event_type === "PAYMENT.CAPTURE.COMPLETED") {
         const capture = event.resource;

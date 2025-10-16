@@ -152,10 +152,10 @@ const Topup = () => {
             disabled={!amount || isLoading || redirecting}
             className="bg-primary-dark text-white px-10 py-2 rounded-full disabled:opacity-50"
           >
-            {isLoading
+            {isLoading || isCapturing
               ? "Processing..."
               : redirecting
-              ? "Redirecting"
+              ? "Redirecting..."
               : "Top Up"}
           </button>
         </div>

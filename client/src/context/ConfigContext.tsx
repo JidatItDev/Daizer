@@ -70,7 +70,6 @@ export const ConfigProvider = ({ children }: ConfigProviderProps) => {
 
   useEffect(() => {
     if (config?.logoUrl) {
-      console.log("called config");
       // Cast to HTMLLinkElement to fix property access
       let link = document.querySelector(
         "link[rel~='icon']"
