@@ -176,11 +176,11 @@ import { Button } from "../../components/common/Button";
 import { useWalletBalance } from "../../api/Wallets";
 import { usePurchaseProduct } from "../../api/UseProducts"; // Import the new hook
 import toast from "react-hot-toast";
-import { useConfigContext } from "../../context/ConfigContext";
+// import { useConfigContext } from "../../context/ConfigContext";
 
 const Checkout = () => {
   const { id } = useParams<{ id: string }>();
-  const config = useConfigContext();
+  // const config = useConfigContext();
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -240,13 +240,12 @@ const Checkout = () => {
   const hasSufficientBalance =
     balanceData && parseFloat(balanceData.balance) >= total;
 
-  const hasMinimumBalance =
-    config?.minimumBalanceRequirement &&
-    parseFloat(balanceData?.balance) >=
-      parseFloat(config?.minimumBalanceRequirement);
+  // const hasMinimumBalance =
+  //   config?.minimumBalanceRequirement &&
+  //   parseFloat(balanceData?.balance) >=
+  //     parseFloat(config?.minimumBalanceRequirement);
 
-  const canPurchase =
-    gameId && hasSufficientBalance && !isProcessing && hasMinimumBalance;
+  const canPurchase = gameId && hasSufficientBalance && !isProcessing;
 
   return (
     <div className="bg-white min-h-screen ">
@@ -346,14 +345,14 @@ const Checkout = () => {
                   {balanceData.balance} {balanceData.currency}
                 </p>
               )}
-              {!hasMinimumBalance && balanceData && hasSufficientBalance && (
+              {/* {!hasMinimumBalance && balanceData && hasSufficientBalance && (
                 <p className="text-sm text-red-600">
                   Insufficient Minimum Balance. You need atleast{" "}
                   {balanceData.currency} {config?.minimumBalanceRequirement} to
                   purchase a product but have {balanceData.balance}{" "}
                   {balanceData.currency} in your Wallet
                 </p>
-              )}
+              )} */}
 
               {purchaseProduct.isError && (
                 <p>{"Purchase failed. Please try again."}</p>

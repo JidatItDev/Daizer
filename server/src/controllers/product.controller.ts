@@ -574,25 +574,25 @@ class ProductController {
         });
       }
 
-      const [appConfig] = await db.select().from(config).limit(1);
+      // const [appConfig] = await db.select().from(config).limit(1);
 
-      const minimumBalanceRequirement = parseFloat(
-        appConfig?.minimumBalanceRequirement?.toString() || "0"
-      );
+      // const minimumBalanceRequirement = parseFloat(
+      //   appConfig?.minimumBalanceRequirement?.toString() || "0"
+      // );
 
       // const productPrice = parseFloat(pricingGroupPrice.price);
       const productPrice = parseFloat(pricingGroupPrice.price.toString());
       const currentBalance = parseFloat(wallet.balance);
 
       // 4. Check if user has sufficient balance
-      if (currentBalance < minimumBalanceRequirement) {
-        return res.status(400).json({
-          success: false,
-          message: `You must have at least ${minimumBalanceRequirement} in your wallet to make purchases`,
-          required: minimumBalanceRequirement,
-          current: currentBalance,
-        });
-      }
+      // if (currentBalance < minimumBalanceRequirement) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: `You must have at least ${minimumBalanceRequirement} in your wallet to make purchases`,
+      //     required: minimumBalanceRequirement,
+      //     current: currentBalance,
+      //   });
+      // }
 
       if (currentBalance < productPrice) {
         return res.status(400).json({

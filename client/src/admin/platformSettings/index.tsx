@@ -247,7 +247,7 @@ const Settings = () => {
           </div>
 
           {/* Minimum Balance Section */}
-          <div className="mb-12">
+          {/* <div className="mb-12">
             {editMode ? (
               <Input
                 label="Minimum Balance Limit:"
@@ -269,7 +269,7 @@ const Settings = () => {
                 </div>
               </div>
             )}
-          </div>
+          </div> */}
         </div>
         {editMode && (
           <div className="flex justify-end gap-4 mt-8">
