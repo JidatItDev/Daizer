@@ -167,7 +167,7 @@
 
 // export default Checkout;
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { IoCaretBackOutline } from "react-icons/io5";
 import { useProduct } from "../../api/UseProducts";

@@ -323,7 +323,7 @@ const UserManagement = () => {
   };
 
   const handleViewDetails = (userId: string) => {
-    // console.log(userId);
+    return userId;
     // console.log("View details for user:", userId);
   };
 
@@ -478,9 +478,9 @@ const UserManagement = () => {
     field: AllFormFields,
     value: string
   ) => {
-    // console.log(formData);
     setFormData((prev: any) => ({ ...prev, [field]: value }));
     // console.log(formData);
+    return formData;
   };
 
   const handleFilterChange = (filterType: keyof FilterState, value: string) => {
