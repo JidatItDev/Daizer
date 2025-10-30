@@ -8,3 +8,4 @@ export * from "./transactions.schema";
 export * from "./refundRequests.schema";
 export * from "./relations";
 export * from "./emailTemplate.schema";
+export * from "./zohoTokens.schema";

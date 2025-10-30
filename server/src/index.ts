@@ -11,6 +11,7 @@ import productRouter from "./routes/product.routes";
 import walletRouter from "./routes/wallet.routes";
 import configRouter from "./routes/config.routes";
 import emailTemplateRouter from "./routes/emailTemplate.routes";
+import zohoRoutes from "./routes/zoho.routes";
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ app.use("/api/v1/pricing-groups", pricingGroupRouter);
 app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/config", configRouter);
 app.use("/api/v1/emailTemplate", emailTemplateRouter);
-
+app.use("/api/v1/zoho", zohoRoutes);
 app.get("/", (_, res) => {
   res.send(`
     <!DOCTYPE html>
