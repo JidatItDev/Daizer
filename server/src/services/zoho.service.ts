@@ -13,11 +13,11 @@ export class ZohoService {
    * Generate Zoho OAuth authorization URL
    */
   generateAuthUrl(): string {
-    // ✅ Full access scope to Zoho Books
+    // ✅ Use full access scope for Zoho Books
     const scope = "ZohoBooks.fullaccess.all";
 
     // ✅ Build the full authorization URL
-    return `${ZOHO_ENV.ZOHO_BASE_URL}/auth?scope=${scope}&client_id=${ZOHO_ENV.ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${ZOHO_ENV.ZOHO_REDIRECT_URI}`;
+    return `${ZOHO_ENV.ZOHO_BASE_URL}/auth?scope=${scope}&client_id=${ZOHO_ENV.ZOHO_CLIENT_ID}&response_type=code&access_type=offline&prompt=consent&redirect_uri=${ZOHO_ENV.ZOHO_REDIRECT_URI}`;
   }
 
   /**
@@ -35,13 +35,13 @@ export class ZohoService {
     });
 
     const { data } = await axios.post(url, params);
-
-    const expiresAt = Date.now() + data.expires_in * 1000;
+    console.log("Zoho token response:", data); // 👈 Add this
+    const expiresAt = new Date(Date.now() + data.expires_in * 1000);
 
     await this.tokensService.saveTokens({
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresIn: expiresAt,
+      expiresAt, // ✅ Use correct key and Date object
     });
 
     console.log("✅ Tokens exchanged and stored in DB");
@@ -56,7 +56,7 @@ export class ZohoService {
     const now = Date.now();
 
     // ✅ If token still valid, return it
-    if (tokens.expiresIn && tokens.expiresIn > now) {
+    if (tokens.expiresAt && tokens.expiresAt > new Date()) {
       return tokens.accessToken!;
     }
 
@@ -99,5 +99,41 @@ export class ZohoService {
     );
 
     return data;
+  }
+  async createContactInZohoBooks(user: { name: string; email: string }) {
+    const accessToken = await this.getValidAccessToken();
+
+    const payload = {
+      contact_name: user.name,
+      contact_type: "customer",
+      customer_sub_type: "business",
+      company_name: user.name,
+      contact_persons: [
+        {
+          first_name: user.name,
+          email: user.email,
+        },
+      ],
+    };
+
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.post(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("✅ Zoho contact created:", data.contact.contact_id);
+      return data.contact;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to create Zoho contact:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to create contact in Zoho Books");
+    }
   }
 }

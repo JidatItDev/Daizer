@@ -12,6 +12,7 @@ import walletRouter from "./routes/wallet.routes";
 import configRouter from "./routes/config.routes";
 import emailTemplateRouter from "./routes/emailTemplate.routes";
 import zohoRoutes from "./routes/zoho.routes";
+import axios from "axios";
 
 dotenv.config();
 
@@ -45,6 +46,28 @@ app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/config", configRouter);
 app.use("/api/v1/emailTemplate", emailTemplateRouter);
 app.use("/api/v1/zoho", zohoRoutes);
+// async function verifyZohoBooksConnection(accessToken: string) {
+//   try {
+//     const response = await axios.get(
+//       "https://www.zohoapis.com/books/v3/organizations",
+//       {
+//         headers: {
+//           Authorization: `Zoho-oauthtoken ${accessToken}`,
+//         },
+//       }
+//     );
+
+//     console.log("✅ Zoho Books Connected:", response.data.organizations);
+//   } catch (error: any) {
+//     console.error(
+//       "❌ Zoho Books Connection Failed:",
+//       error.response?.data || error.message
+//     );
+//   }
+// }
+// verifyZohoBooksConnection(
+//   "1000.eb43d49531de245fe08300fdc7af7c50.af4114d1f385aae0a344ed041c282da8"
+// );
 app.get("/", (_, res) => {
   res.send(`
     <!DOCTYPE html>

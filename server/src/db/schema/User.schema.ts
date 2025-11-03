@@ -5,6 +5,7 @@ import {
   boolean,
   timestamp,
   index,
+  text,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable(
@@ -20,6 +21,13 @@ export const users = pgTable(
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    // 🔗 Zoho Books Integration Fields
+    zohoContactId: text("zoho_contact_id").notNull(),
+    zohoContactStatus: text("zoho_contact_status").notNull(),
+    zohoCreatedAt: timestamp("zoho_created_at", {
+      withTimezone: true,
+    }).notNull(),
+    zohoCompanyName: text("zoho_company_name").notNull(),
   },
   (user) => ({
     emailIdx: index("users_email_idx").on(user.email),

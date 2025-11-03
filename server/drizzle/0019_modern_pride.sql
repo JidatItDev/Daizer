@@ -1,0 +1,1 @@
+ALTER TABLE "zoho_tokens" RENAME COLUMN "expires_in" TO "expires_at";

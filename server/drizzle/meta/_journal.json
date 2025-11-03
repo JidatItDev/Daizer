@@ -134,6 +134,20 @@
       "when": 1761824620436,
       "tag": "0018_tired_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1762155933438,
+      "tag": "0019_modern_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1762159510558,
+      "tag": "0020_common_colonel_america",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ import {
 import { EmailService } from "../services/email.service";
 import redisClient from "../config/redis";
 import { signupLinks } from "../db/schema/signupLinks.schema";
+import { ZohoService } from "../services/zoho.service";
 
 class AuthController {
   static async login(req: Request, res: Response) {
@@ -229,6 +230,7 @@ class AuthController {
       const { email, password, name, pricingGroupId } = req.body;
       const normalizedEmail = email.toLowerCase().trim();
 
+      // 1️⃣ Check if email already exists
       const [existingUser] = await db
         .select({ id: users.id })
         .from(users)
@@ -241,7 +243,7 @@ class AuthController {
 
       const hashedPassword = await hashPassword(password);
 
-      // resolve pricingGroupId
+      // 2️⃣ Resolve pricing group
       let finalPricingGroupId = pricingGroupId;
       if (!finalPricingGroupId) {
         const [defaultGroup] = await db
@@ -252,6 +254,18 @@ class AuthController {
         finalPricingGroupId = defaultGroup?.id || null;
       }
 
+      // 3️⃣ Create Zoho Books Contact FIRST (required before local user)
+      const zohoService = new ZohoService();
+      const zohoContact = await zohoService.createContactInZohoBooks({
+        name,
+        email: normalizedEmail,
+      });
+
+      if (!zohoContact || !zohoContact.contact_id) {
+        throw new Error("Zoho contact creation failed — aborting registration");
+      }
+
+      // 4️⃣ Create local user with Zoho info
       const [newUser] = await db
         .insert(users)
         .values({
@@ -261,6 +275,12 @@ class AuthController {
           role: "user",
           isActive: true,
           pricingGroupId: finalPricingGroupId,
+
+          // 🧩 Save Zoho contact info
+          zohoContactId: zohoContact.contact_id,
+          zohoContactStatus: zohoContact.contact_status || "active",
+          zohoCreatedAt: new Date(),
+          zohoCompanyName: zohoContact.company_name || name,
         })
         .returning({
           id: users.id,
@@ -269,17 +289,17 @@ class AuthController {
           role: users.role,
           pricingGroupId: users.pricingGroupId,
           createdAt: users.createdAt,
+          zohoContactId: users.zohoContactId,
         });
+
+      // 5️⃣ Create wallet entry
       await db.insert(wallets).values({
         userId: newUser.id,
         balance: "0",
       });
 
-      if (!newUser.id || !newUser.role) {
-        return res.status(500).json({ message: "User data is incomplete" });
-      }
-
-      const accessToken = createAccessToken(newUser.id, newUser.role);
+      // 6️⃣ Generate tokens
+      const accessToken = createAccessToken(newUser.id, newUser.role || "");
       const refreshToken = createRefreshToken(newUser.id);
 
       await redisClient.del("users:page:*");
@@ -293,7 +313,9 @@ class AuthController {
       });
     } catch (error: any) {
       console.error("Registration error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        message: error.message || "Internal server error",
+      });
     }
   }
 
@@ -331,38 +353,38 @@ class AuthController {
         finalPricingGroupId = defaultGroup?.id || null;
       }
 
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          name,
-          email,
-          password: hashedPassword,
-          role,
-          isActive,
-          pricingGroupId: finalPricingGroupId,
-        })
-        .returning({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-          isActive: users.isActive,
-          pricingGroupId: users.pricingGroupId,
-          createdAt: users.createdAt,
-        });
+      // const [newUser] = await db
+      //   .insert(users)
+      //   .values({
+      //     name,
+      //     email,
+      //     password: hashedPassword,
+      //     role,
+      //     isActive,
+      //     pricingGroupId: finalPricingGroupId,
+      //   })
+      //   .returning({
+      //     id: users.id,
+      //     name: users.name,
+      //     email: users.email,
+      //     role: users.role,
+      //     isActive: users.isActive,
+      //     pricingGroupId: users.pricingGroupId,
+      //     createdAt: users.createdAt,
+      //   });
 
-      await db.insert(wallets).values({
-        userId: newUser.id,
-        balance: "0",
-      });
+      // await db.insert(wallets).values({
+      //   userId: newUser.id,
+      //   balance: "0",
+      // });
 
-      await redisClient.del("users:page:*");
+      // await redisClient.del("users:page:*");
 
-      return res.status(201).json({
-        success: true,
-        message: "User created successfully",
-        user: newUser,
-      });
+      // return res.status(201).json({
+      //   success: true,
+      //   message: "User created successfully",
+      //   user: newUser,
+      // });
     } catch (error) {
       console.error("Create user error:", error);
       return res.status(500).json({ message: "Internal server error" });
@@ -596,7 +618,15 @@ class AuthController {
       }
 
       const hashedPassword = await hashPassword(password);
+      const zohoService = new ZohoService();
+      const zohoContact = await zohoService.createContactInZohoBooks({
+        name: link.name,
+        email: link.email,
+      });
 
+      if (!zohoContact || !zohoContact.contact_id) {
+        throw new Error("Zoho contact creation failed — aborting registration");
+      }
       const [newUser] = await db
         .insert(users)
         .values({
@@ -606,6 +636,12 @@ class AuthController {
           role: "user",
           isActive: true,
           pricingGroupId: link.pricingGroupId,
+
+          // 🧩 Save Zoho info
+          zohoContactId: zohoContact.contact_id,
+          zohoContactStatus: zohoContact.contact_status || "active",
+          zohoCreatedAt: new Date(),
+          zohoCompanyName: zohoContact.company_name || link.name,
         })
         .returning();
 
