@@ -48,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className={`flex items-center justify-center py-4`}>
         <div className="flex items-center justify-center gap-4">
           <img
-            src={logo}
+            src={logo || "/path/to/default-logo.png"} // Replace with a fallback image URL
             alt="Daizer-logo"
             className="md:h-10 h-8 lg:h-12 object-contain"
           />

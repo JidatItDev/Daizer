@@ -6,6 +6,9 @@ import { checkoutNodeJssdk, paypalClient } from "../config/paypal";
 import redisClient from "../config/redis";
 import { EmailService } from "../services/email.service";
 import { email } from "zod";
+import { ZohoService } from "../services/zoho.service";
+import { ZOHO_ENV } from "../config/Zoho";
+import axios from "axios";
 
 async function invalidateUserTransactionsCache(userId: string) {
   const pattern = `transactions:${userId}:*`;
@@ -229,25 +232,25 @@ class WalletController {
         .from(users)
         .where(eq(users.role, "admin"));
 
-      for (const admin of admins) {
-        await EmailService.sendTemplateEmail(
-          "refundRequestAdminNotification",
-          admin.email,
-          {
-            adminName: admin.name,
-            admin: admin.name,
-            requestedBy: user.name,
-            name: user.name,
-            requesterEmail: user.email,
-            email: user.email,
-            amount,
-            refundAmount: amount,
-            refundId: rr.id,
-            id: rr.id,
-            status: rr.status || "pending",
-          }
-        );
-      }
+      // for (const admin of admins) {
+      //   await EmailService.sendTemplateEmail(
+      //     "refundRequestAdminNotification",
+      //     admin.email,
+      //     {
+      //       adminName: admin.name,
+      //       admin: admin.name,
+      //       requestedBy: user.name,
+      //       name: user.name,
+      //       requesterEmail: user.email,
+      //       email: user.email,
+      //       amount,
+      //       refundAmount: amount,
+      //       refundId: rr.id,
+      //       id: rr.id,
+      //       status: rr.status || "pending",
+      //     }
+      //   );
+      // }
 
       return res.status(201).json({ success: true, refundRequest: rr });
     } catch (err) {
@@ -406,6 +409,26 @@ class WalletController {
       console.error("getAllTransactions error:", err);
       return res.status(500).json({ message: "Internal server error" });
     }
+  }
+  static async getWalletAccountId(): Promise<string> {
+    const zohoService = new ZohoService();
+    const accessToken = await zohoService.getValidAccessToken();
+
+    const url = `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    const { data } = await axios.get(url, {
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+    });
+
+    const account = data.chartofaccounts.find(
+      (acc: any) =>
+        acc.account_name.toLowerCase().includes("wallet") &&
+        acc.account_type === "other_current_assets"
+    );
+
+    if (!account) throw new Error("Wallet account not found in Zoho Books");
+
+    return account.account_id;
   }
 
   static async getRefundRequests(req: Request, res: Response) {
@@ -567,7 +590,20 @@ class WalletController {
       if (!refund) {
         return res.status(404).json({ message: "Refund request not found" });
       }
+      const [user] = await db
+        .select({
+          zohoContactId: users.zohoContactId,
+          name: users.name,
+          email: users.email,
+        })
+        .from(users)
+        .where(eq(users.id, refund.userId));
 
+      if (!user?.zohoContactId) {
+        return res
+          .status(400)
+          .json({ message: "User missing Zoho Contact ID" });
+      }
       // Get the user's wallet
       const [wallet] = await db
         .select()
@@ -591,7 +627,6 @@ class WalletController {
         .where(eq(wallets.userId, refund.userId))
         .returning();
 
-      // Mark refund as approved
       const [approvedRefund] = await db
         .update(refundRequests)
         .set({
@@ -601,7 +636,28 @@ class WalletController {
         })
         .where(eq(refundRequests.id, refundId))
         .returning();
-
+      const zohoService = new ZohoService();
+      const account_id = await zohoService.getWalletAccountId();
+      const { creditNote } = await zohoService.createRefundToWallet({
+        refundId: refund.id, // The refund ID you are approving
+        customer_id: user.zohoContactId, // Make sure wallet/user has Zoho contact ID
+        amount: refund.amount,
+        reason: refund.reason || "Refund approved by admin",
+        reference: `DAIZER-REFUND-${refund.id}`,
+        original_order_id: refund.transactionId || "N/A",
+        account_id,
+      });
+      // const paymentAdjustment = await zohoService.recordPaymentAdjustmentInZoho(
+      //   {
+      //     refundId: refund.id,
+      //     customer_id: user.zohoContactId,
+      //     amount: refund.amount,
+      //     reference: `DAIZER-REFUND-${refund.id}`,
+      //     creditNoteId: creditNote.creditnote_id,
+      //   }
+      // );
+      // console.log("✅ Zoho refund credit note created:", creditNote);
+      // console.log("✅ Zoho payment adjustment recorded:", paymentAdjustment);
       // Create refund transaction (similar to adjustWallet style)
       await db.insert(transactions).values({
         walletId: wallet.id,
@@ -632,30 +688,21 @@ class WalletController {
         // invalidateWalletCaches(refund.userId)a,
       ]);
 
-      const [user] = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-        })
-        .from(users)
-        .where(eq(users.id, refund.userId));
-
-      if (user) {
-        await EmailService.sendTemplateEmail(
-          "refundApprovedNotification",
-          user.email,
-          {
-            name: user.name,
-            refundId: refund.id,
-            amount: refund.amount.toString(),
-            newBalance: newBalance.toString(),
-            destination,
-            sentBy,
-            status: approvedRefund.status || "accepted",
-          }
-        );
-      }
+      // if (user) {
+      //   await EmailService.sendTemplateEmail(
+      //     "refundApprovedNotification",
+      //     user.email,
+      //     {
+      //       name: user.name,
+      //       refundId: refund.id,
+      //       amount: refund.amount.toString(),
+      //       newBalance: newBalance.toString(),
+      //       destination,
+      //       sentBy,
+      //       status: approvedRefund.status || "accepted",
+      //     }
+      //   );
+      // }
 
       return res.json({
         success: true,
@@ -799,38 +846,38 @@ class WalletController {
 
       await invalidateTransactionCaches();
 
-      if (type === "debit") {
-        await EmailService.sendTemplateEmail("debit", user.email, {
-          name: user.name,
-          email: user.email,
-          amount: amount.toString(),
-          debitAmount: amount.toString(),
-          currency: wallet.currency,
-          newBalance: newBalance.toString(),
-          balance: newBalance.toString(),
-          originalBalance: wallet.balance,
-          oldBalance: wallet.balance,
-          destination: destination,
-          sentBy: sentReceived,
-          sent: sentReceived,
-        });
-      }
-      if (type === "credit") {
-        await EmailService.sendTemplateEmail("credit", user.email, {
-          name: user.name,
-          email: user.email,
-          amount: amount.toString(),
-          creditAmount: amount.toString(),
-          currency: wallet.currency,
-          newBalance: newBalance.toString(),
-          balance: newBalance.toString(),
-          originalBalance: wallet.balance,
-          oldBalance: wallet.balance,
-          destination: destination,
-          receivedInto: sentReceived,
-          received: sentReceived,
-        });
-      }
+      // if (type === "debit") {
+      //   await EmailService.sendTemplateEmail("debit", user.email, {
+      //     name: user.name,
+      //     email: user.email,
+      //     amount: amount.toString(),
+      //     debitAmount: amount.toString(),
+      //     currency: wallet.currency,
+      //     newBalance: newBalance.toString(),
+      //     balance: newBalance.toString(),
+      //     originalBalance: wallet.balance,
+      //     oldBalance: wallet.balance,
+      //     destination: destination,
+      //     sentBy: sentReceived,
+      //     sent: sentReceived,
+      //   });
+      // }
+      // if (type === "credit") {
+      //   await EmailService.sendTemplateEmail("credit", user.email, {
+      //     name: user.name,
+      //     email: user.email,
+      //     amount: amount.toString(),
+      //     creditAmount: amount.toString(),
+      //     currency: wallet.currency,
+      //     newBalance: newBalance.toString(),
+      //     balance: newBalance.toString(),
+      //     originalBalance: wallet.balance,
+      //     oldBalance: wallet.balance,
+      //     destination: destination,
+      //     receivedInto: sentReceived,
+      //     received: sentReceived,
+      //   });
+      // }
 
       return res.json({
         success: true,
@@ -946,33 +993,48 @@ class WalletController {
           .returning();
         console.log("updatedwallet", updatedwallet);
 
-        await invalidateUserTransactionsCache(userId);
         const [user] = await db
           .select({
             id: users.id,
             name: users.name,
             email: users.email,
+            zohoContactId: users.zohoContactId,
+            zohoWalletSubAccountId: users.zohoWalletSubAccountId,
           })
           .from(users)
           .where(eq(users.id, userId))
           .limit(1);
+        const zohoService = new ZohoService();
+        const account_id = await zohoService.getWalletAccountId();
+        const zohoResult = await zohoService.topUpWalletWithRetainer({
+          customer_id: user.zohoContactId,
+          amount,
+          payment_mode: "PayPal",
+          reference_number: captureId,
+          account_id,
+          description: `Wallet Top-up via PayPal - Ref: ${captureId}`,
+        });
+        console.log("updatedwallet", updatedwallet);
+        console.log("zohoRetainer", zohoResult);
+        await invalidateUserTransactionsCache(userId);
 
-        if (user) {
-          await EmailService.sendTemplateEmail("topup", user.email, {
-            name: user.name,
-            amount,
-            currency,
-            newBalance: updatedwallet.balance.toString(),
-            referenceId: captureId,
-            date: new Date().toLocaleString(),
-          });
-        }
+        // if (user) {
+        //   await EmailService.sendTemplateEmail("topup", user.email, {
+        //     name: user.name,
+        //     amount,
+        //     currency,
+        //     newBalance: updatedwallet.balance.toString(),
+        //     referenceId: captureId,
+        //     date: new Date().toLocaleString(),
+        //   });
+        // }
 
         return res.json({
           success: true,
           message: "Top-up successful",
           amount,
           currency,
+          zoho: zohoResult,
         });
       } else {
         return res

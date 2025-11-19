@@ -247,12 +247,12 @@ const WalletManagement = () => {
     {
       key: "name",
       title: "Name",
-      render: (_, record) => record.user.name,
+      render: (_, record) => record.user?.name || "N/A", // Ensure this checks for null/undefined user
     },
     {
       key: "email",
       title: "Email",
-      render: (_, record) => record.user.email,
+      render: (_, record) => record.user?.email || "N/A", // Same here
     },
     {
       key: "balance",
@@ -264,12 +264,11 @@ const WalletManagement = () => {
       title: "Pricing Group",
       render: (_, record) => {
         const pricingGroup = pricingGroups.find(
-          (group: PricingGroup) => group.id === record.user.pricingGroupId
+          (group: PricingGroup) => group.id === record.user?.pricingGroupId
         );
-        return pricingGroup ? pricingGroup.name : "N/A";
+        return pricingGroup ? pricingGroup.name : "N/A"; // Ensure pricingGroup is handled safely
       },
     },
-
     {
       key: "action",
       title: "Action",
@@ -446,8 +445,8 @@ const WalletManagement = () => {
             record.status === "approved"
               ? "text-success"
               : record.status === "rejected"
-              ? "text-error"
-              : "text-warning"
+                ? "text-error"
+                : "text-warning"
           }`}
         >
           {record.status.charAt(0).toUpperCase() + record.status.slice(1)}

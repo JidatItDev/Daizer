@@ -21,6 +21,9 @@ export const users = pgTable(
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    zohoWalletSubAccountId: text("zoho_wallet_sub_account_id")
+      .notNull()
+      .default(""),
     // 🔗 Zoho Books Integration Fields
     zohoContactId: text("zoho_contact_id").notNull(),
     zohoContactStatus: text("zoho_contact_status").notNull(),

@@ -226,10 +226,10 @@ class AuthController {
   }
 
   static async register(req: Request, res: Response) {
-    try {
-      const { email, password, name, pricingGroupId } = req.body;
-      const normalizedEmail = email.toLowerCase().trim();
+    const { email, password, name, pricingGroupId } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
 
+    try {
       // 1️⃣ Check if email already exists
       const [existingUser] = await db
         .select({ id: users.id })
@@ -254,51 +254,68 @@ class AuthController {
         finalPricingGroupId = defaultGroup?.id || null;
       }
 
-      // 3️⃣ Create Zoho Books Contact FIRST (required before local user)
-      const zohoService = new ZohoService();
-      const zohoContact = await zohoService.createContactInZohoBooks({
-        name,
-        email: normalizedEmail,
-      });
+      // 3️⃣ Create Zoho entities outside transaction
 
-      if (!zohoContact || !zohoContact.contact_id) {
-        throw new Error("Zoho contact creation failed — aborting registration");
-      }
-
-      // 4️⃣ Create local user with Zoho info
-      const [newUser] = await db
-        .insert(users)
-        .values({
+      // 4️⃣ Run DB operations in a transaction
+      const newUser = await db.transaction(async (tx) => {
+        const zohoService = new ZohoService();
+        const zohoContact = await zohoService.createContactInZohoBooks({
           name,
           email: normalizedEmail,
-          password: hashedPassword,
-          role: "user",
-          isActive: true,
-          pricingGroupId: finalPricingGroupId,
+        });
+        // const parentWalletId = await zohoService.getWalletAccountId();
+        // const zohoWalletSubAccount = await zohoService.createSubAccount(
+        //   parentWalletId,
+        //   name
+        // );
 
-          // 🧩 Save Zoho contact info
-          zohoContactId: zohoContact.contact_id,
-          zohoContactStatus: zohoContact.contact_status || "active",
-          zohoCreatedAt: new Date(),
-          zohoCompanyName: zohoContact.company_name || name,
-        })
-        .returning({
-          id: users.id,
-          email: users.email,
-          name: users.name,
-          role: users.role,
-          pricingGroupId: users.pricingGroupId,
-          createdAt: users.createdAt,
-          zohoContactId: users.zohoContactId,
+        // console.log("✅ Zoho Sub-Account Created:", zohoWalletSubAccount);
+
+        // ✅ Validate both responses with correct structure
+        if (!zohoContact || !zohoContact.contact_id) {
+          throw new Error("Zoho contact creation failed");
+        }
+
+        // if (!zohoWalletSubAccount || !zohoWalletSubAccount.account_id) {
+        //   throw new Error("Zoho wallet sub-account creation failed");
+        // }
+
+        // Insert user with correct field references
+        const [createdUser] = await tx
+          .insert(users)
+          .values({
+            name,
+            email: normalizedEmail,
+            password: hashedPassword,
+            role: "user",
+            isActive: true,
+            pricingGroupId: finalPricingGroupId,
+            // zohoWalletSubAccountId: zohoWalletSubAccount.account_id, // ✅ Direct access
+            zohoContactId: zohoContact.contact_id, // ✅ Direct access
+            zohoContactStatus: zohoContact.contact_status || "active",
+            zohoCreatedAt: new Date(),
+            zohoCompanyName: zohoContact.company_name || name,
+          })
+          .returning({
+            id: users.id,
+            email: users.email,
+            name: users.name,
+            role: users.role,
+            pricingGroupId: users.pricingGroupId,
+            createdAt: users.createdAt,
+            zohoContactId: users.zohoContactId,
+          });
+
+        // Insert wallet
+        await tx.insert(wallets).values({
+          userId: createdUser.id,
+          balance: "0",
         });
 
-      // 5️⃣ Create wallet entry
-      await db.insert(wallets).values({
-        userId: newUser.id,
-        balance: "0",
+        return createdUser;
       });
 
-      // 6️⃣ Generate tokens
+      // 5️⃣ Generate tokens
       const accessToken = createAccessToken(newUser.id, newUser.role || "");
       const refreshToken = createRefreshToken(newUser.id);
 

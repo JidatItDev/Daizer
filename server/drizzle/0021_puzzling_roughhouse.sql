@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "zoho_wallet_sub_account_id" text DEFAULT '' NOT NULL;
