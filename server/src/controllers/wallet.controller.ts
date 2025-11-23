@@ -638,27 +638,23 @@ class WalletController {
         .returning();
       const zohoService = new ZohoService();
       const account_id = await zohoService.getWalletAccountId();
-      const { creditNote } = await zohoService.createRefundToWallet({
+      const walletIncomeAccountID =
+        await zohoService.getWalletIncomeAccountId();
+      const bankAccountId = await zohoService.getBankAccountId();
+      const walletClearingAccountId =
+        await zohoService.getWalletClearingAccountId();
+      const refundData = await zohoService.refundWalletWithCreditNote({
         refundId: refund.id, // The refund ID you are approving
-        customer_id: user.zohoContactId, // Make sure wallet/user has Zoho contact ID
+        customer_id: user.zohoContactId, // Zoho Books Customer ID
         amount: refund.amount,
         reason: refund.reason || "Refund approved by admin",
         reference: `DAIZER-REFUND-${refund.id}`,
         original_order_id: refund.transactionId || "N/A",
-        account_id,
+        account_id: account_id, // Wallet liability account
+        walletIncomeAccountID: walletIncomeAccountID, // Wallet refund expense account
+        walletClearingAccountId: walletClearingAccountId,
       });
-      // const paymentAdjustment = await zohoService.recordPaymentAdjustmentInZoho(
-      //   {
-      //     refundId: refund.id,
-      //     customer_id: user.zohoContactId,
-      //     amount: refund.amount,
-      //     reference: `DAIZER-REFUND-${refund.id}`,
-      //     creditNoteId: creditNote.creditnote_id,
-      //   }
-      // );
-      // console.log("✅ Zoho refund credit note created:", creditNote);
-      // console.log("✅ Zoho payment adjustment recorded:", paymentAdjustment);
-      // Create refund transaction (similar to adjustWallet style)
+
       await db.insert(transactions).values({
         walletId: wallet.id,
         userId: refund.userId,
@@ -791,6 +787,7 @@ class WalletController {
           id: users.id,
           name: users.name,
           email: users.email,
+          zohoContactId: users.zohoContactId,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -844,40 +841,25 @@ class WalletController {
         }),
       });
 
-      await invalidateTransactionCaches();
+      const zohoService = new ZohoService();
+      const account_id = await zohoService.getWalletAccountId();
+      const walletIncomeAccountID =
+        await zohoService.getWalletIncomeAccountId();
+      const walletClearingAccountId =
+        await zohoService.getWalletClearingAccountId(); // ← Good variable name
 
-      // if (type === "debit") {
-      //   await EmailService.sendTemplateEmail("debit", user.email, {
-      //     name: user.name,
-      //     email: user.email,
-      //     amount: amount.toString(),
-      //     debitAmount: amount.toString(),
-      //     currency: wallet.currency,
-      //     newBalance: newBalance.toString(),
-      //     balance: newBalance.toString(),
-      //     originalBalance: wallet.balance,
-      //     oldBalance: wallet.balance,
-      //     destination: destination,
-      //     sentBy: sentReceived,
-      //     sent: sentReceived,
-      //   });
-      // }
-      // if (type === "credit") {
-      //   await EmailService.sendTemplateEmail("credit", user.email, {
-      //     name: user.name,
-      //     email: user.email,
-      //     amount: amount.toString(),
-      //     creditAmount: amount.toString(),
-      //     currency: wallet.currency,
-      //     newBalance: newBalance.toString(),
-      //     balance: newBalance.toString(),
-      //     originalBalance: wallet.balance,
-      //     oldBalance: wallet.balance,
-      //     destination: destination,
-      //     receivedInto: sentReceived,
-      //     received: sentReceived,
-      //   });
-      // }
+      await zohoService.adjustWalletAndSyncZoho({
+        customer_id: user.zohoContactId,
+        amount: amount,
+        type: type,
+        reason: req.body.reason || "Admin adjustment",
+        reference: `ADJ-${type.toUpperCase()}-${Date.now()}`,
+        liability_account_id: account_id,
+        walletIncomeAccountID: walletIncomeAccountID,
+        walletClearingAccountId: walletClearingAccountId, // ← Now it's passed correctly!
+      });
+
+      await invalidateTransactionCaches();
 
       return res.json({
         success: true,
@@ -1006,12 +988,20 @@ class WalletController {
           .limit(1);
         const zohoService = new ZohoService();
         const account_id = await zohoService.getWalletAccountId();
+        const bankAccountId = await zohoService.getBankAccountId();
+        const walletIncomeAccountID =
+          await zohoService.getWalletIncomeAccountId();
+        const walletClearingAccountId =
+          await zohoService.getWalletClearingAccountId();
         const zohoResult = await zohoService.topUpWalletWithRetainer({
           customer_id: user.zohoContactId,
           amount,
           payment_mode: "PayPal",
           reference_number: captureId,
-          account_id,
+          walletIncomeAccountId: walletIncomeAccountID,
+          bank_account_id: bankAccountId,
+          liability_account_id: account_id,
+          walletClearingAccountId: walletClearingAccountId,
           description: `Wallet Top-up via PayPal - Ref: ${captureId}`,
         });
         console.log("updatedwallet", updatedwallet);
