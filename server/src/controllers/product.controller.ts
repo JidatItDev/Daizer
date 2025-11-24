@@ -8,6 +8,8 @@ import { categories } from "../db/schema/categories.schema";
 import axios from "axios";
 import { EmailService } from "../services/email.service";
 import { config } from "../db/schema/config.schema";
+import { ZohoService } from "../services/zoho.service";
+import { ZOHO_ENV } from "../config/Zoho";
 
 // Helper → Invalidate product caches
 // const invalidateProductsCache = async () => {
@@ -20,6 +22,11 @@ import { config } from "../db/schema/config.schema";
 //     console.error("Error invalidating product cache:", err);
 //   }
 // };
+type Subcategory = {
+  id: string;
+  name: string;
+  zohoGroupId?: string;
+};
 
 const invalidateProductsCache = async () => {
   try {
@@ -76,9 +83,13 @@ class ProductController {
         price: pricingGroupPrices[pg.id] || 0,
       }));
 
-      // --- Fetch subcategory name ---
+      // --- Fetch subcategory details ---
       const [subcategory] = await db
-        .select({ id: categories.id, name: categories.name })
+        .select({
+          id: categories.id,
+          name: categories.name,
+          zohoGroupId: categories.zohoGroupId,
+        })
         .from(categories)
         .where(eq(categories.id, subcategoryId));
 
@@ -99,34 +110,168 @@ class ProductController {
           }
         : null;
 
-      const [newProduct] = await db
-        .insert(products)
-        .values({
+      const zohoService = new ZohoService();
+
+      // Calculate base rate (average or first pricing group)
+      const baseRate =
+        enrichedPricingGroups.length > 0 ? enrichedPricingGroups[0].price : 0;
+
+      // Use transaction
+      const result = await db.transaction(async (tx) => {
+        // Create item in Zoho
+        // await zohoService.createCustomFieldsInZoho();
+
+        const zohoItem = await zohoService.createItemInZoho({
           name,
-          quantity,
           description,
+          rate: baseRate,
+          categoryName: subcategory.name,
+          groupId: subcategory.zohoGroupId || "",
+          sku: serviceId,
+          unit: quantity,
           pricingGroupPrices: enrichedPricingGroups,
-          subcategoryId: subcategory.id,
-          subcategoryName: subcategory.name,
-          serviceId,
-          image,
-          isActive: isActive ?? true,
-        })
-        .returning();
+        });
+
+        // Create product in DB
+        const [newProduct] = await tx
+          .insert(products)
+          .values({
+            name,
+            quantity,
+            description,
+            pricingGroupPrices: enrichedPricingGroups,
+            subcategoryId: subcategory.id,
+            subcategoryName: subcategory.name,
+            serviceId,
+            image,
+            isActive: isActive ?? true,
+            zohoItemId: zohoItem.item_id,
+          })
+          .returning();
+
+        return { product: newProduct, zohoItem };
+      });
 
       await invalidateProductsCache();
 
       return res.status(201).json({
         success: true,
         message: "Product created successfully",
-        product: newProduct,
+        product: result.product,
       });
     } catch (error) {
       console.error("Create product error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+      });
     }
   }
+  // static async updateProduct(req: Request, res: Response) {
+  //   try {
+  //     const { id } = req.params;
+  //     let {
+  //       name,
+  //       description,
+  //       pricingGroupPrices,
+  //       subcategoryId,
+  //       quantity,
+  //       serviceId,
+  //       isActive,
+  //     } = req.body;
 
+  //     // Parse JSON if it's string (same as createProduct)
+  //     if (typeof pricingGroupPrices === "string") {
+  //       pricingGroupPrices = JSON.parse(pricingGroupPrices);
+  //     }
+
+  //     // Handle new file upload if provided
+  //     const file = req.file as Express.MulterS3.File;
+  //     const image = file
+  //       ? {
+  //           name: file.originalname,
+  //           url: file.location,
+  //           key: file.key,
+  //           size: file.size,
+  //           mimetype: file.mimetype,
+  //         }
+  //       : undefined;
+
+  //     // Build update object (only include defined fields)
+  //     const updateData: any = {};
+  //     if (name !== undefined) updateData.name = name;
+  //     if (description !== undefined) updateData.description = description;
+  //     if (image !== undefined) updateData.image = image;
+  //     if (quantity !== undefined) updateData.quantity = quantity; // ✅ NEW FIELD
+  //     if (serviceId !== undefined) {
+  //       updateData.serviceId = req.body.serviceId; // ✅
+  //     }
+  //     if (isActive !== undefined) updateData.isActive = isActive;
+
+  //     if (pricingGroupPrices !== undefined) {
+  //       // --- Fetch pricing groups with names (SAME AS CREATE) ---
+  //       const pricingGroupsData = await db
+  //         .select({ id: pricingGroups.id, name: pricingGroups.name })
+  //         .from(pricingGroups)
+  //         .where(inArray(pricingGroups.id, Object.keys(pricingGroupPrices)));
+
+  //       const enrichedPricingGroups = pricingGroupsData.map((pg) => ({
+  //         id: pg.id,
+  //         name: pg.name,
+  //         price: pricingGroupPrices[pg.id] || 0,
+  //       }));
+
+  //       updateData.pricingGroupPrices = enrichedPricingGroups;
+  //     }
+
+  //     // ✅ Handle subcategory updates with name fetching (same as before)
+  //     if (subcategoryId !== undefined) {
+  //       // Fetch the subcategory name for the new subcategoryId
+  //       const [subcategory] = await db
+  //         .select({ id: categories.id, name: categories.name })
+  //         .from(categories)
+  //         .where(eq(categories.id, subcategoryId));
+
+  //       if (!subcategory) {
+  //         return res.status(400).json({
+  //           success: false,
+  //           message: "Invalid subcategory",
+  //         });
+  //       }
+
+  //       updateData.subcategoryId = subcategory.id;
+  //       updateData.subcategoryName = subcategory.name;
+  //       updateData.subcategory = { id: subcategory.id, name: subcategory.name };
+  //     }
+
+  //     const [updatedProduct] = await db
+  //       .update(products)
+  //       .set(updateData)
+  //       .where(eq(products.id, id))
+  //       .returning();
+
+  //     if (!updatedProduct) {
+  //       return res.status(404).json({
+  //         success: false,
+  //         message: "Product not found",
+  //       });
+  //     }
+
+  //     await invalidateProductsCache();
+
+  //     return res.status(200).json({
+  //       success: true,
+  //       message: "Product updated successfully",
+  //       product: updatedProduct,
+  //     });
+  //   } catch (error) {
+  //     console.error("Update product error:", error);
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: "Internal server error",
+  //     });
+  //   }
+  // }
   static async updateProduct(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -140,11 +285,23 @@ class ProductController {
         isActive,
       } = req.body;
 
-      // Parse JSON if it's string (same as createProduct)
+      // Parse JSON if it's string
       if (typeof pricingGroupPrices === "string") {
         pricingGroupPrices = JSON.parse(pricingGroupPrices);
       }
 
+      const [existingProduct] = await db
+        .select({ zohoItemId: products.zohoItemId })
+        .from(products)
+        .where(eq(products.id, id))
+        .limit(1);
+
+      if (!existingProduct) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
+      }
       // Handle new file upload if provided
       const file = req.file as Express.MulterS3.File;
       const image = file
@@ -167,7 +324,25 @@ class ProductController {
         updateData.serviceId = req.body.serviceId; // ✅
       }
       if (isActive !== undefined) updateData.isActive = isActive;
+      let enrichedPricingGroup:
+        | { id: string; name: string; price: number }[]
+        | undefined;
 
+      let subcategory: Subcategory | null = null;
+
+      // Process pricing groups if updated
+      if (pricingGroupPrices) {
+        const pricingGroupsData = await db
+          .select({ id: pricingGroups.id, name: pricingGroups.name })
+          .from(pricingGroups)
+          .where(inArray(pricingGroups.id, Object.keys(pricingGroupPrices)));
+
+        enrichedPricingGroup = pricingGroupsData.map((pg) => ({
+          id: pg.id,
+          name: pg.name,
+          price: pricingGroupPrices[pg.id] || 0,
+        }));
+      }
       if (pricingGroupPrices !== undefined) {
         // --- Fetch pricing groups with names (SAME AS CREATE) ---
         const pricingGroupsData = await db
@@ -186,43 +361,75 @@ class ProductController {
 
       // ✅ Handle subcategory updates with name fetching (same as before)
       if (subcategoryId !== undefined) {
-        // Fetch the subcategory name for the new subcategoryId
-        const [subcategory] = await db
-          .select({ id: categories.id, name: categories.name })
+        let [subcatRow] = await db
+          .select({
+            id: categories.id,
+            name: categories.name,
+            zohoGroupId: categories.zohoGroupId,
+          })
           .from(categories)
           .where(eq(categories.id, subcategoryId));
 
-        if (!subcategory) {
+        if (!subcatRow) {
           return res.status(400).json({
             success: false,
             message: "Invalid subcategory",
           });
         }
 
-        updateData.subcategoryId = subcategory.id;
-        updateData.subcategoryName = subcategory.name;
-        updateData.subcategory = { id: subcategory.id, name: subcategory.name };
+        // Set into outer variable
+        subcategory = {
+          id: subcatRow.id,
+          name: subcatRow.name,
+          zohoGroupId: subcatRow.zohoGroupId || "",
+        };
+
+        updateData.subcategoryId = subcatRow.id;
+        updateData.subcategoryName = subcatRow.name;
+        updateData.subcategory = { id: subcatRow.id, name: subcatRow.name };
       }
 
-      const [updatedProduct] = await db
-        .update(products)
-        .set(updateData)
-        .where(eq(products.id, id))
-        .returning();
+      const zohoService = new ZohoService();
 
-      if (!updatedProduct) {
-        return res.status(404).json({
-          success: false,
-          message: "Product not found",
+      // Use transaction
+      const result = await db.transaction(async (tx) => {
+        // Update in Zoho
+        if (existingProduct.zohoItemId) {
+          const baseRate =
+            enrichedPricingGroup && enrichedPricingGroup.length > 0
+              ? enrichedPricingGroup[0].price
+              : undefined;
+
+          await zohoService.updateItemInZoho(existingProduct.zohoItemId, {
+            name,
+            description,
+            rate: baseRate,
+            groupId: subcategory?.zohoGroupId,
+            unit: quantity,
+            pricingGroupPrices: enrichedPricingGroup,
+            isActive,
+          });
+        }
+        const [updatedProduct] = await db
+          .update(products)
+          .set(updateData)
+          .where(eq(products.id, id))
+          .returning();
+
+        if (!updatedProduct) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        await invalidateProductsCache();
+
+        return res.status(200).json({
+          success: true,
+          message: "Product updated successfully",
+          product: updatedProduct,
         });
-      }
-
-      await invalidateProductsCache();
-
-      return res.status(200).json({
-        success: true,
-        message: "Product updated successfully",
-        product: updatedProduct,
       });
     } catch (error) {
       console.error("Update product error:", error);
@@ -283,15 +490,33 @@ class ProductController {
     try {
       const { id } = req.params;
 
-      const [deleted] = await db
-        .delete(products)
+      const [existingProduct] = await db
+        .select({ zohoItemId: products.zohoItemId })
+        .from(products)
         .where(eq(products.id, id))
-        .returning();
+        .limit(1);
 
-      if (!deleted) {
-        return res.status(404).json({ message: "Product not found" });
+      if (!existingProduct) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
       }
+      const zohoService = new ZohoService();
+      await db.transaction(async (tx) => {
+        // Delete from Zoho
+        if (existingProduct.zohoItemId) {
+          await zohoService.deleteItemInZoho(existingProduct.zohoItemId);
+        }
+        const [deleted] = await tx
+          .delete(products)
+          .where(eq(products.id, id))
+          .returning();
 
+        if (!deleted) {
+          return res.status(404).json({ message: "Product not found" });
+        }
+      });
       await invalidateProductsCache();
 
       return res.status(200).json({
@@ -540,6 +765,7 @@ class ProductController {
           name: users.name,
           email: users.email,
           pricingGroupId: users.pricingGroupId,
+          zohoContactId: users.zohoContactId,
         })
         .from(users)
         .where(eq(users.id, userId));
@@ -621,18 +847,18 @@ class ProductController {
       formData.append("reference", referenceNumber.toString());
       formData.append("player_id", playerId);
 
-      const { data } = await axios.post(apiUrl, formData, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        timeout: 30000,
-      });
+      // const { data } = await axios.post(apiUrl, formData, {
+      //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      //   timeout: 30000,
+      // });
 
-      if (!data || !data.status) {
-        return res.status(500).json({
-          success: false,
-          message: "External service failed",
-          externalResponse: data,
-        });
-      }
+      // if (!data || !data.status) {
+      //   return res.status(500).json({
+      //     success: false,
+      //     message: "External service failed",
+      //     externalResponse: data,
+      //   });
+      // }
 
       // 6. Deduct amount from wallet
       const newBalance = currentBalance - productPrice;
@@ -644,6 +870,62 @@ class ProductController {
           updatedAt: new Date(),
         })
         .where(eq(wallets.userId, userId));
+      // 7. Zoho Sync: Debit wallet (decrease unused credits + liability + income + bank)
+      const zohoService = new ZohoService();
+      const walletLiabilityId = await zohoService.getWalletAccountId(); // Liability
+      const walletIncomeId = await zohoService.getWalletIncomeAccountId(); // Income (revenue)
+      const bankAccountId = await zohoService.getBankAccountId(); // Bank (credit)
+      const walletClearingId = await zohoService.getWalletClearingAccountId(); // Clearing
+      const incomeAccountId = await zohoService.getWalletIncomesAccountId();
+
+      const expenseAccountId = await zohoService.getWalletExpenseAccountId();
+      // Step 7a: Main debit (liability + income + decrease unused credits)
+      await zohoService.adjustWalletAndSyncZoho({
+        customer_id: user.zohoContactId,
+        amount: productPrice,
+        type: "debit",
+        reason: `Product purchase: ${product.name} for player ${playerId}`,
+        reference: `PURCH-${Date.now()}`,
+        liability_account_id: walletLiabilityId,
+        walletIncomeAccountID: walletIncomeId,
+        walletClearingAccountId: walletClearingId,
+        expenseAccountId: expenseAccountId,
+        incomeAccountId: incomeAccountId,
+      });
+
+      // Step 7b: Additional journal for bank credit (real money to bank)
+      const today = new Date().toISOString().split("T")[0];
+      const bankJournalPayload = {
+        journal_date: today,
+        reference_number: `BANK-CREDIT-${Date.now()}`,
+        notes: `Bank credit from wallet spend | Product: ${product.name}`,
+        line_items: [
+          {
+            account_id: bankAccountId, // Bank account
+            debit_or_credit: "credit", // Increase bank (money received)
+            amount: productPrice,
+            customer_id: user.zohoContactId,
+            description: "Wallet spend converted to bank credit",
+          },
+          {
+            account_id: walletClearingId, // Offset with clearing
+            debit_or_credit: "debit",
+            amount: productPrice,
+            customer_id: user.zohoContactId,
+            description: "Offset wallet spend to bank",
+          },
+        ],
+      };
+
+      await axios.post(
+        `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        bankJournalPayload,
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${await zohoService.getValidAccessToken()}`,
+          },
+        }
+      );
 
       // 7. Create purchase transaction
       await db.insert(transactions).values({
@@ -653,7 +935,7 @@ class ProductController {
         amount: `-${productPrice}`, // Negative amount for purchase
         currency: wallet.currency,
         status: "completed",
-        referenceId: `${data.orderid}`,
+        referenceId: `hardcode`,
         metadata: JSON.stringify({
           productId: product.id,
           productName: product.name,
@@ -663,7 +945,7 @@ class ProductController {
           pricingGroupId: user.pricingGroupId,
           originalBalance: wallet.balance,
           newBalance: newBalance.toString(),
-          externalResponse: data,
+          externalResponse: {},
         }),
       });
 
@@ -684,15 +966,15 @@ class ProductController {
         })(),
       ]);
 
-      await EmailService.sendTemplateEmail("productPurchase", user.email, {
-        name: user.name,
-        productName: product.name,
-        amount: productPrice.toString(),
-        newBalance: newBalance.toString(),
-        referenceId: data.orderid,
-        playerId: playerId,
-        date: new Date().toLocaleString(),
-      });
+      // await EmailService.sendTemplateEmail("productPurchase", user.email, {
+      //   name: user.name,
+      //   productName: product.name,
+      //   amount: productPrice.toString(),
+      //   newBalance: newBalance.toString(),
+      //   referenceId: data.orderid,
+      //   playerId: playerId,
+      //   date: new Date().toLocaleString(),
+      // });
 
       return res.status(200).json({
         success: true,

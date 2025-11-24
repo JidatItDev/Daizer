@@ -155,6 +155,27 @@
       "when": 1763452450307,
       "tag": "0021_puzzling_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1763969558761,
+      "tag": "0022_nappy_ezekiel_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1763971391145,
+      "tag": "0023_slimy_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1763997785103,
+      "tag": "0024_lean_ben_parker",
+      "breakpoints": true
     }
   ]
 }

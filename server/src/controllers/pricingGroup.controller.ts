@@ -3,6 +3,7 @@ import { db } from "../db/dbConnection";
 import { pricingGroups } from "../db/schema";
 import { eq, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
+import { ZohoService } from "../services/zoho.service";
 
 const invalidatePricingGroupsCache = async () => {
   try {
@@ -17,82 +18,173 @@ const invalidatePricingGroupsCache = async () => {
 };
 
 class PricingGroupController {
+  // static async createPricingGroup(req: Request, res: Response) {
+  //   try {
+  //     const { name, isDefault = false } = req.body;
+
+  //     // If new group isDefault, unset all others first
+  //     if (isDefault) {
+  //       await db
+  //         .update(pricingGroups)
+  //         .set({ isDefault: false })
+  //         .where(sql`1=1`);
+  //     }
+
+  //     const [newGroup] = await db
+  //       .insert(pricingGroups)
+  //       .values({ name, isDefault })
+  //       .returning({
+  //         id: pricingGroups.id,
+  //         name: pricingGroups.name,
+  //         isDefault: pricingGroups.isDefault,
+  //         createdAt: pricingGroups.createdAt,
+  //       });
+
+  //     await invalidatePricingGroupsCache();
+
+  //     return res.status(201).json({
+  //       success: true,
+  //       message: "Pricing group created successfully",
+  //       pricingGroup: newGroup,
+  //     });
+  //   } catch (error) {
+  //     console.error("Create pricing group error:", error);
+  //     return res.status(500).json({ message: "Internal server error" });
+  //   }
+  // }
   static async createPricingGroup(req: Request, res: Response) {
     try {
-      const { name, isDefault = false } = req.body;
+      const { name, isDefault } = req.body;
 
-      // If new group isDefault, unset all others first
-      if (isDefault) {
-        await db
-          .update(pricingGroups)
-          .set({ isDefault: false })
-          .where(sql`1=1`);
+      // Check if name already exists
+      const [existing] = await db
+        .select({ id: pricingGroups.id })
+        .from(pricingGroups)
+        .where(eq(pricingGroups.name, name))
+        .limit(1);
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: "Pricing group with this name already exists",
+        });
       }
 
-      const [newGroup] = await db
-        .insert(pricingGroups)
-        .values({ name, isDefault })
-        .returning({
-          id: pricingGroups.id,
-          name: pricingGroups.name,
-          isDefault: pricingGroups.isDefault,
-          createdAt: pricingGroups.createdAt,
+      const zohoService = new ZohoService();
+      // const currencies = await zohoService.getCurrencies();
+      // console.log("currencies", currencies);
+      // Use transaction
+      const result = await db.transaction(async (tx) => {
+        // Create price book in Zoho
+        const zohoPriceBook = await zohoService.createPriceBookInZoho({
+          name,
         });
 
-      await invalidatePricingGroupsCache();
+        // If this is set as default, remove default from others
+        if (isDefault) {
+          await tx
+            .update(pricingGroups)
+            .set({ isDefault: false })
+            .where(eq(pricingGroups.isDefault, true));
+        }
+
+        // Create pricing group in DB
+        const [newGroup] = await tx
+          .insert(pricingGroups)
+          .values({
+            name,
+            isDefault: isDefault ?? false,
+            zohoPriceBookId: zohoPriceBook.pricebook_id,
+          })
+          .returning();
+
+        return { group: newGroup, zohoPriceBook };
+      });
 
       return res.status(201).json({
         success: true,
         message: "Pricing group created successfully",
-        pricingGroup: newGroup,
+        pricingGroup: result.group,
       });
     } catch (error) {
       console.error("Create pricing group error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+      });
     }
   }
-
   static async updatePricingGroup(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, isDefault } = req.body;
+      const { name, description, isDefault, isActive } = req.body;
 
-      // If updating group to be default, unset others
-      if (isDefault === true) {
-        await db
-          .update(pricingGroups)
-          .set({ isDefault: false })
-          .where(sql`${pricingGroups.id} <> ${id}`);
-      }
-
-      const [updatedGroup] = await db
-        .update(pricingGroups)
-        .set({
-          ...(name && { name }),
-          ...(isDefault !== undefined && { isDefault }),
-        })
+      const [existingGroup] = await db
+        .select({ zohoPriceBookId: pricingGroups.zohoPriceBookId })
+        .from(pricingGroups)
         .where(eq(pricingGroups.id, id))
-        .returning({
-          id: pricingGroups.id,
-          name: pricingGroups.name,
-          isDefault: pricingGroups.isDefault,
-          createdAt: pricingGroups.createdAt,
-        });
+        .limit(1);
 
-      if (!updatedGroup) {
-        return res.status(404).json({ message: "Pricing group not found" });
+      if (!existingGroup) {
+        return res.status(404).json({
+          success: false,
+          message: "Pricing group not found",
+        });
       }
 
-      await invalidatePricingGroupsCache();
+      const zohoService = new ZohoService();
+
+      // Use transaction
+      const result = await db.transaction(async (tx) => {
+        // Update in Zoho if name or description changed
+        if ((name || description) && existingGroup.zohoPriceBookId) {
+          await zohoService.updatePriceBookInZoho(
+            existingGroup.zohoPriceBookId,
+            {
+              name,
+              description,
+            }
+          );
+        }
+
+        // If setting as default, remove default from others
+        if (isDefault === true) {
+          await tx
+            .update(pricingGroups)
+            .set({ isDefault: false })
+            .where(eq(pricingGroups.isDefault, true));
+        }
+
+        // Update pricing group in DB
+        const [updatedGroup] = await tx
+          .update(pricingGroups)
+          .set({
+            ...(name && { name }),
+            ...(description !== undefined && { description }),
+            ...(isDefault !== undefined && { isDefault }),
+            ...(isActive !== undefined && { isActive }),
+            zohoLastSyncedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(pricingGroups.id, id))
+          .returning();
+
+        return updatedGroup;
+      });
 
       return res.status(200).json({
         success: true,
         message: "Pricing group updated successfully",
-        pricingGroup: updatedGroup,
+        pricingGroup: result,
       });
     } catch (error) {
       console.error("Update pricing group error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+      });
     }
   }
 
@@ -102,9 +194,9 @@ class PricingGroupController {
       const cacheKey = `pricingGroups:page:${page}:limit:${limit}`;
 
       const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        return res.status(200).json(JSON.parse(cached));
-      }
+      // if (cached) {
+      //   return res.status(200).json(JSON.parse(cached));
+      // }
 
       const offset = (Number(page) - 1) * Number(limit);
 
@@ -124,7 +216,6 @@ class PricingGroupController {
       ]);
 
       const [{ count }] = countResult;
-
 
       const response = {
         success: true,

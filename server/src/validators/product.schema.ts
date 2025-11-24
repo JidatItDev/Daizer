@@ -24,7 +24,11 @@ const parseJsonString = z.string().transform((str, ctx) => {
 export const createProductSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().optional(),
-  quantity: z.string().max(255).optional(),
+  quantity: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val) => (val !== undefined ? val.toString() : undefined)),
+
   isActive: booleanFromString.optional(),
   pricingGroupPrices: z
     .union([

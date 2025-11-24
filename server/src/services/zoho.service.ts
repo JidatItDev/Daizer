@@ -13,8 +13,8 @@ export class ZohoService {
    * Generate Zoho OAuth authorization URL
    */
   generateAuthUrl(): string {
-    // ✅ Use full access scope for Zoho Books
-    const scope = "ZohoBooks.fullaccess.all";
+    // ✅ Add both Zoho Books AND Zoho Inventory scopes
+    const scope = "ZohoBooks.fullaccess.all,ZohoInventory.fullaccess.all";
 
     // ✅ Build the full authorization URL
     return `${ZOHO_ENV.ZOHO_BASE_URL}/auth?scope=${scope}&client_id=${ZOHO_ENV.ZOHO_CLIENT_ID}&response_type=code&access_type=offline&prompt=consent&redirect_uri=${ZOHO_ENV.ZOHO_REDIRECT_URI}`;
@@ -112,48 +112,48 @@ export class ZohoService {
 
     return data;
   }
-  async createContactInZohoBooks(user: { name: string; email: string }) {
-    const accessToken = await this.getValidAccessToken();
+  // async createContactInZohoBooks(user: { name: string; email: string }) {
+  //   const accessToken = await this.getValidAccessToken();
 
-    const payload = {
-      contact_name: user.name,
-      contact_type: "customer",
-      customer_sub_type: "business",
-      company_name: user.name,
-      contact_persons: [
-        {
-          first_name: user.name,
-          email: user.email,
-        },
-      ],
-      custom_fields: [
-        {
-          label: "Wallet Balance", // Must match the custom field created in Zoho
-          value: 0, // Initial wallet balance is 0
-        },
-      ],
-    };
+  //   const payload = {
+  //     contact_name: user.name,
+  //     contact_type: "customer",
+  //     customer_sub_type: "business",
+  //     company_name: user.name,
+  //     contact_persons: [
+  //       {
+  //         first_name: user.name,
+  //         email: user.email,
+  //       },
+  //     ],
+  //     custom_fields: [
+  //       {
+  //         label: "Wallet Balance", // Must match the custom field created in Zoho
+  //         value: 0, // Initial wallet balance is 0
+  //       },
+  //     ],
+  //   };
 
-    const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+  //   const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-    try {
-      const { data } = await axios.post(url, payload, {
-        headers: {
-          Authorization: `Zoho-oauthtoken ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
+  //   try {
+  //     const { data } = await axios.post(url, payload, {
+  //       headers: {
+  //         Authorization: `Zoho-oauthtoken ${accessToken}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     });
 
-      console.log("✅ Zoho contact created:", data.contact.contact_id);
-      return data.contact;
-    } catch (error: any) {
-      console.error(
-        "❌ Failed to create Zoho contact:",
-        error.response?.data || error.message
-      );
-      throw new Error("Failed to create contact in Zoho Books");
-    }
-  }
+  //     console.log("✅ Zoho contact created:", data.contact.contact_id);
+  //     return data.contact;
+  //   } catch (error: any) {
+  //     console.error(
+  //       "❌ Failed to create Zoho contact:",
+  //       error.response?.data || error.message
+  //     );
+  //     throw new Error("Failed to create contact in Zoho Books");
+  //   }
+  // }
   // Utility: update wallet balance custom field in Zoho Books
   async updateZohoWalletBalance(
     customer_id: string,
@@ -279,17 +279,102 @@ export class ZohoService {
   }
   async getWalletExpenseAccountId(): Promise<string> {
     const accessToken = await this.getValidAccessToken();
-    const url = `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-    const { data } = await axios.get(url, {
-      headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
-    });
 
-    const account = data.chartofaccounts.find(
-      (acc: any) =>
-        acc.account_name.toLowerCase() === "wallet adjustment expenses"
+    const { data } = await axios.get(
+      `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+      {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+      }
     );
 
-    if (!account) throw new Error("Parent Wallet account not found");
+    if (!data?.chartofaccounts?.length) {
+      throw new Error("No chart of accounts returned from Zoho Books");
+    }
+
+    // Search by exact name (case-insensitive + trim)
+    let account = data.chartofaccounts.find(
+      (acc: any) =>
+        acc.account_name.trim().toLowerCase() === "wallet adjustment expenses"
+    );
+
+    // Fallback: partial match (in case of typos or future changes)
+    if (!account) {
+      account = data.chartofaccounts.find((acc: any) =>
+        acc.account_name.toLowerCase().includes("wallet adjustment")
+      );
+    }
+
+    // Final fallback: by account code (most reliable if you keep code consistent)
+    if (!account) {
+      account = data.chartofaccounts.find(
+        (acc: any) => acc.account_code === "expense10@"
+      );
+    }
+
+    if (!account) {
+      console.error(
+        "Available accounts:",
+        data.chartofaccounts.map((a: any) => ({
+          name: a.account_name,
+          code: a.account_code,
+          id: a.account_id,
+        }))
+      );
+      throw new Error(
+        "Wallet Adjustment Expenses account not found! " +
+          "Please check the account name/code: 'Wallet Adjustment Expenses' or 'expense10@'"
+      );
+    }
+
+    console.log("Found Wallet Expense Account:", {
+      name: account.account_name,
+      code: account.account_code,
+      id: account.account_id,
+    });
+
+    return account.account_id;
+  }
+  async getWalletIncomesAccountId(): Promise<string> {
+    const accessToken = await this.getValidAccessToken();
+
+    const { data } = await axios.get(
+      `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+      {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+      }
+    );
+
+    if (!data?.chartofaccounts?.length) {
+      throw new Error("No chart of accounts returned from Zoho Books");
+    }
+
+    // Search by exact name (case-insensitive + trim)
+    let account = data.chartofaccounts.find(
+      (acc: any) =>
+        acc.account_name.trim().toLowerCase() === "wallet adjustment incomes"
+    );
+
+    if (!account) {
+      console.error(
+        "Available accounts:",
+        data.chartofaccounts.map((a: any) => ({
+          name: a.account_name,
+          code: a.account_code,
+          id: a.account_id,
+        }))
+      );
+      throw new Error(
+        "Wallet Adjustment Expenses account not found! " +
+          "Please check the account name/code: 'Wallet Adjustment Expenses' or 'expense10@'"
+      );
+    }
+
+    console.log("Found Wallet Expense Account:", {
+      name: account.account_name,
+      code: account.account_code,
+      id: account.account_id,
+    });
+
     return account.account_id;
   }
   // async getWalletIncomeAccountId(): Promise<string> {
@@ -451,6 +536,8 @@ export class ZohoService {
     liability_account_id: string;
     walletIncomeAccountID: string; // ← NEW: Use same Income account everywhere
     walletClearingAccountId: string;
+    expenseAccountId?: string;
+    incomeAccountId?: string;
   }) {
     const accessToken = await this.getValidAccessToken();
     const amount = parseFloat(entry.amount as string);
@@ -477,7 +564,7 @@ export class ZohoService {
             description: `Admin wallet credit - ${entry.reason}`,
           },
           {
-            account_id: entry.walletIncomeAccountID, // ← This is the "cost" of giving free money (or use a separate "Promotions" expense if you want)
+            account_id: entry.expenseAccountId, // ← This is the "cost" of giving free money (or use a separate "Promotions" expense if you want)
             debit_or_credit: "debit",
             amount,
             description: "Admin wallet credit offset",
@@ -609,7 +696,7 @@ export class ZohoService {
               description: "Admin wallet debit - reduce liability",
             },
             {
-              account_id: entry.walletClearingAccountId, // ← THIS MUST BE HERE!
+              account_id: entry.incomeAccountId, // ← THIS MUST BE HERE!
               debit_or_credit: "credit",
               amount,
               customer_id: entry.customer_id,
@@ -731,6 +818,606 @@ export class ZohoService {
 
     return { success: true, invoice, message: "Wallet topped up perfectly" };
   }
-  /*******  841efb00-cb8e-46ec-865f-26b7d69b4471  *******/
-  /** High-level helper for wallet top-up with journal entry */
+
+  async getCurrencies() {
+    const accessToken = await this.getValidAccessToken();
+
+    const resp = await axios.get(
+      `${ZOHO_ENV.BOOKS_API}/settings/currencies?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+      {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+      }
+    );
+
+    return resp.data.currencies;
+  }
+  async createContactInZohoBooks(user: {
+    name: string;
+    email: string;
+    pricingGroupName?: string;
+  }) {
+    const accessToken = await this.getValidAccessToken();
+
+    const payload = {
+      contact_name: user.name,
+      contact_type: "customer",
+      customer_sub_type: "business",
+      company_name: user.name,
+      contact_persons: [
+        {
+          first_name: user.name,
+          email: user.email,
+        },
+      ],
+      custom_fields: [
+        {
+          label: "Wallet Balance",
+          value: 0,
+        },
+        ...(user.pricingGroupName
+          ? [
+              {
+                label: "Pricing Group",
+                value: user.pricingGroupName,
+              },
+            ]
+          : []),
+      ],
+    };
+
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.post(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("✅ Zoho contact created:", data.contact.contact_id);
+      return data.contact;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to create Zoho contact:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to create contact in Zoho Books");
+    }
+  }
+
+  async updateContactInZohoBooks(
+    contactId: string,
+    updates: {
+      name?: string;
+      email?: string;
+      pricingGroupName?: string;
+      walletBalance?: number;
+    }
+  ) {
+    const accessToken = await this.getValidAccessToken();
+
+    const customFields = [];
+    if (updates.pricingGroupName !== undefined) {
+      customFields.push({
+        label: "Pricing Group",
+        value: updates.pricingGroupName,
+      });
+    }
+    if (updates.walletBalance !== undefined) {
+      customFields.push({
+        label: "Wallet Balance",
+        value: updates.walletBalance,
+      });
+    }
+
+    const payload = {
+      ...(updates.name && { contact_name: updates.name }),
+      ...(updates.name && { company_name: updates.name }),
+      ...(updates.email && {
+        contact_persons: [
+          {
+            first_name: updates.name,
+            email: updates.email,
+          },
+        ],
+      }),
+      ...(customFields.length > 0 && { custom_fields: customFields }),
+    };
+
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts/${contactId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.put(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("✅ Zoho contact updated:", contactId);
+      return data.contact;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to update Zoho contact:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to update contact in Zoho Books");
+    }
+  }
+
+  // ============================================
+  // CATEGORY SERVICES (ITEM GROUPS)
+  // ============================================
+
+  // Change your base URL to Zoho Inventory
+
+  async createItemGroupInZoho(category: {
+    name: string;
+    isParent: boolean;
+    parentGroupId?: string;
+  }) {
+    const accessToken = await this.getValidAccessToken();
+    const INVENTORY_API = "https://www.zohoapis.com/inventory/v1";
+    // Get active items
+    const itemsUrl = `${INVENTORY_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&filter_by=Status.Active`;
+
+    const { data: itemsData } = await axios.get(itemsUrl, {
+      headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+    });
+
+    const activeItems =
+      itemsData.items?.filter((i: any) => i.status === "active") || [];
+
+    if (activeItems.length === 0) {
+      throw new Error("No active items found");
+    }
+
+    // Build item group payload for Inventory API
+    const payload = {
+      group_name: category.name,
+      unit: "qty",
+      description: `Category: ${category.name}`,
+      items: activeItems.slice(0, 2).map((item: any) => ({
+        name: `${category.name}-${item.name}`,
+        rate: item.rate || 0,
+        purchase_rate: item.purchase_rate || item.rate || 0,
+        reorder_level: 5,
+        initial_stock: 0,
+        initial_stock_rate: 0,
+        sku: `${category.name}-${item.sku || "SKU"}`,
+      })),
+    };
+
+    const url = `${INVENTORY_API}/itemgroups?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.post(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+      // for (const group of pricingGroups) {
+      //   await axios.put(
+      //     `https://www.zohoapis.com/books/v3/pricelists/${group.pricelistId}?organization_id=${ORG_ID}`,
+      //     {
+      //       items: [
+      //         {
+      //           item_id: zohoItemId,
+      //           rate: group.price, // group price for this item
+      //         },
+      //       ],
+      //     },
+      //     { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+      //   );
+      // }
+      console.log("✅ Item group created in Zoho Inventory:", data.group_id);
+      return data;
+    } catch (error: any) {
+      console.error("Payload sent:", JSON.stringify(payload, null, 2));
+      console.error("Error:", error.response?.data);
+      throw new Error(
+        `Failed: ${error.response?.data?.message || error.message}`
+      );
+    }
+  }
+  async updateItemGroupInZoho(groupId: string, name: string) {
+    const accessToken = await this.getValidAccessToken();
+
+    const payload = {
+      group_name: name,
+    };
+
+    const url = `${ZOHO_ENV.BOOKS_API}/itemgroups/${groupId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.put(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("✅ Zoho item group updated:", groupId);
+      return data.item_group;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to update Zoho item group:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to update item group in Zoho Books");
+    }
+  }
+
+  async deleteItemGroupInZoho(groupId: string) {
+    const accessToken = await this.getValidAccessToken();
+
+    const url = `${ZOHO_ENV.BOOKS_API}/itemgroups/${groupId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      await axios.delete(url, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      });
+
+      console.log("✅ Zoho item group deleted:", groupId);
+      return true;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to delete Zoho item group:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to delete item group in Zoho Books");
+    }
+  }
+
+  // ============================================
+  // PRODUCT/ITEM SERVICES
+  // ============================================
+  async createPriceBookInZoho(pricingGroup: { name: string }) {
+    const accessToken = await this.getValidAccessToken();
+
+    // Sanitize name
+    const sanitizedName = pricingGroup.name
+      .replace(/[^a-zA-Z0-9 _-]/g, "")
+      .substring(0, 100)
+      .trim();
+
+    // Check if pricebook already exists
+    const existingResp = await axios.get(
+      `${ZOHO_ENV.BOOKS_API}/pricebooks?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+      { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+    );
+
+    let pricebook = existingResp.data.pricebooks?.find(
+      (pb: any) => pb.name === sanitizedName
+    );
+
+    if (!pricebook) {
+      const payload = {
+        name: sanitizedName,
+        description: `This is ${sanitizedName} Pricing Group`,
+        currency_id: "7462675000000000097", // Your org currency_id
+        pricebook_type: "per_item",
+        is_increase: true,
+        rounding_type: "no_rounding",
+        sales_or_purchase_type: "sales",
+        pricebook_items: [],
+      };
+
+      const { data } = await axios.post(
+        `${ZOHO_ENV.BOOKS_API}/pricebooks?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        payload,
+        { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+      );
+
+      pricebook = data.pricebook;
+      console.log("✅ Pricebook created:", pricebook.pricebook_id);
+    } else {
+      console.log("ℹ️ Pricebook already exists:", pricebook.pricebook_id);
+    }
+
+    return pricebook; // returns full pricebook object including pricebook_id
+  }
+  async createItemInZoho(product: {
+    name: string;
+    description?: string;
+    rate: number;
+    categoryName?: string;
+    sku?: string;
+    unit?: string;
+    pricingGroupPrices?: { id: string; rate: number }[]; // pricebooks to associate
+  }) {
+    const accessToken = await this.getValidAccessToken();
+
+    // 1️⃣ Build custom fields
+    const customFields: any[] = [];
+    if (product.categoryName) {
+      customFields.push({ label: "Category", value: product.categoryName });
+    }
+
+    // 2️⃣ Create the item in Zoho
+    const payload: any = {
+      name: product.name,
+      rate: product.rate,
+      description: product.description || "",
+      item_type: "sales",
+      ...(product.sku && { sku: product.sku }),
+      ...(product.unit && { unit: product.unit }),
+      ...(customFields.length > 0 && { custom_fields: customFields }),
+    };
+
+    let item;
+    try {
+      const { data } = await axios.post(
+        `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      item = data.item;
+      console.log("✅ Item created:", item.item_id);
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to create Zoho item:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to create item in Zoho Books");
+    }
+
+    // 3️⃣ Automatically add item to pricebooks (if any)
+    if (product.pricingGroupPrices?.length) {
+      for (const pg of product.pricingGroupPrices) {
+        try {
+          const updatePayload = {
+            pricebook_items: [
+              {
+                item_id: item.item_id,
+                pricebook_rate: pg.rate,
+              },
+            ],
+          };
+
+          await axios.put(
+            `${ZOHO_ENV.BOOKS_API}/pricebooks/${pg.id}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+            updatePayload,
+            {
+              headers: {
+                Authorization: `Zoho-oauthtoken ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          console.log(
+            `✅ Item associated with pricebook ${pg.id} at rate ${pg.rate}`
+          );
+        } catch (err: any) {
+          console.error(
+            `❌ Failed to associate item with pricebook ${pg.id}:`,
+            err.response?.data || err.message
+          );
+        }
+      }
+    }
+
+    return item;
+  }
+
+  async updateItemInZoho(
+    itemId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      rate?: number;
+      groupId?: string;
+      sku?: string;
+      unit?: string;
+      pricingGroupPrices?: { id: string; name: string; price: number }[];
+      isActive?: boolean;
+    }
+  ) {
+    const accessToken = await this.getValidAccessToken();
+
+    const pricebookRates = updates.pricingGroupPrices?.map((pg) => ({
+      pricebook_name: pg.name,
+      rate: pg.price,
+    }));
+
+    const payload = {
+      ...(updates.name && { name: updates.name }),
+      ...(updates.description !== undefined && {
+        description: updates.description,
+      }),
+      ...(updates.rate !== undefined && { rate: updates.rate }),
+      ...(updates.sku && { sku: updates.sku }),
+      ...(updates.unit && { unit: updates.unit }),
+      ...(updates.groupId && { group_id: updates.groupId }),
+      ...(updates.isActive !== undefined && {
+        status: updates.isActive ? "active" : "inactive",
+      }),
+      ...(pricebookRates && { pricebook_rates: pricebookRates }),
+    };
+
+    const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.put(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("✅ Zoho item updated:", itemId);
+      return data.item;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to update Zoho item:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to update item in Zoho Books");
+    }
+  }
+
+  async deleteItemInZoho(itemId: string) {
+    const accessToken = await this.getValidAccessToken();
+
+    const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      await axios.delete(url, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      });
+
+      console.log("✅ Zoho item deleted:", itemId);
+      return true;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to delete Zoho item:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to delete item in Zoho Books");
+    }
+  }
+
+  // ============================================
+  // PRICING GROUP SERVICES (PRICE BOOKS)
+  // ============================================
+  async getZohoItems(accessToken: string) {
+    const url = `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.get(url, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      });
+
+      // data.items is an array of all items
+      return data.items;
+    } catch (error: any) {
+      console.error(
+        "Failed to fetch items:",
+        error.response?.data || error.message
+      );
+      return [];
+    }
+  }
+
+  // async createPriceBookInZoho(pricingGroup: { name: string }) {
+  //   const accessToken = await this.getValidAccessToken();
+
+  //   function sanitizePriceBookName(name: string) {
+  //     return name
+  //       .replace(/[^a-zA-Z0-9 _-]/g, "")
+  //       .substring(0, 100)
+  //       .trim();
+  //   }
+  //   const items = await this.getZohoItems(accessToken);
+
+  //   // Suppose you already know the name of the item
+  //   const myItem = items.find((item) => item.name === "Placeholder Item");
+  //   console.log("myItem", myItem);
+  //   const sanitizedName = sanitizePriceBookName(pricingGroup.name);
+  //   // currency_id: '7462675000000000097',
+  //   // currency_code: 'USD',
+  //   // NOTE: currency_id is required by Zoho Inventory API
+  //   const payload = {
+  //     name: sanitizedName,
+  //     description: `This is ${sanitizedName} Pricing Group`,
+  //     currency_id: "7462675000000000097",
+  //     pricebook_type: "per_item",
+  //     is_increase: true,
+  //     rounding_type: "no_rounding",
+  //     sales_or_purchase_type: "sales",
+  //     pricebook_items: [
+  //       {
+  //         item_id: myItem.item_id,
+  //         pricebook_rate: 100, // Correct field
+  //       },
+  //     ],
+  //   };
+
+  //   // Use the Inventory API base URL directly
+  //   const inventoryBaseUrl = ZOHO_ENV.BOOKS_API; // e.g. "https://www.zohoapis.com/inventory/v1"
+  //   const url = `${inventoryBaseUrl}/pricebooks?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+  //   try {
+  //     const { data } = await axios.post(url, payload, {
+  //       headers: {
+  //         Authorization: `Zoho-oauthtoken ${accessToken}`,
+  //         "Content-Type": "application/json",
+  //       },
+  //     });
+
+  //     console.log("✅ Zoho price book created:", data.pricebook?.pricebook_id);
+  //     return data.pricebook;
+  //   } catch (error: any) {
+  //     console.error(
+  //       "❌ Failed to create Zoho price book:",
+  //       error.response?.data || error.message
+  //     );
+  //     if (error.response?.data) {
+  //       console.error(
+  //         "Full error response:",
+  //         JSON.stringify(error.response.data, null, 2)
+  //       );
+  //     }
+
+  //     // Provide more context in error
+  //     throw new Error(
+  //       `Failed to create price book in Zoho: ` +
+  //         `${error.response?.data?.message || error.message}. ` +
+  //         `Ensure: (1) OAuth token has ZohoInventory.settings.CREATE scope, ` +
+  //         `(2) payload includes required currency_id, and (3) your organization has pricing lists enabled.`
+  //     );
+  //   }
+  // }
+
+  async updatePriceBookInZoho(
+    priceBookId: string,
+    updates: {
+      name?: string;
+      description?: string;
+    }
+  ) {
+    const accessToken = await this.getValidAccessToken();
+
+    const payload = {
+      ...(updates.name && { pricebook_name: updates.name }),
+      ...(updates.description !== undefined && {
+        description: updates.description,
+      }),
+    };
+
+    const url = `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      const { data } = await axios.put(url, payload, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("✅ Zoho price book updated:", priceBookId);
+      return data.pricebook;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to update Zoho price book:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to update price book in Zoho Books");
+    }
+  }
 }

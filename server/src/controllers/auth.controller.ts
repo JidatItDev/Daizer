@@ -225,6 +225,124 @@ class AuthController {
     return res.json({ success: true, message: "Password has been reset" });
   }
 
+  // static async register(req: Request, res: Response) {
+  //   return await db.transaction(async (tx) => {
+  //     const { email, password, name, pricingGroupId } = req.body;
+  //     const normalizedEmail = email.toLowerCase().trim();
+
+  //     try {
+  //       // 1️⃣ Check if email already exists
+  //       const [existingUser] = await tx
+  //         .select({ id: users.id })
+  //         .from(users)
+  //         .where(eq(users.email, normalizedEmail))
+  //         .limit(1);
+
+  //       if (existingUser) {
+  //         return res.status(409).json({ message: "Email already in use" });
+  //       }
+
+  //       const hashedPassword = await hashPassword(password);
+
+  //       // 2️⃣ Resolve pricing group
+  //       let finalPricingGroupId = pricingGroupId;
+  //       if (!finalPricingGroupId) {
+  //         const [defaultGroup] = await tx
+  //           .select({ id: pricingGroups.id })
+  //           .from(pricingGroups)
+  //           .where(eq(pricingGroups.isDefault, true))
+  //           .limit(1);
+  //         finalPricingGroupId = defaultGroup?.id || null;
+  //       }
+
+  //       // 3️⃣ Create Zoho entities outside transaction
+
+  //       // 4️⃣ Run DB operations in a transaction
+
+  //       const zohoService = new ZohoService();
+  //       const zohoContact = await zohoService.createContactInZohoBooks({
+  //         name,
+  //         email: normalizedEmail,
+  //       });
+  //       // const parentWalletId = await zohoService.getWalletAccountId();
+  //       // const zohoWalletSubAccount = await zohoService.createSubAccount(
+  //       //   parentWalletId,
+  //       //   name
+  //       // );
+
+  //       // console.log("✅ Zoho Sub-Account Created:", zohoWalletSubAccount);
+
+  //       // ✅ Validate both responses with correct structure
+  //       if (!zohoContact || !zohoContact.contact_id) {
+  //         throw new Error("Zoho contact creation failed");
+  //       }
+  //       const [pricingGroup] = await tx
+  //         .select({ name: pricingGroups.name })
+  //         .from(pricingGroups)
+  //         .where(eq(pricingGroups.id, finalPricingGroupId));
+  //       // if (!zohoWalletSubAccount || !zohoWalletSubAccount.account_id) {
+  //       //   throw new Error("Zoho wallet sub-account creation failed");
+  //       // }
+  //       await zohoService.updateContactPricingGroup(
+  //         zohoContact.contact_id,
+  //         pricingGroup.name
+  //       );
+  //       // Insert user with correct field references
+  //       const [createdUser] = await tx
+  //         .insert(users)
+  //         .values({
+  //           name,
+  //           email: normalizedEmail,
+  //           password: hashedPassword,
+  //           role: "user",
+  //           isActive: true,
+  //           pricingGroupId: finalPricingGroupId,
+  //           // zohoWalletSubAccountId: zohoWalletSubAccount.account_id, // ✅ Direct access
+  //           zohoContactId: zohoContact.contact_id, // ✅ Direct access
+  //           zohoContactStatus: zohoContact.contact_status || "active",
+  //           zohoCreatedAt: new Date(),
+  //           zohoCompanyName: zohoContact.company_name || name,
+  //         })
+  //         .returning({
+  //           id: users.id,
+  //           email: users.email,
+  //           name: users.name,
+  //           role: users.role,
+  //           pricingGroupId: users.pricingGroupId,
+  //           createdAt: users.createdAt,
+  //           zohoContactId: users.zohoContactId,
+  //         });
+
+  //       // Insert wallet
+  //       await tx.insert(wallets).values({
+  //         userId: createdUser.id,
+  //         balance: "0",
+  //       });
+
+  //       // 5️⃣ Generate tokens
+  //       const accessToken = createAccessToken(
+  //         createdUser.id,
+  //         createdUser.role || ""
+  //       );
+  //       const refreshToken = createRefreshToken(createdUser.id);
+
+  //       await redisClient.del("users:page:*");
+
+  //       return res.status(201).json({
+  //         message: "User registered successfully",
+  //         accessToken,
+  //         refreshToken,
+  //         success: true,
+  //         user: createdUser,
+  //       });
+  //     } catch (error: any) {
+  //       console.error("Registration error:", error);
+  //       return res.status(500).json({
+  //         message: error.message || "Internal server error",
+  //       });
+  //     }
+  //   });
+  // }
   static async register(req: Request, res: Response) {
     const { email, password, name, pricingGroupId } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
@@ -245,42 +363,42 @@ class AuthController {
 
       // 2️⃣ Resolve pricing group
       let finalPricingGroupId = pricingGroupId;
+      let pricingGroupName: string | undefined;
+
       if (!finalPricingGroupId) {
         const [defaultGroup] = await db
-          .select({ id: pricingGroups.id })
+          .select({ id: pricingGroups.id, name: pricingGroups.name })
           .from(pricingGroups)
           .where(eq(pricingGroups.isDefault, true))
           .limit(1);
         finalPricingGroupId = defaultGroup?.id || null;
+        pricingGroupName = defaultGroup?.name;
+      } else {
+        const [selectedGroup] = await db
+          .select({ name: pricingGroups.name })
+          .from(pricingGroups)
+          .where(eq(pricingGroups.id, pricingGroupId))
+          .limit(1);
+        pricingGroupName = selectedGroup?.name;
       }
 
-      // 3️⃣ Create Zoho entities outside transaction
-
-      // 4️⃣ Run DB operations in a transaction
+      // 3️⃣ Run DB operations in a transaction
       const newUser = await db.transaction(async (tx) => {
         const zohoService = new ZohoService();
+
+        // Create Zoho contact
         const zohoContact = await zohoService.createContactInZohoBooks({
           name,
           email: normalizedEmail,
+          pricingGroupName,
         });
-        // const parentWalletId = await zohoService.getWalletAccountId();
-        // const zohoWalletSubAccount = await zohoService.createSubAccount(
-        //   parentWalletId,
-        //   name
-        // );
 
-        // console.log("✅ Zoho Sub-Account Created:", zohoWalletSubAccount);
-
-        // ✅ Validate both responses with correct structure
+        // ✅ Validate Zoho response
         if (!zohoContact || !zohoContact.contact_id) {
           throw new Error("Zoho contact creation failed");
         }
 
-        // if (!zohoWalletSubAccount || !zohoWalletSubAccount.account_id) {
-        //   throw new Error("Zoho wallet sub-account creation failed");
-        // }
-
-        // Insert user with correct field references
+        // Insert user
         const [createdUser] = await tx
           .insert(users)
           .values({
@@ -290,10 +408,11 @@ class AuthController {
             role: "user",
             isActive: true,
             pricingGroupId: finalPricingGroupId,
-            // zohoWalletSubAccountId: zohoWalletSubAccount.account_id, // ✅ Direct access
-            zohoContactId: zohoContact.contact_id, // ✅ Direct access
+            zohoContactId: zohoContact.contact_id,
             zohoContactStatus: zohoContact.contact_status || "active",
-            zohoCreatedAt: new Date(),
+            zohoCreatedAt: zohoContact.created_time
+              ? new Date(zohoContact.created_time)
+              : new Date(), // fallback
             zohoCompanyName: zohoContact.company_name || name,
           })
           .returning({
@@ -315,7 +434,7 @@ class AuthController {
         return createdUser;
       });
 
-      // 5️⃣ Generate tokens
+      // 4️⃣ Generate tokens
       const accessToken = createAccessToken(newUser.id, newUser.role || "");
       const refreshToken = createRefreshToken(newUser.id);
 
@@ -408,45 +527,155 @@ class AuthController {
     }
   }
 
+  // static async updateUser(req: Request, res: Response) {
+  //   return await db.transaction(async (tx) => {
+  //     try {
+  //       const { id } = req.params;
+  //       const { name, role, isActive, pricingGroupId } = req.body;
+
+  //       const [updatedUser] = await tx
+  //         .update(users)
+  //         .set({
+  //           ...(name && { name }),
+  //           ...(role && { role }),
+  //           ...(isActive !== undefined && { isActive }),
+  //           ...(pricingGroupId !== undefined && { pricingGroupId }),
+  //           updatedAt: new Date(),
+  //         })
+  //         .where(eq(users.id, id))
+  //         .returning({
+  //           id: users.id,
+  //           name: users.name,
+  //           email: users.email,
+  //           role: users.role,
+  //           isActive: users.isActive,
+  //           pricingGroupId: users.pricingGroupId,
+  //           zohoContactId: users.zohoContactId,
+  //           updatedAt: users.updatedAt,
+  //         });
+
+  //       if (!updatedUser) {
+  //         return res.status(404).json({ message: "User not found" });
+  //       }
+  //       const [group] = await tx
+  //         .select({ name: pricingGroups.name })
+  //         .from(pricingGroups)
+  //         .where(eq(pricingGroups.id, pricingGroupId));
+  //       const zohoService = new ZohoService();
+  //       await zohoService.updateContactPricingGroup(
+  //         updatedUser.zohoContactId,
+  //         group.name
+  //       );
+  //       await redisClient.del("users:page:*");
+
+  //       return res.status(200).json({
+  //         success: true,
+  //         message: "User updated successfully",
+  //         user: updatedUser,
+  //       });
+  //     } catch (error) {
+  //       console.error("Update user error:", error);
+  //       return res.status(500).json({ message: "Internal server error" });
+  //     }
+  //   });
+  // }
   static async updateUser(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const { name, role, isActive, pricingGroupId } = req.body;
 
-      const [updatedUser] = await db
-        .update(users)
-        .set({
-          ...(name && { name }),
-          ...(role && { role }),
-          ...(isActive !== undefined && { isActive }),
-          ...(pricingGroupId !== undefined && { pricingGroupId }),
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, id))
-        .returning({
-          id: users.id,
-          name: users.name,
+      // Fetch existing user
+      const [existingUser] = await db
+        .select({
+          zohoContactId: users.zohoContactId,
           email: users.email,
-          role: users.role,
-          isActive: users.isActive,
           pricingGroupId: users.pricingGroupId,
-          updatedAt: users.updatedAt,
-        });
+        })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
 
-      if (!updatedUser) {
+      if (!existingUser) {
         return res.status(404).json({ message: "User not found" });
       }
+      const [pricingGroup] = await db
+        .select({
+          id: pricingGroups.id,
+          name: pricingGroups.name,
+        })
+        .from(pricingGroups)
+        .where(eq(pricingGroups.id, pricingGroupId))
+        .limit(1);
+
+      if (!pricingGroup) {
+        return res.status(404).json({
+          success: false,
+          message: "Pricing group not found",
+        });
+      }
+      let pricingGroupName: string | undefined;
+
+      // Get pricing group name if changed
+      if (pricingGroupId && pricingGroupId !== existingUser.pricingGroupId) {
+        const [selectedGroup] = await db
+          .select({ name: pricingGroups.name })
+          .from(pricingGroups)
+          .where(eq(pricingGroups.id, pricingGroupId))
+          .limit(1);
+        pricingGroupName = selectedGroup?.name;
+      }
+
+      const zohoService = new ZohoService();
+
+      // Use transaction
+      const result = await db.transaction(async (tx) => {
+        // Update Zoho contact if necessary
+        if (existingUser.zohoContactId) {
+          await zohoService.updateContactInZohoBooks(
+            existingUser.zohoContactId,
+            {
+              pricingGroupName: pricingGroup.name,
+            }
+          );
+        }
+
+        // Update user in DB
+        const [updatedUser] = await tx
+          .update(users)
+          .set({
+            ...(name && { name }),
+            ...(role && { role }),
+            ...(isActive !== undefined && { isActive }),
+            ...(pricingGroupId !== undefined && { pricingGroupId }),
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, id))
+          .returning({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+            isActive: users.isActive,
+            pricingGroupId: users.pricingGroupId,
+            updatedAt: users.updatedAt,
+          });
+
+        return updatedUser;
+      });
 
       await redisClient.del("users:page:*");
 
       return res.status(200).json({
         success: true,
         message: "User updated successfully",
-        user: updatedUser,
+        user: result,
       });
     } catch (error) {
       console.error("Update user error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+      });
     }
   }
 

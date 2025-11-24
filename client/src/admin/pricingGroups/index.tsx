@@ -259,7 +259,7 @@ const PricingGroup = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedGroup || selectedGroup?.id) return;
+    if (!selectedGroup || !selectedGroup?.id) return;
 
     try {
       await deletePricingGroup.mutateAsync(selectedGroup?.id);

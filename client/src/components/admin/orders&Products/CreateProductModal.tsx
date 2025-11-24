@@ -130,9 +130,9 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       newErrors.image = "Product image is required";
     }
 
-    if (!formData.serviceId) {
-      newErrors.serviceId = "Please select a service";
-    }
+    // if (!formData.serviceId) {
+    //   newErrors.serviceId = "Please select a service";
+    // }
 
     // Pricing groups validation - ALL pricing groups must have valid prices
     const missingPrices: string[] = [];
@@ -161,11 +161,12 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
+  console.log("errors", errors);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
+      toast.error("Please fill in all the required fields", errors);
       return;
     }
 
@@ -182,7 +183,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
 
       await createProductMutation.mutateAsync({
         name: formData.name,
-        quantity: formData.quantity?.toString() || undefined,
+        quantity: String(formData.quantity) || undefined,
         description: formData.description,
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,

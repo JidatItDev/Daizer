@@ -18,6 +18,7 @@ export const categories = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     parentCategoryId: uuid("parent_category_id"),
     image: jsonb("image").$type<{ name: string; url: string }>(),
+    zohoGroupId: varchar("zohoGroupId", { length: 50 }), // ← ADD THIS
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },

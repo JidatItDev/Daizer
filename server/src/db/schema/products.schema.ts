@@ -27,6 +27,7 @@ export const products = pgTable(
     serviceId: varchar("service_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    zohoItemId: varchar("zoho_item_id", { length: 50 }).default(""), // ← ADD THIS
   },
   (product) => ({
     nameIdx: index("products_name_idx").on(product.name),

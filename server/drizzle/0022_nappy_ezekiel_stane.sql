@@ -1,0 +1,1 @@
+ALTER TABLE "pricing_groups" ADD COLUMN "zoho_priceBook_id" varchar(50) DEFAULT '';

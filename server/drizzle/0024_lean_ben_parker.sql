@@ -1,0 +1,1 @@
+ALTER TABLE "categories" RENAME COLUMN "zoho_item_id" TO "zohoGroupId";

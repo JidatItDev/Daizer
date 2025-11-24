@@ -12,6 +12,7 @@ export const pricingGroups = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: varchar("name", { length: 255 }).notNull(),
+    zohoPriceBookId: varchar("zoho_priceBook_id", { length: 50 }).default(""),
     isDefault: boolean("is_default").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
