@@ -15,6 +15,7 @@ import { EmailService } from "../services/email.service";
 import redisClient from "../config/redis";
 import { signupLinks } from "../db/schema/signupLinks.schema";
 import { ZohoService } from "../services/zoho.service";
+import { ZohoContactService } from "../services/ZohoServices/zohoContact.service";
 
 class AuthController {
   static async login(req: Request, res: Response) {
@@ -384,10 +385,10 @@ class AuthController {
 
       // 3️⃣ Run DB operations in a transaction
       const newUser = await db.transaction(async (tx) => {
-        const zohoService = new ZohoService();
+        const zohoContactService = new ZohoContactService();
 
         // Create Zoho contact
-        const zohoContact = await zohoService.createContactInZohoBooks({
+        const zohoContact = await zohoContactService.createContactInZohoBooks({
           name,
           email: normalizedEmail,
           pricingGroupName,
@@ -587,6 +588,7 @@ class AuthController {
       // Fetch existing user
       const [existingUser] = await db
         .select({
+          name: users.name,
           zohoContactId: users.zohoContactId,
           email: users.email,
           pricingGroupId: users.pricingGroupId,
@@ -625,16 +627,19 @@ class AuthController {
         pricingGroupName = selectedGroup?.name;
       }
 
-      const zohoService = new ZohoService();
+      const zohoContactService = new ZohoContactService();
 
       // Use transaction
       const result = await db.transaction(async (tx) => {
         // Update Zoho contact if necessary
         if (existingUser.zohoContactId) {
-          await zohoService.updateContactInZohoBooks(
+          await zohoContactService.updateContactInZohoBooks(
             existingUser.zohoContactId,
             {
+              name: existingUser.name,
+              email: existingUser.email,
               pricingGroupName: pricingGroup.name,
+              pricingGroupId: pricingGroupId ?? existingUser.pricingGroupId,
             }
           );
         }
@@ -769,13 +774,40 @@ class AuthController {
       const { id } = req.params;
 
       const [user] = await db
-        .select({ id: users.id, email: users.email })
+        .select({
+          id: users.id,
+          email: users.email,
+          zohoContactId: users.zohoContactId,
+        })
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+      // ✅ Delete/deactivate from Zoho first
+      let zohoResult = null;
+      if (user.zohoContactId) {
+        const zohoCustomerService = new ZohoContactService();
+
+        try {
+          zohoResult = await zohoCustomerService.smartDeleteCustomer(
+            user.zohoContactId
+          );
+          console.log(
+            `✅ Zoho action: ${zohoResult.action}`,
+            zohoResult.message
+          );
+        } catch (error: any) {
+          console.error("❌ Failed to delete from Zoho:", error.message);
+          // Continue with local deletion even if Zoho fails
+          // Or you can choose to return error here:
+          // return res.status(500).json({
+          //   success: false,
+          //   message: "Failed to sync with Zoho Books"
+          // });
+        }
       }
 
       await db.delete(users).where(eq(users.id, id));
@@ -864,8 +896,8 @@ class AuthController {
       }
 
       const hashedPassword = await hashPassword(password);
-      const zohoService = new ZohoService();
-      const zohoContact = await zohoService.createContactInZohoBooks({
+      const zohoContactService = new ZohoContactService();
+      const zohoContact = await zohoContactService.createContactInZohoBooks({
         name: link.name,
         email: link.email,
       });

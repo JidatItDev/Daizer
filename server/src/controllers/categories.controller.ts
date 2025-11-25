@@ -3,6 +3,7 @@ import { db } from "../db/dbConnection";
 import { categories } from "../db/schema/categories.schema";
 import { eq, isNull, and, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
+import { ZohoCategoryService } from "../services/ZohoServices/zohoCategory.service";
 
 interface S3File extends Express.Multer.File {
   location: string; // AWS S3 gives this
@@ -145,13 +146,27 @@ class CategoryController {
       const { name, parentCategoryId, removeImage } = req.body as {
         name?: string;
         parentCategoryId?: string | null;
-        removeImage?: string; // "true" if user wants to remove image
+        removeImage?: string;
       };
 
       if (parentCategoryId === id) {
         return res.status(400).json({
           success: false,
           message: "Category cannot be its own parent",
+        });
+      }
+
+      // ✅ Get existing category to get old name for Zoho update
+      const [existingCategory] = await db
+        .select({ id: categories.id, name: categories.name })
+        .from(categories)
+        .where(eq(categories.id, id))
+        .limit(1);
+
+      if (!existingCategory) {
+        return res.status(404).json({
+          success: false,
+          message: "Category not found",
         });
       }
 
@@ -173,7 +188,7 @@ class CategoryController {
       let imageData: { name: string; url: string } | null | undefined;
 
       if (removeImage === "true") {
-        imageData = null; // Explicitly set to null to remove image
+        imageData = null;
       } else if (req.file) {
         imageData = {
           name: req.file.originalname,
@@ -190,13 +205,37 @@ class CategoryController {
         updateData.image = imageData;
       }
 
-      const [updated] = await db
-        .update(categories)
-        .set(updateData)
-        .where(eq(categories.id, id))
-        .returning();
+      const zohoCategoryService = new ZohoCategoryService();
 
-      if (!updated) {
+      // ✅ Use transaction
+      const result = await db.transaction(async (tx) => {
+        // Update in Zoho if name changed
+        if (name && name !== existingCategory.name) {
+          try {
+            await zohoCategoryService.updateCategoryInZohoItems(
+              existingCategory.name,
+              name
+            );
+          } catch (zohoError) {
+            console.warn(
+              "⚠️ Could not update category in Zoho (continuing with local update):",
+              zohoError
+            );
+            // Continue with local update even if Zoho fails
+          }
+        }
+
+        // Update in local database
+        const [updated] = await tx
+          .update(categories)
+          .set(updateData)
+          .where(eq(categories.id, id))
+          .returning();
+
+        return updated;
+      });
+
+      if (!result) {
         return res.status(404).json({
           success: false,
           message: "Category not found",
@@ -209,7 +248,7 @@ class CategoryController {
       return res.status(200).json({
         success: true,
         message: "Category updated",
-        category: updated,
+        category: result,
       });
     } catch (error) {
       console.error("updateCategory error:", error);
@@ -219,20 +258,48 @@ class CategoryController {
       });
     }
   }
+
+  // ========================================
+  // 3. UPDATED CONTROLLER: deleteCategory
+  // ========================================
+
   static async deleteCategory(req: Request, res: Response) {
     try {
       const { id } = req.params;
 
-      const [deleted] = await db
-        .delete(categories)
+      // ✅ Get category name before deleting
+      const [existingCategory] = await db
+        .select({ id: categories.id, name: categories.name })
+        .from(categories)
         .where(eq(categories.id, id))
-        .returning({ id: categories.id });
+        .limit(1);
 
-      if (!deleted) {
+      if (!existingCategory) {
         return res
           .status(404)
           .json({ success: false, message: "Category not found" });
       }
+
+      const zohoCategoryService = new ZohoCategoryService();
+
+      // ✅ Use transaction
+      await db.transaction(async (tx) => {
+        // Remove category from all Zoho items
+        try {
+          await zohoCategoryService.removeCategoryFromZohoItems(
+            existingCategory.name
+          );
+        } catch (zohoError) {
+          console.warn(
+            "⚠️ Could not remove category from Zoho items (continuing with deletion):",
+            zohoError
+          );
+          // Continue with deletion even if Zoho fails
+        }
+
+        // Delete from local database
+        await tx.delete(categories).where(eq(categories.id, id));
+      });
 
       await invalidateCategoryCaches(id);
 
@@ -241,7 +308,10 @@ class CategoryController {
         .json({ success: true, message: "Category deleted" });
     } catch (error) {
       console.error("deleteCategory error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
 

@@ -4,6 +4,7 @@ import { pricingGroups } from "../db/schema";
 import { eq, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { ZohoService } from "../services/zoho.service";
+import { ZohoPriceBookService } from "../services/ZohoServices/zohoPriceBook.service";
 
 const invalidatePricingGroupsCache = async () => {
   try {
@@ -70,15 +71,14 @@ class PricingGroupController {
         });
       }
 
-      const zohoService = new ZohoService();
+      const zohoPriceBookService = new ZohoPriceBookService();
       // const currencies = await zohoService.getCurrencies();
       // console.log("currencies", currencies);
       // Use transaction
       const result = await db.transaction(async (tx) => {
         // Create price book in Zoho
-        const zohoPriceBook = await zohoService.createPriceBookInZoho({
-          name,
-        });
+        const zohoPriceBook =
+          await zohoPriceBookService.createPriceBookInZoho(name);
 
         // If this is set as default, remove default from others
         if (isDefault) {
@@ -133,13 +133,13 @@ class PricingGroupController {
         });
       }
 
-      const zohoService = new ZohoService();
+      const zohoPriceBookService = new ZohoPriceBookService();
 
       // Use transaction
       const result = await db.transaction(async (tx) => {
         // Update in Zoho if name or description changed
         if ((name || description) && existingGroup.zohoPriceBookId) {
-          await zohoService.updatePriceBookInZoho(
+          await zohoPriceBookService.updatePriceBookInZoho(
             existingGroup.zohoPriceBookId,
             {
               name,
@@ -266,24 +266,60 @@ class PricingGroupController {
     try {
       const { id } = req.params;
 
-      const [deletedGroup] = await db
-        .delete(pricingGroups)
+      // Get pricing group details
+      const [pricingGroup] = await db
+        .select({
+          id: pricingGroups.id,
+          name: pricingGroups.name,
+          zohoPriceBookId: pricingGroups.zohoPriceBookId,
+        })
+        .from(pricingGroups)
         .where(eq(pricingGroups.id, id))
-        .returning({ id: pricingGroups.id });
+        .limit(1);
 
-      if (!deletedGroup) {
-        return res.status(404).json({ message: "Pricing group not found" });
+      if (!pricingGroup) {
+        return res.status(404).json({
+          success: false,
+          message: "Pricing group not found",
+        });
       }
 
-      await invalidatePricingGroupsCache();
+      // ✅ Delete from Zoho first (includes custom field cleanup)
+      let zohoResult = null;
+      if (pricingGroup.zohoPriceBookId) {
+        const zohoItemService = new ZohoPriceBookService();
+
+        try {
+          zohoResult = await zohoItemService.deletePriceBookInZoho(
+            pricingGroup.zohoPriceBookId
+          );
+          console.log(`✅ Deleted price book from Zoho:`, zohoResult);
+        } catch (error: any) {
+          console.error("❌ Failed to delete from Zoho:", error.message);
+          return res.status(500).json({
+            success: false,
+            message: `Failed to delete price book from Zoho: ${error.message}`,
+          });
+        }
+      }
+
+      // ✅ Delete from local database
+      await db.delete(pricingGroups).where(eq(pricingGroups.id, id));
+
+      // Clear cache if you're using Redis
+      // await redisClient.del("pricing-groups:*");
 
       return res.status(200).json({
         success: true,
-        message: "Pricing group deleted successfully",
+        message: `Pricing group "${pricingGroup.name}" deleted successfully`,
+        zoho: zohoResult,
       });
     } catch (error) {
       console.error("Delete pricing group error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
 }

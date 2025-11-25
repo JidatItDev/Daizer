@@ -57,7 +57,11 @@ export const createProductSchemaSimple = z.object({
 // Update Product Schema
 export const updateProductSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  quantity: z.string().max(255).optional(),
+  quantity: z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val) => (val !== undefined ? val.toString() : undefined)),
+
   description: z.string().optional(),
   isActive: booleanFromString.optional(),
   pricingGroupPrices: z

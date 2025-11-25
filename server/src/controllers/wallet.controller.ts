@@ -9,6 +9,8 @@ import { email } from "zod";
 import { ZohoService } from "../services/zoho.service";
 import { ZOHO_ENV } from "../config/Zoho";
 import axios from "axios";
+import { ZohoAccountIdsFetchingService } from "../services/ZohoServices/zohoAccountIdsFetching.service";
+import { ZohoWalletService } from "../services/ZohoServices/zohoWallet.service";
 
 async function invalidateUserTransactionsCache(userId: string) {
   const pattern = `transactions:${userId}:*`;
@@ -657,14 +659,17 @@ class WalletController {
         });
 
         // 7. SYNC WITH ZOHO — THIS CAN FAIL!
-        const zohoService = new ZohoService();
-        const account_id = await zohoService.getWalletAccountId();
+        const zohoAccountIdsFetchingService =
+          new ZohoAccountIdsFetchingService();
+        const zohoWalletService = new ZohoWalletService();
+        const account_id =
+          await zohoAccountIdsFetchingService.getWalletAccountId();
         const walletIncomeAccountID =
-          await zohoService.getWalletIncomeAccountId();
+          await zohoAccountIdsFetchingService.getWalletIncomeAccountId();
         const walletClearingAccountId =
-          await zohoService.getWalletClearingAccountId();
+          await zohoAccountIdsFetchingService.getWalletClearingAccountId();
 
-        const refundData = await zohoService.refundWalletWithCreditNote({
+        const refundData = await zohoWalletService.refundWalletWithCreditNote({
           refundId: refund.id,
           customer_id: user.zohoContactId,
           amount: refund.amount,
@@ -866,15 +871,20 @@ class WalletController {
           }),
         });
 
-        const zohoService = new ZohoService();
-        const account_id = await zohoService.getWalletAccountId();
+        const zohoAccountIdsFetchingService =
+          new ZohoAccountIdsFetchingService();
+        const zohoWalletService = new ZohoWalletService();
+        const account_id =
+          await zohoAccountIdsFetchingService.getWalletAccountId();
         const walletIncomeAccountID =
-          await zohoService.getWalletIncomeAccountId();
-        const incomeAccountId = await zohoService.getWalletIncomesAccountId();
+          await zohoAccountIdsFetchingService.getWalletIncomeAccountId();
+        const incomeAccountId =
+          await zohoAccountIdsFetchingService.getWalletIncomesAccountId();
         const walletClearingAccountId =
-          await zohoService.getWalletClearingAccountId(); // ← Good variable name
-        const expenseAccountId = await zohoService.getWalletExpenseAccountId();
-        await zohoService.adjustWalletAndSyncZoho({
+          await zohoAccountIdsFetchingService.getWalletClearingAccountId(); // ← Good variable name
+        const expenseAccountId =
+          await zohoAccountIdsFetchingService.getWalletExpenseAccountId();
+        await zohoWalletService.adjustWalletAndSyncZoho({
           customer_id: user.zohoContactId,
           amount: amount,
           type: type,
@@ -1036,15 +1046,19 @@ class WalletController {
           throw new Error("User missing Zoho Contact ID");
 
         // 6. SYNC WITH ZOHO — This is the risky part!
-        const zohoService = new ZohoService();
-        const account_id = await zohoService.getWalletAccountId();
-        const bankAccountId = await zohoService.getBankAccountId();
+        const zohoAccountIdsFetchingService =
+          new ZohoAccountIdsFetchingService();
+        const zohoWalletService = new ZohoWalletService();
+        const account_id =
+          await zohoAccountIdsFetchingService.getWalletAccountId();
+        const bankAccountId =
+          await zohoAccountIdsFetchingService.getBankAccountId();
         const walletIncomeAccountID =
-          await zohoService.getWalletIncomeAccountId();
+          await zohoAccountIdsFetchingService.getWalletIncomeAccountId();
         const walletClearingAccountId =
-          await zohoService.getWalletClearingAccountId();
+          await zohoAccountIdsFetchingService.getWalletClearingAccountId();
 
-        const zohoResult = await zohoService.topUpWalletWithRetainer({
+        const zohoResult = await zohoWalletService.topUpWalletWithRetainer({
           customer_id: user.zohoContactId,
           amount,
           payment_mode: "PayPal",
