@@ -149,7 +149,7 @@ class ProductController {
           sku: serviceId,
           unit: "pcs",
           pricingGroupPrices: enrichedPricingGroups,
-          isActive: isActive ?? true,
+          isActive: isActive === true ? "Active" : "Disabled",
           imageUrl: image?.url,
         });
         const [newProduct] = await tx
@@ -573,7 +573,9 @@ class ProductController {
       await db.transaction(async (tx) => {
         // ✅ Mark as inactive in Zoho instead of deleting
         if (existingProduct.zohoItemId) {
-          await zohoItemService.markItemAsInactive(existingProduct.zohoItemId);
+          await zohoItemService.deleteOrInactivateItem(
+            existingProduct.zohoItemId
+          );
         }
 
         // Delete from local database
@@ -1177,7 +1179,24 @@ class ProductController {
       }
 
       const referenceNumber = Math.floor(Math.random() * 40);
-      // ... external API call code ...
+      const formData = new URLSearchParams();
+      formData.append("request", "neworder");
+      formData.append("service", product.serviceId.toString());
+      formData.append("reference", referenceNumber.toString());
+      formData.append("player_id", playerId);
+
+      const { data } = await axios.post(apiUrl, formData, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: 30000,
+      });
+
+      if (!data || !data.status) {
+        return res.status(500).json({
+          success: false,
+          message: "External service failed",
+          externalResponse: data,
+        });
+      }
 
       // 6. Deduct amount from wallet
       const newBalance = currentBalance - productPrice;

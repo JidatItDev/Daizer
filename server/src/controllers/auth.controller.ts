@@ -896,44 +896,71 @@ class AuthController {
       }
 
       const hashedPassword = await hashPassword(password);
-      const zohoContactService = new ZohoContactService();
-      const zohoContact = await zohoContactService.createContactInZohoBooks({
-        name: link.name,
-        email: link.email,
-      });
+      let finalPricingGroupId = link.pricingGroupId;
+      let pricingGroupName: string | undefined;
 
-      if (!zohoContact || !zohoContact.contact_id) {
-        throw new Error("Zoho contact creation failed — aborting registration");
+      if (!finalPricingGroupId) {
+        const [defaultGroup] = await db
+          .select({ id: pricingGroups.id, name: pricingGroups.name })
+          .from(pricingGroups)
+          .where(eq(pricingGroups.isDefault, true))
+          .limit(1);
+        finalPricingGroupId = defaultGroup?.id || null;
+        pricingGroupName = defaultGroup?.name;
+      } else {
+        const [selectedGroup] = await db
+          .select({ name: pricingGroups.name })
+          .from(pricingGroups)
+          .where(eq(pricingGroups.id, link.pricingGroupId || ""))
+          .limit(1);
+        pricingGroupName = selectedGroup?.name;
       }
-      const [newUser] = await db
-        .insert(users)
-        .values({
+
+      const newUser = await db.transaction(async (tx) => {
+        const zohoContactService = new ZohoContactService();
+
+        // Create Zoho contact
+        const zohoContact = await zohoContactService.createContactInZohoBooks({
           name: link.name,
           email: link.email,
-          password: hashedPassword,
-          role: "user",
-          isActive: true,
-          pricingGroupId: link.pricingGroupId,
+          pricingGroupName: pricingGroupName,
+        });
 
-          // 🧩 Save Zoho info
-          zohoContactId: zohoContact.contact_id,
-          zohoContactStatus: zohoContact.contact_status || "active",
-          zohoCreatedAt: new Date(),
-          zohoCompanyName: zohoContact.company_name || link.name,
-        })
-        .returning();
+        // ✅ Validate Zoho response
+        if (!zohoContact || !zohoContact.contact_id) {
+          throw new Error("Zoho contact creation failed");
+        }
 
-      await db.insert(wallets).values({
-        userId: newUser.id,
-        balance: "0",
+        const [newUser] = await tx
+          .insert(users)
+          .values({
+            name: link.name,
+            email: link.email,
+            password: hashedPassword,
+            role: "user",
+            isActive: true,
+            pricingGroupId: link.pricingGroupId,
+
+            // 🧩 Save Zoho info
+            zohoContactId: zohoContact.contact_id,
+            zohoContactStatus: zohoContact.contact_status || "active",
+            zohoCreatedAt: new Date(),
+            zohoCompanyName: zohoContact.company_name || link.name,
+          })
+          .returning();
+
+        await tx.insert(wallets).values({
+          userId: newUser.id,
+          balance: "0",
+        });
+
+        // mark link as used
+        await tx
+          .update(signupLinks)
+          .set({ isUsed: true })
+          .where(eq(signupLinks.id, link.id));
+        return newUser;
       });
-
-      // mark link as used
-      await db
-        .update(signupLinks)
-        .set({ isUsed: true })
-        .where(eq(signupLinks.id, link.id));
-
       return res.status(201).json({
         success: true,
         message: "User registered successfully",

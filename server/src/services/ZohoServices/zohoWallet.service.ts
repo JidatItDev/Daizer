@@ -73,8 +73,11 @@ export class ZohoWalletService {
         : entry.amount;
     if (!amount || amount <= 0) throw new Error("Invalid refund amount");
 
-    const refNumber = `${entry.reference}-WALLET`.substring(0, 50);
+    const refNumber = `${entry.reference}-WALLET-REFUND`.substring(0, 50);
 
+    // Step 1: Create Credit Note to increase unused credits
+    // DO NOT specify account_id in line items
+    // This way it won't affect any income account
     const creditNotePayload = {
       customer_id: entry.customer_id,
       date: today,
@@ -82,11 +85,11 @@ export class ZohoWalletService {
       notes: `${entry.reason} | Wallet Refund #${entry.refundId} | Order: ${entry.original_order_id || "N/A"}`,
       line_items: [
         {
-          name: "Wallet Refund",
-          description: `${entry.reason} | Original Order: ${entry.original_order_id || "N/A"}`,
+          name: "Wallet Refund Credit",
+          description: `${entry.reason} | Refund to wallet - unused credits`,
           rate: parseFloat(amount.toFixed(2)),
           quantity: 1,
-          account_id: entry.walletIncomeAccountID, // ← NOW USING INCOME ACCOUNT → Revenue reversal
+          // ← NO account_id specified - won't affect income accounts
         },
       ],
     };
@@ -99,25 +102,26 @@ export class ZohoWalletService {
 
     const creditNote = creditNoteRes.data.creditnote;
 
-    // Your journal to move liability
+    // Step 2: Journal Entry to increase Wallet Liability
+    // This is where the accounting happens
     const journalPayload = {
       journal_date: today,
-      reference_number: entry.reference,
-      notes: `Wallet refund liability adjustment | CN-${creditNote.creditnote_number}`,
+      reference_number: `${entry.reference}-JE`,
+      notes: `Wallet refund - increase customer wallet balance | CN-${creditNote.creditnote_number} | Refund #${entry.refundId}`,
       line_items: [
         {
           account_id: entry.account_id, // Wallet Liability
-          debit_or_credit: "credit",
+          debit_or_credit: "credit", // Credit = Increase liability (we owe customer more)
           amount: parseFloat(amount.toFixed(2)),
           customer_id: entry.customer_id,
-          description: "Wallet refund - increase liability",
+          description: "Wallet refund - customer credit increased",
         },
         {
-          account_id: entry.walletClearingAccountId,
-          debit_or_credit: "debit",
+          account_id: entry.walletClearingAccountId, // Offset account
+          debit_or_credit: "debit", // Debit = Offset (could be bank if cash refund converted to wallet)
           amount: parseFloat(amount.toFixed(2)),
           customer_id: entry.customer_id,
-          description: "Wallet refund - offset",
+          description: "Wallet refund - offset entry",
         },
       ],
     };
@@ -127,14 +131,22 @@ export class ZohoWalletService {
       journalPayload,
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
     );
+
+    // Step 3: Update customer's wallet balance and unused credits in database
     const updatedBalance = await this.updateZohoWalletBalance(
       entry.customer_id,
       amount,
-      true
+      true // Increase
     );
-    return { success: true, creditNote };
-  }
 
+    return {
+      success: true,
+      creditNote,
+      creditNoteNumber: creditNote.creditnote_number,
+      newWalletBalance: updatedBalance,
+      message: "Wallet refund processed - unused credits increased",
+    };
+  }
   // ZohoService.ts
   async adjustWalletAndSyncZoho(entry: {
     customer_id: string;
@@ -352,7 +364,7 @@ export class ZohoWalletService {
             name: "Wallet Top-up",
             rate: amount,
             quantity: 1,
-            account_id: entry.walletIncomeAccountId, // ← Revenue!
+            account_id: entry.liability_account_id, // ← Revenue!
             description: entry.description || "Wallet top-up",
           },
         ],
@@ -396,35 +408,98 @@ export class ZohoWalletService {
       },
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
     );
-    const creditNote = creditNoteRes.data.creditnote;
-    await axios.post(
-      `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
-      {
-        journal_date: today,
-        reference_number: `${entry.reference_number}-LIAB-ADJ`,
-        notes: `Move wallet top-up liability to Customer Wallet Balance | CN-${creditNote.creditnote_number}`,
-        line_items: [
-          {
-            account_id: entry.walletClearingAccountId, // ← Debit the offset/clearing (or A/R)
-            debit_or_credit: "debit", // ← Debit offset (increases asset or clears A/R)
-            amount,
-            customer_id: entry.customer_id,
-            description: "Offset A/R from credit note",
-          },
-          {
-            account_id: entry.liability_account_id, // Your "Customer Wallet Balance"
-            debit_or_credit: "credit", // ← FIXED: CREDIT increases liability (positive balance)
-            amount,
-            customer_id: entry.customer_id,
-            description: "Increase customer wallet liability from top-up",
-          },
-          // Always balance: Total Debits = Total Credits
-        ],
-      },
-      { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
-    );
+
     await this.updateZohoWalletBalance(entry.customer_id, amount, true);
 
     return { success: true, invoice, message: "Wallet topped up perfectly" };
   }
+  // async topUpWalletWithRetainer(entry: {
+  //   customer_id: string;
+  //   amount: number | string;
+  //   payment_mode: string;
+  //   reference_number: string;
+  //   bank_account_id: string; // Where money came from
+  //   liability_account_id: string; // Customer Wallet Balance (liability)
+  //   description?: string;
+  // }) {
+  //   const accessToken = await this.zohoService.getValidAccessToken();
+  //   const amount = parseFloat(entry.amount as string);
+  //   const today = new Date().toISOString().split("T")[0];
+
+  //   // Step 1: Journal Entry for Wallet Top-up
+  //   // Debit: Bank Account (money received)
+  //   // Credit: Wallet Liability (we owe customer this balance)
+  //   await axios.post(
+  //     `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+  //     {
+  //       journal_date: today,
+  //       reference_number: entry.reference_number,
+  //       notes: entry.description || `Wallet top-up by customer`,
+  //       line_items: [
+  //         {
+  //           account_id: entry.bank_account_id, // Bank Account
+  //           debit_or_credit: "debit", // Debit (increase asset - money received)
+  //           amount,
+  //           customer_id: entry.customer_id,
+  //           description: "Cash received for wallet top-up",
+  //         },
+  //         {
+  //           account_id: entry.liability_account_id, // Wallet Liability Account
+  //           debit_or_credit: "credit", // Credit (increase liability - we owe customer)
+  //           amount,
+  //           customer_id: entry.customer_id,
+  //           description: "Wallet balance owed to customer",
+  //         },
+  //       ],
+  //     },
+  //     { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+  //   );
+  //   //   // Step 2: Record payment
+  //   //   await axios.post(
+  //   //     `${ZOHO_ENV.BOOKS_API}/customerpayments?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+  //   //     {
+  //   //       customer_id: entry.customer_id,
+  //   //       payment_mode: entry.payment_mode,
+  //   //       amount,
+  //   //       date: today,
+  //   //       reference_number: entry.reference_number,
+  //   //       account_id: entry.bank_account_id,
+  //   //       invoices: [{ invoice_id: invoice.invoice_id, amount_applied: amount }],
+  //   //     },
+  //   //     { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+  //   //   );
+  //   // Step 2: Create Credit Note to increase unused credits
+  //   const creditNoteRes = await axios.post(
+  //     `${ZOHO_ENV.BOOKS_API}/creditnotes?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+  //     {
+  //       customer_id: entry.customer_id,
+  //       date: today,
+  //       reference_number: `${entry.reference_number}-CN`,
+  //       line_items: [
+  //         {
+  //           name: "Wallet Top-up Credit",
+  //           rate: amount,
+  //           quantity: 1,
+  //           description:
+  //             entry.description ||
+  //             "Wallet balance added - unused credits increased",
+  //         },
+  //       ],
+  //     },
+  //     { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
+  //   );
+
+  //   const creditNote = creditNoteRes.data.creditnote;
+
+  //   // Step 3: Update customer's wallet balance and unused credits in your database
+  //   await this.updateZohoWalletBalance(entry.customer_id, amount, true);
+
+  //   return {
+  //     success: true,
+  //     message: "Wallet topped up successfully",
+  //     amount,
+  //     credit_note_number: creditNote.creditnote_number,
+  //     credit_note_id: creditNote.creditnote_id,
+  //   };
+  // }
 }

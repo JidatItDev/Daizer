@@ -1,8 +1,9 @@
 // components/admin/Wallet/RefundApproveModal.tsx
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../../common/Input";
 import { Button } from "../../common/Button";
 import Modal from "../../common/Modal";
+import { useGetActiveAccounts } from "../../../api/Wallets";
 
 interface RefundApproveModalProps {
   isOpen: boolean;
@@ -10,23 +11,99 @@ interface RefundApproveModalProps {
   refund: any;
   onSubmit: (destination: string, sentBy: string) => void;
 }
+interface ChartOfAccount {
+  id: string;
+  name: string;
+  type: string;
+  accountCode: string;
+  balance: number;
+}
 
-const DESTINATION_OPTIONS = [
-  "PayPal",
-  "Oman National Bank",
-  "Online Transfer",
-  "Razer Pay",
-  "Commercial Bank",
-];
+interface AccountsData {
+  success: boolean;
+  accounts: ChartOfAccount[];
+}
+const ACCOUNTS_STORAGE_KEY = "cached_active_accounts_refund";
+const CustomDropdown = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: ChartOfAccount[];
+  placeholder: string;
+  required?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-const SENT_BY_OPTIONS = [
-  "PayPal",
-  "Oman National Bank",
-  "Online Transfer",
-  "Razer Pay",
-  "Commercial Bank",
-];
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
 
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedAccount = options.find((opt) => opt.id === value);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full py-2.5  border-b-[2px] p-2 border-gray-300  bg-transparent text-sm cursor-pointer transition-all flex items-center justify-between lg:text-lg md:text-base lg:placeholder:text-lg md:placeholder:text-base  placeholder:text-sm placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0"
+      >
+        <span className={value ? "text-black -ml-2" : "text-black"}>
+          {selectedAccount
+            ? `${selectedAccount.name} ${selectedAccount.accountCode ? `(${selectedAccount.accountCode})` : ""} - ${selectedAccount.type}`
+            : placeholder}
+        </span>
+        <svg
+          className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {options.map((option) => (
+            <div
+              key={option.id}
+              onClick={() => {
+                onChange(option.id);
+                setIsOpen(false);
+              }}
+              className="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
+            >
+              <div className="font-medium text-gray-900">{option.name}</div>
+              <div className="text-xs text-gray-500">
+                {option.accountCode ? `${option.accountCode} • ` : ""}
+                {option.type}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 export const RefundApproveModal = ({
   isOpen,
   onClose,
@@ -36,7 +113,51 @@ export const RefundApproveModal = ({
   const [destination, setDestination] = useState("");
   const [sentBy, setSentBy] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cachedAccounts, setCachedAccounts] = useState<AccountsData | null>(
+    null
+  );
+  const [shouldFetch, setShouldFetch] = useState(true);
+  useEffect(() => {
+    const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as AccountsData;
+        setCachedAccounts(parsed);
+        setShouldFetch(false); // Don't fetch if we have cached data
+      } catch (error) {
+        console.error("Error parsing cached accounts:", error);
+        localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
+        setShouldFetch(true);
+      }
+    }
+  }, []);
 
+  // Fetch accounts from API
+  const { data: accountsData } = useGetActiveAccounts();
+
+  // Store in localStorage when fetched
+  useEffect(() => {
+    if (accountsData && shouldFetch) {
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accountsData));
+      setCachedAccounts(accountsData);
+      setShouldFetch(false);
+    }
+  }, [accountsData, shouldFetch]);
+
+  // Use cached data if available, otherwise use fetched data
+  const accounts = cachedAccounts || accountsData;
+
+  // Filter accounts for Destination dropdown
+  const destinationAccounts = useMemo(() => {
+    if (!accounts?.accounts) return [];
+    return accounts.accounts;
+  }, [accounts]);
+
+  // Filter accounts for Sent By / Received Into dropdown
+  const sentReceivedAccounts = useMemo(() => {
+    if (!accounts?.accounts) return [];
+    return accounts.accounts;
+  }, [accounts]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!destination || !sentBy) return;
@@ -116,80 +237,25 @@ export const RefundApproveModal = ({
             />
           </div>
 
-          {/* Destination Dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Destination
-            </label>
-            <div className="relative">
-              <select
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                className="w-full py-3 border-b-[2px] p-2 border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black appearance-none"
-                required
-              >
-                <option value="">Select Destination</option>
-                {DESTINATION_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg
-                  className="w-4 h-4 text-black"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
+          <CustomDropdown
+            value={destination}
+            onChange={setDestination}
+            options={destinationAccounts}
+            placeholder="Select Destination"
+            required
+          />
 
-          {/* Sent By Dropdown */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sent By
-            </label>
-            <div className="relative">
-              <select
-                value={sentBy}
-                onChange={(e) => setSentBy(e.target.value)}
-                className="w-full py-3 border-b-[2px] p-2 border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black appearance-none"
-                required
-              >
-                <option value="">Select Sent By</option>
-                {SENT_BY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg
-                  className="w-4 h-4 text-black"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
+          <CustomDropdown
+            value={sentBy}
+            onChange={setSentBy}
+            options={sentReceivedAccounts}
+            placeholder={
+              refund.type === "credit"
+                ? "Select Received Into"
+                : "Select Sent By"
+            }
+            required
+          />
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <Button

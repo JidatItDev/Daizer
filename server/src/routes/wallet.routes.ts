@@ -8,7 +8,7 @@ const walletRouter = Router();
 // User Wallet Routes
 // ===================
 walletRouter.get("/balance", authenticate, WalletController.getBalance);
-
+walletRouter.get("/active", WalletController.getActiveAccountsHandler);
 walletRouter.get(
   "/transactions",
   authenticate,

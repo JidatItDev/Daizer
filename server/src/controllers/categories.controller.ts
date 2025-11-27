@@ -4,6 +4,9 @@ import { categories } from "../db/schema/categories.schema";
 import { eq, isNull, and, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { ZohoCategoryService } from "../services/ZohoServices/zohoCategory.service";
+import { ZohoService } from "../services/zoho.service";
+import axios from "axios";
+import { ZOHO_ENV } from "../config/Zoho";
 
 interface S3File extends Express.Multer.File {
   location: string; // AWS S3 gives this
@@ -155,6 +158,20 @@ class CategoryController {
           message: "Category cannot be its own parent",
         });
       }
+      const [currentCategory] = await db
+        .select()
+        .from(categories)
+        .where(eq(categories.id, id))
+        .limit(1);
+
+      if (!currentCategory) {
+        return res.status(404).json({
+          success: false,
+          message: "Category not found",
+        });
+      }
+
+      const oldCategoryName = currentCategory.name;
 
       // ✅ Get existing category to get old name for Zoho update
       const [existingCategory] = await db
@@ -206,15 +223,15 @@ class CategoryController {
       }
 
       const zohoCategoryService = new ZohoCategoryService();
-
+      let itemsUpdated = 0;
       // ✅ Use transaction
       const result = await db.transaction(async (tx) => {
         // Update in Zoho if name changed
         if (name && name !== existingCategory.name) {
           try {
-            await zohoCategoryService.updateCategoryInZohoItems(
-              existingCategory.name,
-              name
+            itemsUpdated = await zohoCategoryService.updateCategoryInZohoItems(
+              oldCategoryName, // ✅ Use actual old name from DB
+              name // ✅ New name
             );
           } catch (zohoError) {
             console.warn(
@@ -267,9 +284,13 @@ class CategoryController {
     try {
       const { id } = req.params;
 
-      // ✅ Get category name before deleting
+      // ✅ Get category details before deleting
       const [existingCategory] = await db
-        .select({ id: categories.id, name: categories.name })
+        .select({
+          id: categories.id,
+          name: categories.name,
+          zohoGroupId: categories.zohoGroupId, // ✅ If you store Zoho group ID
+        })
         .from(categories)
         .where(eq(categories.id, id))
         .limit(1);
@@ -280,37 +301,75 @@ class CategoryController {
           .json({ success: false, message: "Category not found" });
       }
 
-      const zohoCategoryService = new ZohoCategoryService();
+      const categoryName = existingCategory.name;
+      console.log(`🗑️ Deleting category: "${categoryName}"`);
+
+      let itemsUpdatedInZoho = 0;
 
       // ✅ Use transaction
       await db.transaction(async (tx) => {
-        // Remove category from all Zoho items
+        // ✅ Step 1: Remove category from all Zoho items FIRST
         try {
-          await zohoCategoryService.removeCategoryFromZohoItems(
-            existingCategory.name
+          const zohoCategoryService = new ZohoCategoryService();
+          itemsUpdatedInZoho =
+            await zohoCategoryService.removeCategoryFromZohoItems(categoryName);
+          console.log(
+            `✅ Removed category from ${itemsUpdatedInZoho} items in Zoho`
           );
-        } catch (zohoError) {
+        } catch (zohoError: any) {
           console.warn(
-            "⚠️ Could not remove category from Zoho items (continuing with deletion):",
-            zohoError
+            "⚠️ Could not remove category from Zoho items:",
+            zohoError.message
           );
-          // Continue with deletion even if Zoho fails
+          // ⚠️ You can choose to:
+          // Option A: Continue with deletion (current behavior)
+          // Option B: Throw error to stop deletion
+          // throw zohoError; // Uncomment to stop deletion on Zoho failure
         }
 
-        // Delete from local database
+        // ✅ Step 2: Delete Zoho item group if zohoGroupId exists
+        if (existingCategory.zohoGroupId) {
+          try {
+            // Delete the item group from Zoho Books
+            const accessToken = await new ZohoService().getValidAccessToken();
+            await axios.delete(
+              `${ZOHO_ENV.BOOKS_API}/itemgroups/${existingCategory.zohoGroupId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+              {
+                headers: {
+                  Authorization: `Zoho-oauthtoken ${accessToken}`,
+                },
+              }
+            );
+            console.log(
+              `✅ Deleted Zoho item group: ${existingCategory.zohoGroupId}`
+            );
+          } catch (groupError: any) {
+            console.warn(
+              "⚠️ Could not delete Zoho item group:",
+              groupError.response?.data?.message || groupError.message
+            );
+            // Continue with deletion
+          }
+        }
+
+        // ✅ Step 3: Delete from local database
         await tx.delete(categories).where(eq(categories.id, id));
+        console.log(`✅ Deleted category from database`);
       });
 
+      // Clear caches
       await invalidateCategoryCaches(id);
 
-      return res
-        .status(200)
-        .json({ success: true, message: "Category deleted" });
-    } catch (error) {
+      return res.status(200).json({
+        success: true,
+        message: `Category "${categoryName}" deleted successfully`,
+        itemsUpdatedInZoho,
+      });
+    } catch (error: any) {
       console.error("deleteCategory error:", error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error",
+        message: error.message || "Internal server error",
       });
     }
   }

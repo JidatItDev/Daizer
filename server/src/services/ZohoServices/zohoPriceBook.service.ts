@@ -91,39 +91,175 @@ export class ZohoPriceBookService {
   ) {
     const accessToken = await this.zohoService.getValidAccessToken();
 
-    const payload = {
-      ...(updates.name && { pricebook_name: updates.name }),
-      ...(updates.description !== undefined && {
-        description: updates.description,
-      }),
-    };
-
-    const url = `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-
     try {
-      const { data } = await axios.put(url, payload, {
-        headers: {
-          Authorization: `Zoho-oauthtoken ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
+      console.log(`🔄 Starting price book update: ${priceBookId}`);
 
-      console.log("✅ Zoho price book updated:", priceBookId);
-      return data.pricebook;
+      // ✅ STEP 1: Get current price book details
+      console.log("   → Step 1: Fetching current price book details...");
+      const { data: priceBookData } = await axios.get(
+        `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+          },
+        }
+      );
+
+      const priceBook = priceBookData.pricebook;
+      const oldPriceBookName = priceBook.name;
+      const newPriceBookName = updates.name || oldPriceBookName;
+      const priceBookItems = priceBook.pricebook_items || [];
+
+      console.log(
+        `   ✅ Found price book: "${oldPriceBookName}" with ${priceBookItems.length} items`
+      );
+
+      // ✅ STEP 2: Update the price book itself
+      console.log("   → Step 2: Updating price book details...");
+      const payload = {
+        name: newPriceBookName,
+        description: updates.description ?? priceBook.description,
+        currency_id: priceBook.currency_id,
+        pricebook_type: priceBook.pricebook_type,
+        is_increase: priceBook.is_increase,
+        rounding_type: priceBook.rounding_type || "no_rounding",
+        sales_or_purchase_type: priceBook.sales_or_purchase_type || "sales",
+        pricebook_items: priceBookItems.map((item: any) => ({
+          item_id: item.item_id,
+          pricebook_rate: item.pricebook_rate,
+        })),
+      };
+
+      const { data: updatedData } = await axios.put(
+        `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("   ✅ Step 2 complete: Price book updated");
+
+      // ✅ STEP 3: Update custom fields for all items if name changed
+      if (
+        updates.name &&
+        updates.name !== oldPriceBookName &&
+        priceBookItems.length > 0
+      ) {
+        console.log(
+          `   → Step 3: Updating custom fields for ${priceBookItems.length} items (name changed)...`
+        );
+
+        for (const priceBookItem of priceBookItems) {
+          const itemId = priceBookItem.item_id;
+          const itemPrice = priceBookItem.pricebook_rate;
+
+          try {
+            // Get current item details
+            const { data: itemData } = await axios.get(
+              `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+              {
+                headers: {
+                  Authorization: `Zoho-oauthtoken ${accessToken}`,
+                },
+              }
+            );
+
+            const item = itemData.item;
+            const customFields = item.custom_fields || [];
+
+            // ✅ Update "Pricing Groups" field - replace old name with new name
+            const pricingGroupsField = customFields.find(
+              (cf: any) => cf.label === "Pricing Groups"
+            );
+
+            if (pricingGroupsField && pricingGroupsField.value) {
+              // Parse current pricing groups: "Retail: 100 | Wholesale: 80 | VIP: 75"
+              const pricingParts = pricingGroupsField.value.split(" | ");
+
+              // Replace the old price book name with the new one
+              const updatedPricingParts = pricingParts.map((part: string) => {
+                const [groupName, price] = part.split(":").map((s) => s.trim());
+                if (groupName === oldPriceBookName) {
+                  return `${newPriceBookName}: ${price}`;
+                }
+                return part;
+              });
+
+              pricingGroupsField.value = updatedPricingParts.join(" | ");
+            }
+
+            // ✅ Min/Max prices stay the same since only the name changed
+            // (The prices themselves haven't changed)
+
+            // ✅ Update the item with updated custom fields
+            const updatePayload = {
+              custom_fields: customFields,
+            };
+
+            await axios.put(
+              `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+              updatePayload,
+              {
+                headers: {
+                  Authorization: `Zoho-oauthtoken ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            console.log(
+              `      ✅ Updated custom fields for item ${itemId} ("${oldPriceBookName}" → "${newPriceBookName}")`
+            );
+          } catch (itemError: any) {
+            console.warn(
+              `      ⚠️ Could not update item ${itemId}:`,
+              itemError.response?.data?.message || itemError.message
+            );
+            // Continue with other items
+          }
+        }
+
+        console.log("   ✅ Step 3 complete: All custom fields updated");
+      } else if (!updates.name || updates.name === oldPriceBookName) {
+        console.log(
+          "   ⏭️  Step 3 skipped: Name unchanged, no custom field updates needed"
+        );
+      }
+
+      console.log(`✅ Price book updated successfully!`);
+      console.log(`   Summary:`);
+      console.log(`   - Old name: "${oldPriceBookName}"`);
+      console.log(`   - New name: "${newPriceBookName}"`);
+      if (updates.name && updates.name !== oldPriceBookName) {
+        console.log(
+          `   - Updated ${priceBookItems.length} items' custom fields`
+        );
+      }
+
+      return updatedData.pricebook;
     } catch (error: any) {
       console.error(
         "❌ Failed to update Zoho price book:",
         error.response?.data || error.message
       );
-      throw new Error("Failed to update price book in Zoho Books");
+
+      if (error.response?.data) {
+        console.error(
+          "Full error:",
+          JSON.stringify(error.response.data, null, 2)
+        );
+      }
+
+      throw new Error(
+        `Failed to update price book in Zoho Books: ${error.response?.data?.message || error.message}`
+      );
     }
   }
-  /**
-   * Delete price book from Zoho Books with complete cleanup
-   * - Removes price book reference from all items' custom fields
-   * - Removes items from the price book
-   * - Deletes the price book
-   */
+
   async deletePriceBookInZoho(priceBookId: string) {
     const accessToken = await this.zohoService.getValidAccessToken();
 

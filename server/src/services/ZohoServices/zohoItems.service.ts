@@ -47,7 +47,7 @@ export class ZohoItemService {
       rate: number;
       zohoPriceBookId?: string;
     }[];
-    isActive?: boolean;
+    isActive?: string;
     imageUrl?: string;
   }) {
     const accessToken = await this.zohoService.getValidAccessToken();
@@ -1073,165 +1073,114 @@ export class ZohoItemService {
   // ==========================================
   // SERVICE: Mark Item as Inactive (Recommended)
   // ==========================================
-  async markItemAsInactive(itemId: string) {
+  async deleteOrInactivateItem(itemId: string) {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      console.log(`🔄 Marking item ${itemId} as inactive in Zoho...`);
-
-      const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-
-      const payload = {
-        status: "inactive", // ✅ This marks it as inactive
-      };
-
-      await axios.put(url, payload, {
-        headers: {
-          Authorization: `Zoho-oauthtoken ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.log(`✅ Item ${itemId} marked as inactive in Zoho`);
-      return true;
-    } catch (error: any) {
-      console.error(
-        "❌ Failed to mark Zoho item as inactive:",
-        error.response?.data || error.message
+      console.log(
+        `🔍 Checking if item ${itemId} is associated with transactions...`
       );
 
-      if (error.response?.data) {
-        console.error(
-          "Full error:",
-          JSON.stringify(error.response.data, null, 2)
-        );
-      }
+      // Check if item is used in any invoices or credit notes
+      const isUsed = await this.isItemUsedInTransactions(itemId, accessToken);
 
-      throw new Error("Failed to mark item as inactive in Zoho Books");
+      if (isUsed) {
+        // Item is associated with invoices/credit notes - mark as inactive
+        console.log(
+          `⚠️ Item ${itemId} is used in transactions. Marking as inactive...`
+        );
+        await this.markItemAsInactive(itemId, accessToken);
+        return { action: "inactivated", itemId };
+      } else {
+        // Item is not used - safe to delete
+        console.log(`🗑️ Item ${itemId} is not used. Deleting...`);
+        await this.deleteItem(itemId, accessToken);
+        return { action: "deleted", itemId };
+      }
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to delete/inactivate item:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to process item deletion/inactivation");
     }
   }
 
+  private async isItemUsedInTransactions(
+    itemId: string,
+    accessToken: string
+  ): Promise<boolean> {
+    try {
+      // Check invoices
+      const invoiceUrl = `${ZOHO_ENV.BOOKS_API}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&item_id=${itemId}&per_page=1`;
+      const invoiceResponse = await axios.get(invoiceUrl, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+      });
+
+      if (invoiceResponse.data?.invoices?.length > 0) {
+        console.log(`📄 Item ${itemId} found in invoices`);
+        return true;
+      }
+
+      // Check credit notes
+      const creditNoteUrl = `${ZOHO_ENV.BOOKS_API}/creditnotes?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&item_id=${itemId}&per_page=1`;
+      const creditNoteResponse = await axios.get(creditNoteUrl, {
+        headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
+      });
+
+      if (creditNoteResponse.data?.creditnotes?.length > 0) {
+        console.log(`💳 Item ${itemId} found in credit notes`);
+        return true;
+      }
+
+      // Optional: Check bills/purchase orders if needed
+      // const billUrl = `${ZOHO_ENV.BOOKS_API}/bills?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&item_id=${itemId}&per_page=1`;
+      // ...
+
+      console.log(`✅ Item ${itemId} is not used in any transactions`);
+      return false;
+    } catch (error: any) {
+      console.error(
+        "❌ Error checking item usage:",
+        error.response?.data || error.message
+      );
+      // If we can't verify, safer to mark as inactive rather than delete
+      return true;
+    }
+  }
+
+  private async markItemAsInactive(itemId: string, accessToken: string) {
+    const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    const payload = {
+      status: "inactive",
+    };
+
+    await axios.put(url, payload, {
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log(`✅ Item ${itemId} marked as inactive in Zoho`);
+  }
+
+  private async deleteItem(itemId: string, accessToken: string) {
+    const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    await axios.delete(url, {
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+      },
+    });
+
+    console.log(`✅ Item ${itemId} deleted from Zoho`);
+  }
   // ==========================================
   // SERVICE: Force Delete (Use with Caution)
   // ==========================================
-  async deleteItemInZoho(itemId: string, forceInactive: boolean = true) {
-    const accessToken = await this.zohoService.getValidAccessToken();
 
-    try {
-      if (forceInactive) {
-        // ✅ RECOMMENDED: Just mark as inactive instead
-        console.log(
-          `⚠️ Marking item ${itemId} as inactive instead of deleting...`
-        );
-        return await this.markItemAsInactive(itemId);
-      }
-
-      // ⚠️ AGGRESSIVE APPROACH: Try to delete, fallback to inactive
-      console.log(`🔄 Attempting to delete item ${itemId} from Zoho...`);
-
-      // STEP 1: Remove from all price books first
-      console.log(`   → Removing from all price books...`);
-
-      const { data: priceBooksList } = await axios.get(
-        `${ZOHO_ENV.BOOKS_API}/pricebooks?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
-        {
-          headers: {
-            Authorization: `Zoho-oauthtoken ${accessToken}`,
-          },
-        }
-      );
-
-      const priceBooks = priceBooksList.pricebooks || [];
-
-      for (const priceBook of priceBooks) {
-        try {
-          const { data: priceBookData } = await axios.get(
-            `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBook.pricebook_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
-            {
-              headers: {
-                Authorization: `Zoho-oauthtoken ${accessToken}`,
-              },
-            }
-          );
-
-          const currentPriceBook = priceBookData.pricebook;
-          const existingItems = currentPriceBook.pricebook_items || [];
-
-          const itemExists = existingItems.some(
-            (item: any) => item.item_id === itemId
-          );
-
-          if (itemExists) {
-            const updatedItems = existingItems.filter(
-              (item: any) => item.item_id !== itemId
-            );
-
-            const payload = {
-              name: currentPriceBook.name,
-              description: currentPriceBook.description || "",
-              currency_id: currentPriceBook.currency_id,
-              pricebook_type: currentPriceBook.pricebook_type,
-              is_increase: currentPriceBook.is_increase,
-              rounding_type: currentPriceBook.rounding_type || "no_rounding",
-              sales_or_purchase_type:
-                currentPriceBook.sales_or_purchase_type || "sales",
-              pricebook_items: updatedItems,
-            };
-
-            await axios.put(
-              `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBook.pricebook_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
-              payload,
-              {
-                headers: {
-                  Authorization: `Zoho-oauthtoken ${accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              }
-            );
-          }
-        } catch (err: any) {
-          console.warn(
-            `   ⚠️ Could not remove from price book ${priceBook.pricebook_id}:`,
-            err.response?.data?.message || err.message
-          );
-        }
-      }
-
-      // STEP 2: Try to delete the item
-      const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-
-      await axios.delete(url, {
-        headers: {
-          Authorization: `Zoho-oauthtoken ${accessToken}`,
-        },
-      });
-
-      console.log("✅ Zoho item deleted:", itemId);
-      return true;
-    } catch (error: any) {
-      // ✅ If deletion fails due to transactions, mark as inactive
-      if (error.response?.data?.code === 2049) {
-        console.warn(
-          "⚠️ Item is part of transactions, marking as inactive instead..."
-        );
-        return await this.markItemAsInactive(itemId);
-      }
-
-      console.error(
-        "❌ Failed to delete Zoho item:",
-        error.response?.data || error.message
-      );
-
-      if (error.response?.data) {
-        console.error(
-          "Full error:",
-          JSON.stringify(error.response.data, null, 2)
-        );
-      }
-
-      throw new Error("Failed to delete item in Zoho Books");
-    }
-  }
   // ============================================
   // PRICING GROUP SERVICES (PRICE BOOKS)
   // ============================================

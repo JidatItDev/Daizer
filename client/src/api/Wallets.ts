@@ -91,6 +91,24 @@ export const useUserRefundRequests = (
     // keepPreviousData: true,
   });
 };
+export interface ChartOfAccount {
+  id: string;
+  name: string;
+  type: string;
+  accountCode: string;
+  balance: number;
+}
+
+export const useGetActiveAccounts = () => {
+  return useQuery<{ success: boolean; accounts: ChartOfAccount[] }>({
+    queryKey: ["active-accounts"],
+    queryFn: async () => {
+      const { data } = await axiosPrivate.get("/wallet/active"); // Adjust endpoint
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+};
 
 export const useRequestRefund = () => {
   const invalidateAll = useInvalidateAll();

@@ -11,6 +11,7 @@ import { ZOHO_ENV } from "../config/Zoho";
 import axios from "axios";
 import { ZohoAccountIdsFetchingService } from "../services/ZohoServices/zohoAccountIdsFetching.service";
 import { ZohoWalletService } from "../services/ZohoServices/zohoWallet.service";
+import { getActiveChartOfAccounts } from "../utils/getChartOfAccounts";
 
 async function invalidateUserTransactionsCache(userId: string) {
   const pattern = `transactions:${userId}:*`;
@@ -1101,6 +1102,18 @@ class WalletController {
     return result;
   }
 
+  // Express/NestJS route handler
+  static async getActiveAccountsHandler(req: Request, res: Response) {
+    try {
+      const result = await getActiveChartOfAccounts();
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
   static async handlePayPalWebhook(req: Request, res: Response) {
     try {
       const event = req.body;
