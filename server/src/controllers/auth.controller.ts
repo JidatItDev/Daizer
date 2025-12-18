@@ -388,7 +388,7 @@ class AuthController {
         const zohoContactService = new ZohoContactService();
 
         // Create Zoho contact
-        const zohoContact = await zohoContactService.createContactInZohoBooks({
+        const zohoContact = await zohoContactService.createOrGetZohoContact({
           name,
           email: normalizedEmail,
           pricingGroupName,
@@ -584,14 +584,10 @@ class AuthController {
     try {
       const { id } = req.params;
       const { name, role, isActive, pricingGroupId } = req.body;
-
-      // Fetch existing user
+      const zohoContactService = new ZohoContactService();
       const [existingUser] = await db
         .select({
-          name: users.name,
           zohoContactId: users.zohoContactId,
-          email: users.email,
-          pricingGroupId: users.pricingGroupId,
         })
         .from(users)
         .where(eq(users.id, id))
@@ -600,70 +596,81 @@ class AuthController {
       if (!existingUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      const [pricingGroup] = await db
-        .select({
-          id: pricingGroups.id,
-          name: pricingGroups.name,
-        })
-        .from(pricingGroups)
-        .where(eq(pricingGroups.id, pricingGroupId))
-        .limit(1);
 
-      if (!pricingGroup) {
-        return res.status(404).json({
-          success: false,
-          message: "Pricing group not found",
-        });
-      }
-      let pricingGroupName: string | undefined;
+      const isToggleRequest =
+        Object.keys(req.body).length === 1 && typeof isActive === "boolean";
 
-      // Get pricing group name if changed
-      if (pricingGroupId && pricingGroupId !== existingUser.pricingGroupId) {
-        const [selectedGroup] = await db
-          .select({ name: pricingGroups.name })
-          .from(pricingGroups)
-          .where(eq(pricingGroups.id, pricingGroupId))
-          .limit(1);
-        pricingGroupName = selectedGroup?.name;
-      }
-
-      const zohoContactService = new ZohoContactService();
-
-      // Use transaction
-      const result = await db.transaction(async (tx) => {
-        // Update Zoho contact if necessary
-        if (existingUser.zohoContactId) {
-          await zohoContactService.updateContactInZohoBooks(
-            existingUser.zohoContactId,
-            {
-              name: existingUser.name,
-              email: existingUser.email,
-              pricingGroupName: pricingGroup.name,
-              pricingGroupId: pricingGroupId ?? existingUser.pricingGroupId,
-            }
-          );
-        }
-
-        // Update user in DB
-        const [updatedUser] = await tx
+      // 🔹 CASE 1: Toggle active/inactive ONLY
+      if (isToggleRequest) {
+        const [updatedUser] = await db
           .update(users)
           .set({
-            ...(name && { name }),
-            ...(role && { role }),
-            ...(isActive !== undefined && { isActive }),
-            ...(pricingGroupId !== undefined && { pricingGroupId }),
+            isActive,
             updatedAt: new Date(),
           })
           .where(eq(users.id, id))
           .returning({
             id: users.id,
-            name: users.name,
-            email: users.email,
-            role: users.role,
             isActive: users.isActive,
-            pricingGroupId: users.pricingGroupId,
-            updatedAt: users.updatedAt,
           });
+        if (isToggleRequest && existingUser.zohoContactId) {
+          await zohoContactService.setActiveStatus(
+            existingUser.zohoContactId,
+            isActive
+          );
+        }
+
+        await redisClient.del("users:page:*");
+
+        return res.status(200).json({
+          success: true,
+          message: "User status updated",
+          user: updatedUser,
+        });
+      }
+
+      // 🔹 CASE 2: Full profile update
+      let pricingGroupName: string | undefined;
+
+      if (pricingGroupId !== undefined) {
+        const [pricingGroup] = await db
+          .select({ name: pricingGroups.name })
+          .from(pricingGroups)
+          .where(eq(pricingGroups.id, pricingGroupId))
+          .limit(1);
+
+        if (!pricingGroup) {
+          return res.status(404).json({
+            success: false,
+            message: "Pricing group not found",
+          });
+        }
+
+        pricingGroupName = pricingGroup.name;
+      }
+
+      const result = await db.transaction(async (tx) => {
+        if (existingUser.zohoContactId) {
+          await zohoContactService.updateContactInZohoBooks(
+            existingUser.zohoContactId,
+            {
+              name,
+              pricingGroupName,
+              pricingGroupId,
+            }
+          );
+        }
+
+        const [updatedUser] = await tx
+          .update(users)
+          .set({
+            ...(name !== undefined && { name }),
+            ...(role !== undefined && { role }),
+            ...(pricingGroupId !== undefined && { pricingGroupId }),
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, id))
+          .returning();
 
         return updatedUser;
       });
@@ -920,7 +927,7 @@ class AuthController {
         const zohoContactService = new ZohoContactService();
 
         // Create Zoho contact
-        const zohoContact = await zohoContactService.createContactInZohoBooks({
+        const zohoContact = await zohoContactService.createOrGetZohoContact({
           name: link.name,
           email: link.email,
           pricingGroupName: pricingGroupName,

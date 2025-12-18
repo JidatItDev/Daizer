@@ -13,6 +13,63 @@ export class ZohoContactService {
     this.zohoService = new ZohoService();
     this.ZohoItemService = new ZohoItemService();
   }
+  async findContactByEmail(email: string) {
+    const accessToken = await this.zohoService.getValidAccessToken();
+
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&email=${encodeURIComponent(
+      email
+    )}`;
+
+    const { data } = await axios.get(url, {
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+      },
+    });
+
+    return data.contacts?.[0] || null;
+  }
+  async activateZohoContact(contactId: string) {
+    const accessToken = await this.zohoService.getValidAccessToken();
+
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts/${contactId}/active?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    await axios.post(
+      url,
+      {},
+      {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      }
+    );
+
+    console.log("✅ Zoho contact activated:", contactId);
+  }
+  async createOrGetZohoContact(user: {
+    name: string;
+    email: string;
+    pricingGroupName?: string;
+  }) {
+    // 1️⃣ Search by email
+    const existingContact = await this.findContactByEmail(user.email);
+
+    if (existingContact) {
+      // 2️⃣ If inactive → activate
+      if (existingContact.status === "inactive") {
+        await this.activateZohoContact(existingContact.contact_id);
+      }
+
+      console.log(
+        "♻️ Using existing Zoho contact:",
+        existingContact.contact_id
+      );
+      return existingContact;
+    }
+
+    // 3️⃣ Create new contact
+    return await this.createContactInZohoBooks(user);
+  }
+
   async createContactInZohoBooks(user: {
     name: string;
     email: string;
@@ -133,6 +190,37 @@ export class ZohoContactService {
       throw new Error("Failed to update contact in Zoho Books");
     }
   }
+  async setActiveStatus(contactId: string, isActive: boolean) {
+    const accessToken = await this.zohoService.getValidAccessToken();
+
+    const action = isActive ? "active" : "inactive";
+
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts/${contactId}/${action}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+
+    try {
+      await axios.post(
+        url,
+        {},
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+          },
+        }
+      );
+
+      console.log(
+        `✅ Zoho contact ${isActive ? "activated" : "deactivated"}:`,
+        contactId
+      );
+    } catch (error: any) {
+      console.error(
+        "❌ Zoho status update failed:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to update Zoho contact status");
+    }
+  }
+
   async getCustomerPriceList(customerId: string) {
     const accessToken = await this.zohoService.getValidAccessToken();
 
