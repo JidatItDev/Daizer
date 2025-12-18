@@ -12,6 +12,7 @@ import {
   Loader,
   ClipboardIcon,
   LinkIcon,
+  Users2,
 } from "lucide-react";
 import {
   useUsers,
@@ -25,6 +26,7 @@ import Modal from "../../components/common/Modal";
 import { Input } from "../../components/common/Input";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 interface User {
   id: string;
@@ -33,6 +35,7 @@ interface User {
   role: string;
   isActive: boolean;
   createdAt: string;
+  balance: number | string;
   lastLoginAt: string | null;
   enabled: boolean;
   accountNumber?: string;
@@ -215,6 +218,7 @@ const FilterDropdown = ({
 };
 
 const UserManagement = () => {
+  const navigate = useNavigate();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 5,
@@ -308,6 +312,7 @@ const UserManagement = () => {
   const deleteUserMutation = useDeleteUser();
 
   const users = data?.users ?? [];
+  console.log("users", users);
   const totalUsers = data?.pagination?.totalUsers ?? 0;
 
   if (pagination.total !== totalUsers) {
@@ -323,7 +328,8 @@ const UserManagement = () => {
   };
 
   const handleViewDetails = (userId: string) => {
-    return userId;
+    navigate(`/admin/user/${userId}`);
+    // return userId;
     // console.log("View details for user:", userId);
   };
 
@@ -333,7 +339,7 @@ const UserManagement = () => {
       fullName: user.name,
       email: user.email,
       pricingGroup: user.pricingGroupId || "",
-      balance: user.amountSpent?.toString() || "",
+      balance: user?.balance?.toString() || "",
     });
     setIsEditModalOpen(true);
   };
@@ -521,7 +527,7 @@ const UserManagement = () => {
       title: "Email",
     },
     {
-      key: "accountNumber",
+      key: "walletId",
       title: "Account Number",
     },
     {
@@ -586,7 +592,7 @@ const UserManagement = () => {
             size="sm"
             className="px-3 py-1 text-primary-dark border-primary-dark hover:bg-gray-50 min-w-[140px]"
             onClick={() => handleViewDetails(record.id)}
-            disabled
+            // disabled
           >
             View Details
           </Button>

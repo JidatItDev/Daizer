@@ -480,6 +480,12 @@ authRouter.post("/create-user", authenticate, AuthController.createUser);
  *         description: Internal server error
  */
 
+authRouter.get(
+  "/user/:id",
+  authenticate,
+  AuthController.getUserByIdWithWalletAndPurchases
+);
+
 authRouter.get("/users", authenticate, AuthController.getAllUsers);
 /**
  * @swagger

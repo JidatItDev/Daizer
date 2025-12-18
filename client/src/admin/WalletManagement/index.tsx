@@ -7,6 +7,7 @@ import {
   useAllTransactions,
   useAllWallets,
   useApproveRefund,
+  useGetActiveAccounts,
   useRefundRequests,
 } from "../../api/Wallets";
 import { CreditDebitModal } from "../../components/admin/Wallet/CreditDebitModal";
@@ -82,6 +83,7 @@ const WalletManagement = () => {
   const [activeTab, setActiveTab] = useState<
     "wallets" | "transactions" | "refunds"
   >("wallets");
+  const { data: accountsData } = useGetActiveAccounts();
 
   const [isAdjustmentTypeModalOpen, setIsAdjustmentTypeModalOpen] =
     useState(false);
@@ -241,6 +243,13 @@ const WalletManagement = () => {
       console.error("Error approving refund:", error);
     }
   };
+  const getAccountName = (value?: string) => {
+    if (!value) return "N/A";
+
+    const account = accountsData?.accounts?.find((acc) => acc.id === value);
+
+    return account?.name || value;
+  };
 
   // Wallet columns
   const walletColumns: TableColumn<Wallet>[] = [
@@ -325,59 +334,148 @@ const WalletManagement = () => {
       render: (_, record) => new Date(record.createdAt).toLocaleString(),
     },
 
+    // {
+    //   key: "sentReceivedBy",
+    //   title: "Sent/Received By",
+    //   render: (_, record) => {
+    //     // For adjustment transactions, get sentBy/receivedInto from metadata
+    //     if (record.type === "adjustment") {
+    //       try {
+    //         const metadata = JSON.parse(record.metadata || "{}");
+    //         const actualType = metadata.type || "adjustment";
+
+    //         if (actualType === "credit") {
+    //           return metadata.receivedInto || "N/A";
+    //         } else if (actualType === "debit") {
+    //           return metadata.sentBy || "N/A";
+    //         }
+    //         return "N/A";
+    //       } catch (error) {
+    //         console.error("Error parsing metadata:", error);
+    //         return "N/A";
+    //       }
+    //     }
+    //     if (record.type === "refund") {
+    //       try {
+    //         // const metadata = JSON.parse(record.metadata || "{}");
+    //         // return metadata.sentBy || "N/A";
+    //         const metadata = JSON.parse(record.metadata || "{}");
+    //         const sentById = metadata.sentBy;
+
+    //         if (!sentById) return "N/A";
+
+    //         console.log("sentById", sentById);
+
+    //         const account = accountsData?.accounts?.find(
+    //           (acc) => acc.id === sentById
+    //         );
+
+    //         console.log("account", account);
+
+    //         return account?.name || metadata.sentBy || "N/A";
+    //       } catch (error) {
+    //         console.error("Error parsing metadata:", error);
+    //         return "N/A";
+    //       }
+    //     }
+
+    //     // For non-adjustment transactions, show user name
+    //     return record.user?.name || "N/A";
+    //   },
+    // },
     {
       key: "sentReceivedBy",
       title: "Sent/Received By",
       render: (_, record) => {
-        // For adjustment transactions, get sentBy/receivedInto from metadata
         if (record.type === "adjustment") {
           try {
             const metadata = JSON.parse(record.metadata || "{}");
             const actualType = metadata.type || "adjustment";
 
             if (actualType === "credit") {
-              return metadata.receivedInto || "N/A";
-            } else if (actualType === "debit") {
-              return metadata.sentBy || "N/A";
+              return getAccountName(metadata.receivedInto);
             }
+
+            if (actualType === "debit") {
+              return getAccountName(metadata.sentBy);
+            }
+
             return "N/A";
-          } catch (error) {
-            console.error("Error parsing metadata:", error);
-            return "N/A";
-          }
-        }
-        if (record.type === "refund") {
-          try {
-            const metadata = JSON.parse(record.metadata || "{}");
-            return metadata.sentBy || "N/A";
           } catch (error) {
             console.error("Error parsing metadata:", error);
             return "N/A";
           }
         }
 
-        // For non-adjustment transactions, show user name
-        return record.user?.name || "N/A";
-      },
-    },
-    {
-      key: "destination",
-      title: "Destination",
-      render: (_, record) => {
-        // For adjustment transactions, get destination from metadata
-        if (record.type === "adjustment") {
+        if (record.type === "refund") {
           try {
             const metadata = JSON.parse(record.metadata || "{}");
-            return metadata.destination || "N/A";
+            return getAccountName(metadata.sentBy);
           } catch (error) {
             console.error("Error parsing metadata:", error);
             return "N/A";
           }
         }
+
+        return record.user?.name || "N/A";
+      },
+    },
+
+    // {
+    //   key: "destination",
+    //   title: "Destination",
+    //   render: (_, record) => {
+    //     // For adjustment transactions, get destination from metadata
+    //     if (record.type === "adjustment") {
+    //       try {
+    //         const metadata = JSON.parse(record.metadata || "{}");
+    //         return metadata.destination || "N/A";
+    //       } catch (error) {
+    //         console.error("Error parsing metadata:", error);
+    //         return "N/A";
+    //       }
+    //     }
+    //     if (record.type === "refund") {
+    //       try {
+    //         // const metadata = JSON.parse(record.metadata || "{}");
+    //         // return metadata.destination || "N/A";
+    //         const metadata = JSON.parse(record.metadata || "{}");
+    //         const destinationId = metadata.destination;
+
+    //         if (!destinationId) return "N/A";
+
+    //         const account = accountsData?.accounts?.find(
+    //           (acc) => acc.id === destinationId
+    //         );
+
+    //         return account?.name || metadata.destination || "N/A";
+    //       } catch (error) {
+    //         console.error("Error parsing metadata:", error);
+    //         return "N/A";
+    //       }
+    //     }
+
+    //     return "N/A";
+    //   },
+    // },
+    {
+      key: "destination",
+      title: "Destination",
+      render: (_, record) => {
+        if (record.type === "adjustment") {
+          try {
+            const metadata = JSON.parse(record.metadata || "{}");
+            return getAccountName(metadata.destination);
+          } catch (error) {
+            console.error("Error parsing metadata:", error);
+            return "N/A";
+          }
+        }
+
         if (record.type === "refund") {
           try {
             const metadata = JSON.parse(record.metadata || "{}");
-            return metadata.destination || "N/A";
+            return getAccountName(metadata.destination);
           } catch (error) {
             console.error("Error parsing metadata:", error);
             return "N/A";
@@ -445,8 +543,8 @@ const WalletManagement = () => {
             record.status === "approved"
               ? "text-success"
               : record.status === "rejected"
-                ? "text-error"
-                : "text-warning"
+              ? "text-error"
+              : "text-warning"
           }`}
         >
           {record.status.charAt(0).toUpperCase() + record.status.slice(1)}

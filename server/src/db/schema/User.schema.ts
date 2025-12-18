@@ -24,7 +24,6 @@ export const users = pgTable(
     zohoWalletSubAccountId: text("zoho_wallet_sub_account_id")
       .notNull()
       .default(""),
-    // 🔗 Zoho Books Integration Fields
     zohoContactId: text("zoho_contact_id").notNull(),
     zohoContactStatus: text("zoho_contact_status").notNull(),
     zohoCreatedAt: timestamp("zoho_created_at", {

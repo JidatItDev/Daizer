@@ -18,7 +18,7 @@ export const AdjustmentTypeModal = ({
       isOpen={isOpen}
       onClose={onClose}
       heading="User Wallet"
-      subheading="Lorem ipsum dolor sit amet consectetur. Utrices aliquam est risus omare vitae sed non diam."
+      subheading="Edit User Wallet"
       widthClass="max-w-[666px]"
     >
       <div className="mt-6 space-y-4">
