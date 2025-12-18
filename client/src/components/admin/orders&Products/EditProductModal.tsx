@@ -7,6 +7,7 @@ import { useCategoriesTree } from "../../../api/UseCategories";
 import { TreeSelect } from "../../common/TreeSelect";
 
 import toast from "react-hot-toast";
+import { AxiosError } from "axios";
 import {
   type ExternalService,
   useUpdateProduct,
@@ -153,6 +154,36 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleFileUploadError = (error: unknown): string => {
+    if (error instanceof AxiosError) {
+      const errorMessage = error.response?.data?.message || error.message;
+
+      if (
+        errorMessage.includes("File too large") ||
+        errorMessage.includes("multer") ||
+        error.code === "LIMIT_FILE_SIZE"
+      ) {
+        return "File size too large. Please select an image smaller than 10MB.";
+      }
+      if (errorMessage.includes("Unexpected field")) {
+        return "Invalid file format. Please select a valid image file.";
+      }
+      if (errorMessage.includes("Too many files")) {
+        return "Too many files selected. Please select only one image.";
+      }
+      return errorMessage || "Failed to update product";
+    }
+
+    if (error instanceof Error) {
+      if (error.message.includes("File too large")) {
+        return "File size too large. Please select an image smaller than 10MB.";
+      }
+      return error.message || "Failed to update product";
+    }
+
+    return "Failed to update product";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -187,13 +218,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       handleClose();
     } catch (error) {
       console.error("Failed to update product:", error);
-
-      if (error instanceof Error) {
-        toast.error(error.message);
-        toast.error(error.message || "Failed to update product");
-      } else {
-        toast.error("Failed to update product");
-      }
+      const errorMessage = handleFileUploadError(error);
+      toast.error(errorMessage);
     }
   };
 
@@ -357,7 +383,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     {formData.serviceId
                       ? (() => {
                           const selectedService = services?.find(
-                            (s: any) =>
+                            (s: ExternalService) =>
                               s.ServiceApiID.toString() === formData.serviceId
                           );
                           return selectedService
@@ -377,7 +403,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     <CommandList>
                       <CommandEmpty>No services found.</CommandEmpty>
                       <CommandGroup>
-                        {services?.map((service: any) => (
+                        {services?.map((service: ExternalService) => (
                           <CommandItem
                             key={service.ServiceApiID}
                             value={service.ServiceName}

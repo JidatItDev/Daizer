@@ -1,5 +1,6 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface ImageUploaderProps {
   onImageChange: (file: File | null) => void;
@@ -17,9 +18,26 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Update preview when currentImage prop changes
+  useEffect(() => {
+    setPreview(currentImage || null);
+  }, [currentImage]);
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (10MB limit)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(
+          "File size too large. Please select an image smaller than 10MB."
+        );
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        return;
+      }
+
       // Check if file is an image
       if (file.type.startsWith("image/")) {
         const reader = new FileReader();
@@ -29,7 +47,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         reader.readAsDataURL(file);
         onImageChange(file);
       } else {
-        alert("Please select a valid image file");
+        toast.error("Please select a valid image file");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
     }
   };

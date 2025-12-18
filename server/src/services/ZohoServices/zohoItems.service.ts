@@ -67,10 +67,11 @@ export class ZohoItemService {
     }
 
     // ✅ ADD PRICING GROUPS AS CUSTOM FIELDS
+    // ✅ ADD PRICING GROUPS AS CUSTOM FIELDS
     if (product.pricingGroupPrices && product.pricingGroupPrices.length > 0) {
       // Store as a formatted string
       const pricingInfo = product.pricingGroupPrices
-        .map((pg) => `${pg.name}: ${pg.rate}`)
+        .map((pg) => `${pg.name}: ${Number(pg.rate).toFixed(2)}`)
         .join(" | ");
 
       customFields.push({
@@ -78,19 +79,20 @@ export class ZohoItemService {
         value: pricingInfo,
       });
 
-      // Store min and max prices
-      const rates = product.pricingGroupPrices.map((pg) => pg.rate);
+      // Store min and max prices with exactly 2 decimal places
+      // Store min and max prices as NUMBERS (not strings)
+      const rates = product.pricingGroupPrices.map((pg) => Number(pg.rate));
       const minRate = Math.min(...rates);
       const maxRate = Math.max(...rates);
 
       customFields.push({
         label: "Min Price",
-        value: minRate.toString(),
+        value: Number(minRate.toFixed(2)), // ✅ Convert back to number: 23.44
       });
 
       customFields.push({
         label: "Max Price",
-        value: maxRate.toString(),
+        value: Number(maxRate.toFixed(2)), // ✅ Convert back to number: 34.43
       });
     }
 
@@ -116,7 +118,7 @@ export class ZohoItemService {
         // ✅ Create the item data as JSON with custom fields
         const itemData = {
           name: product.name,
-          rate: product.rate,
+          rate: Number(product.rate).toFixed(2),
           description: product.description || "",
           item_type: "sales",
           ...(product.sku && { sku: product.sku }),
@@ -169,7 +171,7 @@ export class ZohoItemService {
     // Create item without image (fallback or no image provided)
     const payload: any = {
       name: product.name,
-      rate: product.rate,
+      rate: Number(product.rate),
       description: product.description || "",
       item_type: "sales",
       ...(product.sku && { sku: product.sku }),
@@ -238,7 +240,7 @@ export class ZohoItemService {
     // ✅ ADD PRICING GROUPS TO CUSTOM FIELDS (NO DYNAMIC FIELDS)
     if (updates.pricingGroupPrices && updates.pricingGroupPrices.length > 0) {
       const pricingInfo = updates.pricingGroupPrices
-        .map((pg) => `${pg.name}: ${pg.price}`)
+        .map((pg) => `${pg.name}: ${Number(pg.price).toFixed(2)}`)
         .join(" | ");
 
       customFields.push({
@@ -246,18 +248,18 @@ export class ZohoItemService {
         value: pricingInfo,
       });
 
-      const rates = updates.pricingGroupPrices.map((pg) => pg.price);
+      const rates = updates.pricingGroupPrices.map((pg) => Number(pg.price));
       const minRate = Math.min(...rates);
       const maxRate = Math.max(...rates);
 
       customFields.push({
         label: "Min Price",
-        value: minRate.toString(),
+        value: Number(minRate.toFixed(2)), // ✅ Convert back to number: 23.44
       });
 
       customFields.push({
         label: "Max Price",
-        value: maxRate.toString(),
+        value: Number(maxRate.toFixed(2)), // ✅ Convert back to number: 34.43
       });
 
       // ❌ REMOVED: Dynamic pricing group fields
