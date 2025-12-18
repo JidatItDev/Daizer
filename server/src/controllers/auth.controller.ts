@@ -968,10 +968,15 @@ class AuthController {
           .where(eq(signupLinks.id, link.id));
         return newUser;
       });
+      const accessToken = createAccessToken(newUser.id, newUser.role || "");
+      const refreshToken = createRefreshToken(newUser.id);
+
       return res.status(201).json({
         success: true,
         message: "User registered successfully",
         user: newUser,
+        accessToken,
+        refreshToken,
       });
     } catch (err) {
       console.error("Register with link error:", err);
