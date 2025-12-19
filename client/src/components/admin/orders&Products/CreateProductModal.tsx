@@ -39,6 +39,7 @@ interface FormData {
   description: string;
   subcategoryId: string;
   image: File | null;
+  imageUrl: string | undefined;
   pricingGroupPrices: Record<string, string>;
   serviceId?: string;
   isActive: boolean;
@@ -58,6 +59,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     description: "",
     subcategoryId: "",
     image: null,
+    imageUrl: undefined,
     pricingGroupPrices: {},
     serviceId: "",
     isActive: true,
@@ -82,7 +84,14 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     field: K,
     value: FormData[K]
   ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === "image") {
+      // When image changes, also update imageUrl
+      const file = value as File | null;
+      const imageUrl = file ? URL.createObjectURL(file) : undefined;
+      setFormData((prev) => ({ ...prev, [field]: value, imageUrl }));
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    }
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
     }
@@ -196,9 +205,33 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       handleClose();
     } catch (error) {
       if (error instanceof AxiosError) {
-        toast.error(
-          error.response?.data?.message || "Failed to create product"
-        );
+        const errorMessage = error.response?.data?.message || error.message;
+
+        // Handle Multer file size error specifically
+        if (
+          errorMessage.includes("File too large") ||
+          errorMessage.includes("multer") ||
+          error.code === "LIMIT_FILE_SIZE"
+        ) {
+          toast.error(
+            "File size too large. Please select an image smaller than 10MB."
+          );
+        } else if (errorMessage.includes("Unexpected field")) {
+          toast.error("Invalid file format. Please select a valid image file.");
+        } else if (errorMessage.includes("Too many files")) {
+          toast.error("Too many files selected. Please select only one image.");
+        } else {
+          toast.error(errorMessage || "Failed to create product");
+        }
+      } else if (error instanceof Error) {
+        // Handle other types of errors
+        if (error.message.includes("File too large")) {
+          toast.error(
+            "File size too large. Please select an image smaller than 10MB."
+          );
+        } else {
+          toast.error(error.message || "Failed to create product");
+        }
       } else {
         toast.error("Failed to create product");
       }
@@ -206,12 +239,18 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   };
 
   const handleClose = () => {
+    // Clean up object URL if exists
+    if (formData.imageUrl) {
+      URL.revokeObjectURL(formData.imageUrl);
+    }
+
     setFormData({
       name: "",
       quantity: "",
       description: "",
       subcategoryId: "",
       image: null,
+      imageUrl: undefined,
       pricingGroupPrices: {},
       isActive: true,
     });
@@ -341,6 +380,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
               </label>
               <ImageUploader
                 onImageChange={(file) => handleInputChange("image", file)}
+                currentImage={formData.imageUrl}
                 error={errors.image}
               />
             </div>

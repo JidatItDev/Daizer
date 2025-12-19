@@ -143,6 +143,81 @@ app.use((req, res) => {
   res.status(404).json({ message: "Not found" });
 });
 
+// Global error handler for multer and other errors
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    // Handle Multer errors specifically
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        success: false,
+        message: "File too large. Please select an image smaller than 10MB.",
+      });
+    }
+
+    if (err.code === "LIMIT_FILE_COUNT") {
+      return res.status(400).json({
+        success: false,
+        message: "Too many files selected. Please select only one image.",
+      });
+    }
+
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({
+        success: false,
+        message: "Unexpected file field. Please select a valid image file.",
+      });
+    }
+
+    if (err.code === "LIMIT_PART_COUNT") {
+      return res.status(400).json({
+        success: false,
+        message: "Form contains too many parts.",
+      });
+    }
+
+    if (err.code === "LIMIT_FIELD_KEY") {
+      return res.status(400).json({
+        success: false,
+        message: "Field name too long.",
+      });
+    }
+
+    if (err.code === "LIMIT_FIELD_VALUE") {
+      return res.status(400).json({
+        success: false,
+        message: "Field value too long.",
+      });
+    }
+
+    if (err.code === "LIMIT_FIELD_COUNT") {
+      return res.status(400).json({
+        success: false,
+        message: "Too many fields in form.",
+      });
+    }
+
+    // Handle file filter errors
+    if (err.message?.includes("Only image files are allowed")) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file format. Please select a valid image file.",
+      });
+    }
+
+    // Default error handler
+    console.error("Unhandled error:", err);
+    res.status(err.status || 500).json({
+      success: false,
+      message: err.message || "Internal server error",
+    });
+  }
+);
+
 app.listen(PORT, () => {
   console.log(`Server running on port: ${PORT}`);
 });
