@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { db } from "../db/dbConnection";
-import { pricingGroups, users, wallets } from "../db/schema";
+import { pricingGroups, transactions, users, wallets } from "../db/schema";
 import { and, asc, desc, eq, inArray, sql, lt } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../utils/crypto.utils";
 import {
@@ -226,124 +226,6 @@ class AuthController {
     return res.json({ success: true, message: "Password has been reset" });
   }
 
-  // static async register(req: Request, res: Response) {
-  //   return await db.transaction(async (tx) => {
-  //     const { email, password, name, pricingGroupId } = req.body;
-  //     const normalizedEmail = email.toLowerCase().trim();
-
-  //     try {
-  //       // 1️⃣ Check if email already exists
-  //       const [existingUser] = await tx
-  //         .select({ id: users.id })
-  //         .from(users)
-  //         .where(eq(users.email, normalizedEmail))
-  //         .limit(1);
-
-  //       if (existingUser) {
-  //         return res.status(409).json({ message: "Email already in use" });
-  //       }
-
-  //       const hashedPassword = await hashPassword(password);
-
-  //       // 2️⃣ Resolve pricing group
-  //       let finalPricingGroupId = pricingGroupId;
-  //       if (!finalPricingGroupId) {
-  //         const [defaultGroup] = await tx
-  //           .select({ id: pricingGroups.id })
-  //           .from(pricingGroups)
-  //           .where(eq(pricingGroups.isDefault, true))
-  //           .limit(1);
-  //         finalPricingGroupId = defaultGroup?.id || null;
-  //       }
-
-  //       // 3️⃣ Create Zoho entities outside transaction
-
-  //       // 4️⃣ Run DB operations in a transaction
-
-  //       const zohoService = new ZohoService();
-  //       const zohoContact = await zohoService.createContactInZohoBooks({
-  //         name,
-  //         email: normalizedEmail,
-  //       });
-  //       // const parentWalletId = await zohoService.getWalletAccountId();
-  //       // const zohoWalletSubAccount = await zohoService.createSubAccount(
-  //       //   parentWalletId,
-  //       //   name
-  //       // );
-
-  //       // console.log("✅ Zoho Sub-Account Created:", zohoWalletSubAccount);
-
-  //       // ✅ Validate both responses with correct structure
-  //       if (!zohoContact || !zohoContact.contact_id) {
-  //         throw new Error("Zoho contact creation failed");
-  //       }
-  //       const [pricingGroup] = await tx
-  //         .select({ name: pricingGroups.name })
-  //         .from(pricingGroups)
-  //         .where(eq(pricingGroups.id, finalPricingGroupId));
-  //       // if (!zohoWalletSubAccount || !zohoWalletSubAccount.account_id) {
-  //       //   throw new Error("Zoho wallet sub-account creation failed");
-  //       // }
-  //       await zohoService.updateContactPricingGroup(
-  //         zohoContact.contact_id,
-  //         pricingGroup.name
-  //       );
-  //       // Insert user with correct field references
-  //       const [createdUser] = await tx
-  //         .insert(users)
-  //         .values({
-  //           name,
-  //           email: normalizedEmail,
-  //           password: hashedPassword,
-  //           role: "user",
-  //           isActive: true,
-  //           pricingGroupId: finalPricingGroupId,
-  //           // zohoWalletSubAccountId: zohoWalletSubAccount.account_id, // ✅ Direct access
-  //           zohoContactId: zohoContact.contact_id, // ✅ Direct access
-  //           zohoContactStatus: zohoContact.contact_status || "active",
-  //           zohoCreatedAt: new Date(),
-  //           zohoCompanyName: zohoContact.company_name || name,
-  //         })
-  //         .returning({
-  //           id: users.id,
-  //           email: users.email,
-  //           name: users.name,
-  //           role: users.role,
-  //           pricingGroupId: users.pricingGroupId,
-  //           createdAt: users.createdAt,
-  //           zohoContactId: users.zohoContactId,
-  //         });
-
-  //       // Insert wallet
-  //       await tx.insert(wallets).values({
-  //         userId: createdUser.id,
-  //         balance: "0",
-  //       });
-
-  //       // 5️⃣ Generate tokens
-  //       const accessToken = createAccessToken(
-  //         createdUser.id,
-  //         createdUser.role || ""
-  //       );
-  //       const refreshToken = createRefreshToken(createdUser.id);
-
-  //       await redisClient.del("users:page:*");
-
-  //       return res.status(201).json({
-  //         message: "User registered successfully",
-  //         accessToken,
-  //         refreshToken,
-  //         success: true,
-  //         user: createdUser,
-  //       });
-  //     } catch (error: any) {
-  //       console.error("Registration error:", error);
-  //       return res.status(500).json({
-  //         message: error.message || "Internal server error",
-  //       });
-  //     }
-  //   });
-  // }
   static async register(req: Request, res: Response) {
     const { email, password, name, pricingGroupId } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
@@ -489,97 +371,12 @@ class AuthController {
           .limit(1);
         finalPricingGroupId = defaultGroup?.id || null;
       }
-
-      // const [newUser] = await db
-      //   .insert(users)
-      //   .values({
-      //     name,
-      //     email,
-      //     password: hashedPassword,
-      //     role,
-      //     isActive,
-      //     pricingGroupId: finalPricingGroupId,
-      //   })
-      //   .returning({
-      //     id: users.id,
-      //     name: users.name,
-      //     email: users.email,
-      //     role: users.role,
-      //     isActive: users.isActive,
-      //     pricingGroupId: users.pricingGroupId,
-      //     createdAt: users.createdAt,
-      //   });
-
-      // await db.insert(wallets).values({
-      //   userId: newUser.id,
-      //   balance: "0",
-      // });
-
-      // await redisClient.del("users:page:*");
-
-      // return res.status(201).json({
-      //   success: true,
-      //   message: "User created successfully",
-      //   user: newUser,
-      // });
     } catch (error) {
       console.error("Create user error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }
 
-  // static async updateUser(req: Request, res: Response) {
-  //   return await db.transaction(async (tx) => {
-  //     try {
-  //       const { id } = req.params;
-  //       const { name, role, isActive, pricingGroupId } = req.body;
-
-  //       const [updatedUser] = await tx
-  //         .update(users)
-  //         .set({
-  //           ...(name && { name }),
-  //           ...(role && { role }),
-  //           ...(isActive !== undefined && { isActive }),
-  //           ...(pricingGroupId !== undefined && { pricingGroupId }),
-  //           updatedAt: new Date(),
-  //         })
-  //         .where(eq(users.id, id))
-  //         .returning({
-  //           id: users.id,
-  //           name: users.name,
-  //           email: users.email,
-  //           role: users.role,
-  //           isActive: users.isActive,
-  //           pricingGroupId: users.pricingGroupId,
-  //           zohoContactId: users.zohoContactId,
-  //           updatedAt: users.updatedAt,
-  //         });
-
-  //       if (!updatedUser) {
-  //         return res.status(404).json({ message: "User not found" });
-  //       }
-  //       const [group] = await tx
-  //         .select({ name: pricingGroups.name })
-  //         .from(pricingGroups)
-  //         .where(eq(pricingGroups.id, pricingGroupId));
-  //       const zohoService = new ZohoService();
-  //       await zohoService.updateContactPricingGroup(
-  //         updatedUser.zohoContactId,
-  //         group.name
-  //       );
-  //       await redisClient.del("users:page:*");
-
-  //       return res.status(200).json({
-  //         success: true,
-  //         message: "User updated successfully",
-  //         user: updatedUser,
-  //       });
-  //     } catch (error) {
-  //       console.error("Update user error:", error);
-  //       return res.status(500).json({ message: "Internal server error" });
-  //     }
-  //   });
-  // }
   static async updateUser(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -696,21 +493,20 @@ class AuthController {
       const {
         page = 1,
         limit = 20,
-        status, // true | false
-        "pricingGroupIds[]": pricingGroupIds, // array of ids
+        status,
+        "pricingGroupIds[]": pricingGroupIds,
         sortField = "createdAt",
         sortOrder = "desc",
       } = req.query;
 
       const offset = (Number(page) - 1) * Number(limit);
 
-      // Build filters
+      // Filters
       const conditions = [];
       if (status !== undefined) {
-        conditions.push(
-          eq(users.isActive, status === "true" || status === "true")
-        );
+        conditions.push(eq(users.isActive, status === "true"));
       }
+
       if (pricingGroupIds) {
         const ids = Array.isArray(pricingGroupIds)
           ? pricingGroupIds
@@ -726,9 +522,12 @@ class AuthController {
         name: users.name,
         createdAt: users.createdAt,
         lastLoginAt: users.lastLoginAt,
+        balance: wallets.balance, // ✅ allow sorting by wallet balance
       };
+
       const orderByField =
         allowedSortFields[String(sortField)] || users.createdAt;
+
       const orderDirection =
         String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
 
@@ -743,8 +542,15 @@ class AuthController {
             pricingGroupId: users.pricingGroupId,
             createdAt: users.createdAt,
             lastLoginAt: users.lastLoginAt,
+
+            // 💰 Wallet fields
+            walletId: wallets.id,
+            balance: wallets.balance,
+            currency: wallets.currency,
+            walletUpdatedAt: wallets.updatedAt,
           })
           .from(users)
+          .leftJoin(wallets, eq(wallets.userId, users.id))
           .where(whereClause || sql`true`)
           .orderBy(
             orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
@@ -762,7 +568,10 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        users: result,
+        users: result.map((u) => ({
+          ...u,
+          balance: u.balance ? Number(u.balance) : 0, // numeric → number
+        })),
         pagination: {
           page: Number(page),
           limit: Number(limit),
@@ -772,7 +581,10 @@ class AuthController {
       });
     } catch (error) {
       console.error("Get users error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
 
@@ -1113,6 +925,95 @@ class AuthController {
       return res
         .status(500)
         .json({ success: false, message: "Internal server error" });
+    }
+  }
+  static async getUserByIdWithWalletAndPurchases(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res
+          .status(400)
+          .json({ success: false, message: "User id is required" });
+      }
+
+      const [user] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          isActive: users.isActive,
+          email: users.email,
+
+          // Wallet
+          walletId: wallets.id,
+          balance: wallets.balance,
+          currency: wallets.currency,
+
+          // Pricing group
+          pricingGroupId: pricingGroups.id,
+          pricingGroupName: pricingGroups.name,
+        })
+        .from(users)
+        .leftJoin(wallets, eq(wallets.userId, users.id))
+        .leftJoin(pricingGroups, eq(pricingGroups.id, users.pricingGroupId))
+        .where(eq(users.id, id))
+        .limit(1);
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      /* 2️⃣ Get purchase transactions of this user */
+      const purchases = await db
+        .select({
+          id: transactions.id,
+          amount: transactions.amount,
+          currency: transactions.currency,
+          status: transactions.status,
+          referenceId: transactions.referenceId,
+          metadata: transactions.metadata,
+          createdAt: transactions.createdAt,
+        })
+        .from(transactions)
+        .where(
+          and(eq(transactions.userId, id), eq(transactions.type, "purchase"))
+        )
+        .orderBy(desc(transactions.createdAt));
+
+      /* 3️⃣ Response */
+      return res.status(200).json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          status: user.isActive,
+          email: user.email,
+
+          pricingGroup: {
+            id: user.pricingGroupId,
+            name: user.pricingGroupName,
+          },
+
+          wallet: {
+            id: user.walletId,
+            balance: user.balance ? Number(user.balance) : 0,
+            currency: user.currency,
+          },
+
+          purchases: purchases.map((trx) => ({
+            ...trx,
+            amount: Number(trx.amount),
+          })),
+        },
+      });
+    } catch (error) {
+      console.error("Get user by id error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
     }
   }
 }

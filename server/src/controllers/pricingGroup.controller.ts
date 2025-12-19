@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../db/dbConnection";
-import { pricingGroups } from "../db/schema";
+import { pricingGroups, users } from "../db/schema";
 import { eq, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { ZohoService } from "../services/zoho.service";
@@ -77,8 +77,9 @@ class PricingGroupController {
       // Use transaction
       const result = await db.transaction(async (tx) => {
         // Create price book in Zoho
-        const zohoPriceBook =
-          await zohoPriceBookService.createPriceBookInZoho(name);
+        const zohoPriceBook = await zohoPriceBookService.createPriceBookInZoho(
+          name
+        );
 
         // If this is set as default, remove default from others
         if (isDefault) {
@@ -191,9 +192,9 @@ class PricingGroupController {
   static async getAllPricingGroups(req: Request, res: Response) {
     try {
       const { page = 1, limit = 20 } = req.query;
-      const cacheKey = `pricingGroups:page:${page}:limit:${limit}`;
+      // const cacheKey = `pricingGroups:page:${page}:limit:${limit}`;
 
-      const cached = await redisClient.get(cacheKey);
+      // const cached = await redisClient.get(cacheKey);
       // if (cached) {
       //   return res.status(200).json(JSON.parse(cached));
       // }
@@ -207,8 +208,11 @@ class PricingGroupController {
             name: pricingGroups.name,
             isDefault: pricingGroups.isDefault,
             createdAt: pricingGroups.createdAt,
+            totalUsers: sql<number>`COUNT(${users.id})`,
           })
           .from(pricingGroups)
+          .leftJoin(users, eq(users.pricingGroupId, pricingGroups.id))
+          .groupBy(pricingGroups.id)
           .orderBy(pricingGroups.createdAt)
           .limit(Number(limit))
           .offset(offset),
@@ -219,7 +223,11 @@ class PricingGroupController {
 
       const response = {
         success: true,
-        pricingGroups: result,
+        // pricingGroups: result,
+        pricingGroups: result.map((pg) => ({
+          ...pg,
+          users: Number(pg.totalUsers),
+        })),
         pagination: {
           page: Number(page),
           limit: Number(limit),
@@ -228,7 +236,7 @@ class PricingGroupController {
         },
       };
 
-      await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
+      // await redisClient.setEx(cacheKey, 300, JSON.stringify(response));
 
       return res.status(200).json(response);
     } catch (error) {

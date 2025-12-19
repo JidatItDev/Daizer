@@ -66,11 +66,17 @@ const CustomDropdown = ({
       >
         <span className={value ? "text-black -ml-2" : "text-black"}>
           {selectedAccount
-            ? `${selectedAccount.name} ${selectedAccount.accountCode ? `(${selectedAccount.accountCode})` : ""} - ${selectedAccount.type}`
+            ? `${selectedAccount.name} ${
+                selectedAccount.accountCode
+                  ? `(${selectedAccount.accountCode})`
+                  : ""
+              } - ${selectedAccount.type}`
             : placeholder}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-gray-500 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

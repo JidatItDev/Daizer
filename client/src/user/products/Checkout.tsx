@@ -47,25 +47,25 @@
 //   return (
 //     <div className="bg-white min-h-screen ">
 //       {/* Header */}
-//       <div className="flex justify-between items-center mb-8 ">
-//         <div className="flex items-center gap-3">
-//           <button
-//             onClick={handleBack}
-//             className="flex items-center text-primary-dark border border-primary-dark rounded-full p-2 hover:bg-gray-100"
-//           >
-//             <IoCaretBackOutline />
-//           </button>
-//           <h2 className="text-lg font-semibold">Place Order</h2>
-//         </div>
-//         <Button
-//           variant="outline"
-//           size="sm"
-//           className="px-5 py-1 rounded-full border"
-//           onClick={() => navigate("/orders")}
-//         >
-//           My Orders
-//         </Button>
-//       </div>
+// <div className="flex justify-between items-center mb-8 ">
+//   <div className="flex items-center gap-3">
+//     <button
+//       onClick={handleBack}
+//       className="flex items-center text-primary-dark border border-primary-dark rounded-full p-2 hover:bg-gray-100"
+//     >
+//       <IoCaretBackOutline />
+//     </button>
+//     <h2 className="text-lg font-semibold">Place Order</h2>
+//   </div>
+//   <Button
+//     variant="outline"
+//     size="sm"
+//     className="px-5 py-1 rounded-full border"
+//     onClick={() => navigate("/orders")}
+//   >
+//     My Orders
+//   </Button>
+// </div>
 
 //       {/* Main layout */}
 //       <div className="grid grid-cols-1 md:grid-cols-2 gap-10  border-t-2 border-black/50 pt-6">

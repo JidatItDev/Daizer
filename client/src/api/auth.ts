@@ -153,3 +153,22 @@ export const useSignupLink = (token: string, options = {}) => {
     ...options,
   });
 };
+
+export const useUserDetails = (
+  userId: string | undefined,
+  options: {
+    enabled?: boolean;
+  } = {}
+) => {
+  return useQuery({
+    queryKey: ["user-details", userId],
+    queryFn: async () => {
+      if (!userId) throw new Error("User ID is required");
+
+      const res = await axiosPrivate.get(`/auth/user/${userId}`);
+      return res.data;
+    },
+    enabled: !!userId && (options.enabled ?? true),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+};
