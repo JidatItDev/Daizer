@@ -26,6 +26,7 @@ import Topup from "./user/wallet/Topup";
 import WalletManagement from "./admin/WalletManagement";
 import Settings from "./admin/platformSettings";
 import UserDetails from "./admin/userManagement/UserDetails";
+import ExternalProviderSettings from "./admin/ExternalApiProvider";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -72,6 +73,7 @@ function App() {
           <Route path="pricing-groups" element={<PricingGroup />} />
           <Route path="orders-products" element={<ProductsManagement />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="external-api" element={<ExternalProviderSettings />} />
         </Route>
 
         <Route

@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { db } from "../db/dbConnection";
 import { pricingGroups, transactions, users, wallets } from "../db/schema";
-import { and, asc, desc, eq, inArray, sql, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, lt, gte, lte } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../utils/crypto.utils";
 import {
   createAccessToken,
@@ -488,6 +488,106 @@ class AuthController {
     }
   }
 
+  // static async getAllUsers(req: Request, res: Response) {
+  //   try {
+  //     const {
+  //       page = 1,
+  //       limit = 20,
+  //       status,
+  //       "pricingGroupIds[]": pricingGroupIds,
+  //       sortField = "createdAt",
+  //       sortOrder = "desc",
+  //     } = req.query;
+
+  //     const offset = (Number(page) - 1) * Number(limit);
+
+  //     // Filters
+  //     const conditions = [];
+  //     if (status !== undefined) {
+  //       conditions.push(eq(users.isActive, status === "true"));
+  //     }
+
+  //     if (pricingGroupIds) {
+  //       const ids = Array.isArray(pricingGroupIds)
+  //         ? pricingGroupIds
+  //         : [pricingGroupIds];
+  //       conditions.push(inArray(users.pricingGroupId, ids as string[]));
+  //     }
+
+  //     const whereClause =
+  //       conditions.length > 0 ? and(...conditions) : undefined;
+
+  //     // Sorting
+  //     const allowedSortFields: Record<string, any> = {
+  //       name: users.name,
+  //       createdAt: users.createdAt,
+  //       lastLoginAt: users.lastLoginAt,
+  //       balance: wallets.balance, // ✅ allow sorting by wallet balance
+  //     };
+
+  //     const orderByField =
+  //       allowedSortFields[String(sortField)] || users.createdAt;
+
+  //     const orderDirection =
+  //       String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
+
+  //     const [result, countResult] = await Promise.all([
+  //       db
+  //         .select({
+  //           id: users.id,
+  //           name: users.name,
+  //           email: users.email,
+  //           role: users.role,
+  //           isActive: users.isActive,
+  //           pricingGroupId: users.pricingGroupId,
+  //           createdAt: users.createdAt,
+  //           lastLoginAt: users.lastLoginAt,
+
+  //           // 💰 Wallet fields
+  //           walletId: wallets.id,
+  //           balance: wallets.balance,
+  //           currency: wallets.currency,
+  //           walletUpdatedAt: wallets.updatedAt,
+  //         })
+  //         .from(users)
+  //         .leftJoin(wallets, eq(wallets.userId, users.id))
+  //         .where(whereClause || sql`true`)
+  //         .orderBy(
+  //           orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
+  //         )
+  //         .limit(Number(limit))
+  //         .offset(offset),
+
+  //       db
+  //         .select({ count: sql<number>`count(*)` })
+  //         .from(users)
+  //         .where(whereClause || sql`true`),
+  //     ]);
+
+  //     const [{ count }] = countResult;
+
+  //     return res.status(200).json({
+  //       success: true,
+  //       users: result.map((u) => ({
+  //         ...u,
+  //         balance: u.balance ? Number(u.balance) : 0, // numeric → number
+  //       })),
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         totalUsers: Number(count),
+  //         totalPages: Math.ceil(Number(count) / Number(limit)),
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Get users error:", error);
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: "Internal server error",
+  //     });
+  //   }
+  // }
+
   static async getAllUsers(req: Request, res: Response) {
     try {
       const {
@@ -501,8 +601,11 @@ class AuthController {
 
       const offset = (Number(page) - 1) * Number(limit);
 
-      // Filters
+      /* --------------------------------------------------
+           Filters
+        -------------------------------------------------- */
       const conditions = [];
+
       if (status !== undefined) {
         conditions.push(eq(users.isActive, status === "true"));
       }
@@ -517,12 +620,14 @@ class AuthController {
       const whereClause =
         conditions.length > 0 ? and(...conditions) : undefined;
 
-      // Sorting
+      /* --------------------------------------------------
+           Sorting
+        -------------------------------------------------- */
       const allowedSortFields: Record<string, any> = {
         name: users.name,
         createdAt: users.createdAt,
         lastLoginAt: users.lastLoginAt,
-        balance: wallets.balance, // ✅ allow sorting by wallet balance
+        balance: wallets.balance,
       };
 
       const orderByField =
@@ -531,6 +636,38 @@ class AuthController {
       const orderDirection =
         String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
 
+      /* --------------------------------------------------
+           Transactions aggregation (SUBQUERY)
+        -------------------------------------------------- */
+      const transactionsAgg = db
+        .select({
+          userId: transactions.userId,
+          walletId: transactions.walletId,
+
+          transactionCount: sql<number>`
+              COUNT(${transactions.id})
+            `.as("transactionCount"),
+
+          totalPurchase: sql<number>`
+              COALESCE(
+                SUM(
+                  CASE 
+                    WHEN ${transactions.type} = 'purchase'
+                    THEN ${transactions.amount}
+                    ELSE 0
+                  END
+                ),
+                0
+              )
+            `.as("totalPurchase"),
+        })
+        .from(transactions)
+        .groupBy(transactions.userId, transactions.walletId)
+        .as("transactionsAgg");
+
+      /* --------------------------------------------------
+           Main Query + Count Query
+        -------------------------------------------------- */
       const [result, countResult] = await Promise.all([
         db
           .select({
@@ -543,14 +680,27 @@ class AuthController {
             createdAt: users.createdAt,
             lastLoginAt: users.lastLoginAt,
 
-            // 💰 Wallet fields
             walletId: wallets.id,
             balance: wallets.balance,
             currency: wallets.currency,
             walletUpdatedAt: wallets.updatedAt,
+
+            transactionCount: sql<number>`
+                COALESCE(${transactionsAgg.transactionCount}, 0)
+              `,
+            totalPurchase: sql<number>`
+                COALESCE(${transactionsAgg.totalPurchase}, 0)
+              `,
           })
           .from(users)
           .leftJoin(wallets, eq(wallets.userId, users.id))
+          .leftJoin(
+            transactionsAgg,
+            and(
+              eq(transactionsAgg.userId, users.id),
+              eq(transactionsAgg.walletId, wallets.id)
+            )
+          )
           .where(whereClause || sql`true`)
           .orderBy(
             orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
@@ -566,11 +716,16 @@ class AuthController {
 
       const [{ count }] = countResult;
 
+      /* --------------------------------------------------
+           Response
+        -------------------------------------------------- */
       return res.status(200).json({
         success: true,
         users: result.map((u) => ({
           ...u,
-          balance: u.balance ? Number(u.balance) : 0, // numeric → number
+          balance: u.balance ? Number(u.balance) : 0,
+          transactionCount: Number(u.transactionCount),
+          totalPurchase: Number(u.totalPurchase),
         })),
         pagination: {
           page: Number(page),
@@ -930,11 +1085,23 @@ class AuthController {
   static async getUserByIdWithWalletAndPurchases(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      const { date } = req.query;
 
       if (!id) {
         return res
           .status(400)
           .json({ success: false, message: "User id is required" });
+      }
+      let dateCondition;
+
+      if (date) {
+        const start = new Date(`${date}T00:00:00.000Z`);
+        const end = new Date(`${date}T23:59:59.999Z`);
+
+        dateCondition = and(
+          gte(transactions.createdAt, start),
+          lte(transactions.createdAt, end)
+        );
       }
 
       const [user] = await db
@@ -966,6 +1133,21 @@ class AuthController {
       }
 
       /* 2️⃣ Get purchase transactions of this user */
+      // const purchases = await db
+      //   .select({
+      //     id: transactions.id,
+      //     amount: transactions.amount,
+      //     currency: transactions.currency,
+      //     status: transactions.status,
+      //     referenceId: transactions.referenceId,
+      //     metadata: transactions.metadata,
+      //     createdAt: transactions.createdAt,
+      //   })
+      //   .from(transactions)
+      //   .where(
+      //     and(eq(transactions.userId, id), eq(transactions.type, "purchase"))
+      //   )
+      //   .orderBy(desc(transactions.createdAt));
       const purchases = await db
         .select({
           id: transactions.id,
@@ -978,7 +1160,11 @@ class AuthController {
         })
         .from(transactions)
         .where(
-          and(eq(transactions.userId, id), eq(transactions.type, "purchase"))
+          and(
+            eq(transactions.userId, id),
+            eq(transactions.type, "purchase"),
+            ...(dateCondition ? [dateCondition] : [])
+          )
         )
         .orderBy(desc(transactions.createdAt));
 
@@ -1010,6 +1196,183 @@ class AuthController {
       });
     } catch (error) {
       console.error("Get user by id error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
+  // static async getAllOrders(req: Request, res: Response) {
+  //   try {
+  //     const {
+  //       page = 1,
+  //       limit = 10,
+  //       sortField = "createdAt",
+  //       sortOrder = "desc",
+  //     } = req.query;
+
+  //     const offset = (Number(page) - 1) * Number(limit);
+
+  //     const allowedSortFields: Record<string, any> = {
+  //       createdAt: transactions.createdAt,
+  //       amount: transactions.amount,
+  //       status: transactions.status,
+  //     };
+
+  //     const orderByField =
+  //       allowedSortFields[String(sortField)] || transactions.createdAt;
+
+  //     const orderDirection =
+  //       String(sortOrder).toLowerCase() === "asc" ? asc : desc;
+
+  //     const [orders, countResult] = await Promise.all([
+  //       db
+  //         .select({
+  //           orderId: transactions.id,
+  //           amount: transactions.amount,
+  //           currency: transactions.currency,
+  //           status: transactions.status,
+  //           metadata: transactions.metadata,
+  //           createdAt: transactions.createdAt,
+
+  //           userId: users.id,
+  //           userName: users.name,
+  //           userEmail: users.email,
+
+  //           walletId: wallets.id,
+  //         })
+  //         .from(transactions)
+  //         .innerJoin(users, eq(users.id, transactions.userId))
+  //         .leftJoin(wallets, eq(wallets.userId, users.id))
+  //         .where(eq(transactions.type, "purchase"))
+  //         .orderBy(orderDirection(orderByField))
+  //         .limit(Number(limit))
+  //         .offset(offset),
+
+  //       db
+  //         .select({ count: sql<number>`count(*)` })
+  //         .from(transactions)
+  //         .where(eq(transactions.type, "purchase")),
+  //     ]);
+
+  //     const [{ count }] = countResult;
+
+  //     return res.status(200).json({
+  //       success: true,
+  //       orders: orders.map((o) => ({
+  //         ...o,
+  //         amount: Number(o.amount),
+  //       })),
+  //       pagination: {
+  //         page: Number(page),
+  //         limit: Number(limit),
+  //         totalOrders: Number(count),
+  //         totalPages: Math.ceil(Number(count) / Number(limit)),
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Get all orders error:", error);
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: "Internal server error",
+  //     });
+  //   }
+  // }
+
+  static async getAllOrders(req: Request, res: Response) {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        sortField = "createdAt",
+        sortOrder = "desc",
+        fromDate,
+        toDate,
+      } = req.query;
+
+      const pageNum = Number(page);
+      const limitNum = Number(limit);
+      const offset = (pageNum - 1) * limitNum;
+
+      /* ---------------- Sorting ---------------- */
+      const allowedSortFields: Record<string, any> = {
+        createdAt: transactions.createdAt,
+        amount: transactions.amount,
+        status: transactions.status,
+      };
+
+      const orderByField =
+        allowedSortFields[String(sortField)] || transactions.createdAt;
+
+      const orderDirection =
+        String(sortOrder).toLowerCase() === "asc" ? asc : desc;
+
+      /* ---------------- Filters ---------------- */
+      let whereCondition = eq(transactions.type, "purchase");
+
+      if (fromDate) {
+        whereCondition = and(
+          whereCondition,
+          gte(transactions.createdAt, new Date(String(fromDate)))
+        );
+      }
+
+      if (toDate) {
+        whereCondition = and(
+          whereCondition,
+          lte(transactions.createdAt, new Date(`${toDate}T23:59:59.999Z`))
+        );
+      }
+
+      /* ---------------- Queries ---------------- */
+      const [orders, countResult] = await Promise.all([
+        db
+          .select({
+            orderId: transactions.id,
+            amount: transactions.amount,
+            currency: transactions.currency,
+            status: transactions.status,
+            metadata: transactions.metadata,
+            createdAt: transactions.createdAt,
+
+            userId: users.id,
+            userName: users.name,
+            userEmail: users.email,
+
+            walletId: wallets.id,
+          })
+          .from(transactions)
+          .innerJoin(users, eq(users.id, transactions.userId))
+          .leftJoin(wallets, eq(wallets.userId, users.id))
+          .where(whereCondition)
+          .orderBy(orderDirection(orderByField))
+          .limit(limitNum)
+          .offset(offset),
+
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(transactions)
+          .where(whereCondition),
+      ]);
+
+      const [{ count }] = countResult;
+
+      /* ---------------- Response ---------------- */
+      return res.status(200).json({
+        success: true,
+        orders: orders.map((o) => ({
+          ...o,
+          amount: Number(o.amount),
+        })),
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalOrders: Number(count),
+          totalPages: Math.ceil(Number(count) / limitNum),
+        },
+      });
+    } catch (error) {
+      console.error("Get all orders error:", error);
       return res.status(500).json({
         success: false,
         message: "Internal server error",

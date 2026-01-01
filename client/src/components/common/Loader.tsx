@@ -1,7 +1,7 @@
 import React from "react";
 
 export interface LoaderProps {
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "xxl";
   variant?: "spinner" | "dots" | "pulse" | "progress";
   color?: "primary" | "secondary" | "success" | "error" | "white" | "gray";
   text?: string;
@@ -14,6 +14,7 @@ const sizeClasses = {
   md: "h-4 w-4",
   lg: "h-6 w-6",
   xl: "h-8 w-8",
+  xxl: "h-12 w-12",
 };
 
 const colorClasses = {

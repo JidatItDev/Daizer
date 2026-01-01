@@ -154,21 +154,97 @@ export const useSignupLink = (token: string, options = {}) => {
   });
 };
 
+// export const useUserDetails = (
+//   userId: string | undefined,
+//   options: {
+//     enabled?: boolean;
+//   } = {}
+// ) => {
+//   return useQuery({
+//     queryKey: ["user-details", userId],
+//     queryFn: async () => {
+//       if (!userId) throw new Error("User ID is required");
+
+//       const res = await axiosPrivate.get(`/auth/user/${userId}`);
+//       return res.data;
+//     },
+//     enabled: !!userId && (options.enabled ?? true),
+//     staleTime: 1000 * 60 * 2, // 2 minutes
+//   });
+// };
 export const useUserDetails = (
   userId: string | undefined,
-  options: {
-    enabled?: boolean;
-  } = {}
+  date?: string | null,
+  options: { enabled?: boolean } = {}
 ) => {
   return useQuery({
-    queryKey: ["user-details", userId],
+    queryKey: ["user-details", userId, date],
     queryFn: async () => {
       if (!userId) throw new Error("User ID is required");
 
-      const res = await axiosPrivate.get(`/auth/user/${userId}`);
+      const res = await axiosPrivate.get(`/auth/user/${userId}`, {
+        params: date ? { date } : {},
+      });
+
       return res.data;
     },
     enabled: !!userId && (options.enabled ?? true),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: 1000 * 60 * 2,
   });
 };
+
+export const useAllOrders = ({
+  page,
+  limit,
+  sortField,
+  sortOrder,
+  fromDate,
+  toDate,
+}: {
+  page: number;
+  limit: number;
+  sortField?: string;
+  sortOrder?: string;
+  fromDate?: string;
+  toDate?: string;
+}) => {
+  return useQuery({
+    queryKey: [
+      "all-orders",
+      page,
+      limit,
+      sortField,
+      sortOrder,
+      fromDate,
+      toDate,
+    ],
+    queryFn: async () => {
+      const res = await axiosPrivate.get("/auth/orders", {
+        params: {
+          page,
+          limit,
+          sortField,
+          sortOrder,
+          fromDate,
+          toDate,
+        },
+      });
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+};
+
+// export const useAllOrders = ({ page, limit }: OrdersParams) => {
+//   return useQuery({
+//     queryKey: ["all-orders", page, limit],
+//     queryFn: async () => {
+//       const res = await axiosPrivate.get("/auth/orders", {
+//         params: { page, limit },
+//       });
+//       return res.data;
+//     },
+//     // keepPreviousData: true,
+//     staleTime: 1000 * 60 * 2,
+//   });
+// };

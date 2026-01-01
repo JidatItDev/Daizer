@@ -125,35 +125,92 @@ const invalidateConfigCache = async () => {
 
 class ConfigController {
   // Create or Update Config
+  // static async updateOrCreateConfig(req: Request, res: Response) {
+  //   try {
+  //     const body = req.body || {};
+  //     const { minimumBalanceRequirement, emailTemplate } = body;
+
+  //     // File handling (logo upload via S3)
+  //     const file = req.file as Express.MulterS3.File;
+  //     const logo = file
+  //       ? {
+  //           url: file.location,
+  //           key: file.key,
+  //           name: file.originalname,
+  //           size: file.size,
+  //           mimetype: file.mimetype,
+  //         }
+  //       : null;
+
+  //     // Only one config row (singleton)
+  //     const [existingConfig] = await db.select().from(config).limit(1);
+
+  //     let updated;
+  //     if (existingConfig) {
+  //       [updated] = await db
+  //         .update(config)
+  //         .set({
+  //           ...(minimumBalanceRequirement && {
+  //             minimumBalanceRequirement,
+  //           }),
+  //           ...(emailTemplate && { emailTemplate }),
+  //           ...(logo && { logoUrl: logo.url }),
+  //           updatedAt: new Date(),
+  //         })
+  //         .where(eq(config.id, existingConfig.id))
+  //         .returning();
+  //     } else {
+  //       [updated] = await db
+  //         .insert(config)
+  //         .values({
+  //           minimumBalanceRequirement: minimumBalanceRequirement || "0.00",
+  //           emailTemplate: emailTemplate || "",
+  //           ...(logo && { logoUrl: logo.url }),
+  //         })
+  //         .returning();
+  //     }
+
+  //     // Invalidate cache
+  //     await invalidateConfigCache();
+
+  //     return res.status(200).json({
+  //       success: true,
+  //       message: "System config saved successfully",
+  //       config: updated,
+  //     });
+  //   } catch (error) {
+  //     console.error("updateOrCreateConfig error:", error);
+  //     return res.status(500).json({ message: "Internal server error" });
+  //   }
+  // }
+
   static async updateOrCreateConfig(req: Request, res: Response) {
     try {
-      const body = req.body || {};
-      const { minimumBalanceRequirement, emailTemplate } = body;
+      const {
+        minimumBalanceRequirement,
+        emailTemplate,
+        paypalClientId,
+        paypalClientSecret,
+        paypalMode,
+      } = req.body || {};
 
-      // File handling (logo upload via S3)
       const file = req.file as Express.MulterS3.File;
-      const logo = file
-        ? {
-            url: file.location,
-            key: file.key,
-            name: file.originalname,
-            size: file.size,
-            mimetype: file.mimetype,
-          }
-        : null;
 
-      // Only one config row (singleton)
+      const logo = file ? { url: file.location } : null;
+
       const [existingConfig] = await db.select().from(config).limit(1);
 
       let updated;
+
       if (existingConfig) {
         [updated] = await db
           .update(config)
           .set({
-            ...(minimumBalanceRequirement && {
-              minimumBalanceRequirement,
-            }),
+            ...(minimumBalanceRequirement && { minimumBalanceRequirement }),
             ...(emailTemplate && { emailTemplate }),
+            ...(paypalClientId && { paypalClientId }),
+            ...(paypalClientSecret && { paypalClientSecret }),
+            ...(paypalMode && { paypalMode }),
             ...(logo && { logoUrl: logo.url }),
             updatedAt: new Date(),
           })
@@ -165,21 +222,23 @@ class ConfigController {
           .values({
             minimumBalanceRequirement: minimumBalanceRequirement || "0.00",
             emailTemplate: emailTemplate || "",
+            paypalClientId,
+            paypalClientSecret,
+            paypalMode: paypalMode || "sandbox",
             ...(logo && { logoUrl: logo.url }),
           })
           .returning();
       }
 
-      // Invalidate cache
-      await invalidateConfigCache();
+      await redisClient.del("config:system");
 
       return res.status(200).json({
         success: true,
-        message: "System config saved successfully",
+        message: "Config updated successfully",
         config: updated,
       });
     } catch (error) {
-      console.error("updateOrCreateConfig error:", error);
+      console.error(error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }

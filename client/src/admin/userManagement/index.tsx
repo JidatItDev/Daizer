@@ -12,7 +12,6 @@ import {
   Loader,
   ClipboardIcon,
   LinkIcon,
-  Users2,
 } from "lucide-react";
 import {
   useUsers,
@@ -39,8 +38,8 @@ interface User {
   lastLoginAt: string | null;
   enabled: boolean;
   accountNumber?: string;
-  amountSpent?: number;
-  transactions?: number;
+  totalPurchase?: number;
+  transactionCount?: number;
   pricingGroup?: string;
   pricingGroupId?: string;
 }
@@ -312,7 +311,7 @@ const UserManagement = () => {
   const deleteUserMutation = useDeleteUser();
 
   const users = data?.users ?? [];
-  console.log("users", users);
+  // console.log("users", users);
   const totalUsers = data?.pagination?.totalUsers ?? 0;
 
   if (pagination.total !== totalUsers) {
@@ -531,12 +530,18 @@ const UserManagement = () => {
       title: "Account Number",
     },
     {
-      key: "amountSpent",
+      key: "totalPurchase",
       title: "Amount Spent",
+      render: (_: any, record: User) => {
+        return <span>${record.totalPurchase || 0}</span>;
+      },
     },
     {
-      key: "transactions",
+      key: "transactionCount",
       title: "Transactions",
+      render: (_: any, record: User) => {
+        return <span>{record.transactionCount || 0}</span>;
+      },
     },
 
     {

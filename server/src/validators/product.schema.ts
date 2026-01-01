@@ -40,6 +40,8 @@ export const createProductSchema = z.object({
   serviceId: z
     .union([z.string(), z.number()])
     .transform((val) => val.toString()),
+  apiProviderId: z.string().uuid(),
+  apiProviderName: z.string().max(100).optional(),
 });
 
 // Alternative simpler approach - let the middleware handle JSON parsing

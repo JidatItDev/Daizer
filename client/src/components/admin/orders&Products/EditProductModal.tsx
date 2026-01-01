@@ -29,6 +29,7 @@ import { Button as PopButton } from "../../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useApiProviders } from "../../../api/useExternalProvider";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ interface FormData {
   subcategoryId: string;
   image: File | null;
   pricingGroupPrices: Record<string, string>;
+  apiProviderId?: string;
   serviceId?: string;
   isActive: boolean;
 }
@@ -63,11 +65,19 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     subcategoryId: "",
     image: null,
     pricingGroupPrices: {},
+    apiProviderId: undefined,
     serviceId: "",
     isActive: true,
   });
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+    null
+  );
+
+  const { data: apiProviders, isLoading: isLoadingProviders } =
+    useApiProviders();
+  const providers = apiProviders ?? [];
   // const { data: services = [] } = useProductServices();
-  const { data: servicesData } = useProductServices();
+  const { data: servicesData } = useProductServices(selectedProviderId);
   const services = (servicesData as ServiceResponse)?.services || [];
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -92,7 +102,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
           pricingGroupPrices[pg.id] = pg.price.toString();
         });
       }
-
+      console.log(product);
       setFormData({
         name: product.name,
         quantity: product.quantity || "",
@@ -100,9 +110,11 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         subcategoryId: product.subcategoryId,
         image: null,
         pricingGroupPrices,
+        apiProviderId: product.apiProviderId,
         serviceId: product.serviceId?.toString() || "",
         isActive: product.isActive ?? true,
       });
+      setSelectedProviderId(product.apiProviderId || null);
     }
   }, [product, isOpen]);
 
@@ -132,6 +144,9 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     if (!formData.name.trim()) {
       newErrors.name = "Product name is required";
     }
+
+    if (!formData.apiProviderId)
+      newErrors.apiProviderId = "API Provider is required";
 
     if (!formData.subcategoryId) {
       newErrors.subcategoryId = "Please select a category";
@@ -210,6 +225,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
         pricingGroupPrices,
+        apiProviderId: formData.apiProviderId!,
         serviceId: formData.serviceId?.toString() || "",
         isActive: formData.isActive,
       });
@@ -231,6 +247,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       subcategoryId: "",
       image: null,
       pricingGroupPrices: {},
+      apiProviderId: undefined,
+      serviceId: "",
       isActive: true,
     });
     setErrors({});
@@ -364,9 +382,57 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             </div>
             {/* Select Service */}
             <div className="w-full">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <PopButton
+                    variant="outline"
+                    className="w-full justify-between"
+                    disabled={isLoadingProviders}
+                  >
+                    {selectedProviderId
+                      ? providers.find((p) => p.id === selectedProviderId)
+                          ?.providerName
+                      : "Select API Provider"}
+                    <ChevronsUpDown className="h-4 w-4" />
+                  </PopButton>
+                </PopoverTrigger>
+                <PopoverContent className="p-0">
+                  <Command>
+                    <CommandInput placeholder="Search provider..." />
+                    <CommandList>
+                      <CommandGroup>
+                        {providers
+                          .filter((p) => p.active)
+                          .map((provider) => (
+                            <CommandItem
+                              key={provider.id}
+                              onSelect={() => {
+                                setSelectedProviderId(provider.id);
+                                handleInputChange("apiProviderId", provider.id);
+                                handleInputChange("serviceId", "");
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedProviderId === provider.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {provider.providerName}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Service
               </label>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <PopButton

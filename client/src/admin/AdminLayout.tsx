@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { LiaUsersCogSolid } from "react-icons/lia";
 import { BsFillCreditCardFill } from "react-icons/bs";
 import { TbUserDollar } from "react-icons/tb";
-
+import { TbApi } from "react-icons/tb";
 import Sidebar from "../components/common/Sidebar";
 import Header from "../components/common/Header";
 import { MdDashboard } from "react-icons/md";
@@ -30,6 +30,11 @@ const AdminLayout = () => {
       name: "Orders & Products",
       icon: <MdDashboard />,
       path: "orders-products",
+    },
+    {
+      name: "Api Configuration",
+      icon: <TbApi />,
+      path: "external-api",
     },
     {
       name: "Platform Setting",

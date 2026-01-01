@@ -8,6 +8,7 @@ import {
   index,
   boolean,
 } from "drizzle-orm/pg-core";
+import { externalProviders } from "./externalProviders.schema";
 
 export const products = pgTable(
   "products",
@@ -27,7 +28,11 @@ export const products = pgTable(
     serviceId: varchar("service_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-    zohoItemId: varchar("zoho_item_id", { length: 50 }).default(""), // ← ADD THIS
+    zohoItemId: varchar("zoho_item_id", { length: 50 }).default(""),
+    apiProviderId: uuid("api_provider_id")
+      .notNull()
+      .references(() => externalProviders.id),
+    apiProviderName: varchar("api_provider_name", { length: 100 }),
   },
   (product) => ({
     nameIdx: index("products_name_idx").on(product.name),

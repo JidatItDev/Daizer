@@ -16,6 +16,7 @@ export interface Product {
   }[];
   subcategoryId: string;
   serviceId: string;
+  apiProviderId: string;
   image?: {
     name: string;
     url: string;
@@ -67,6 +68,7 @@ export interface CreateProductPayload {
   subcategoryId: string;
   serviceId: string;
   image?: File;
+  apiProviderId?: string;
   isActive: boolean;
 }
 
@@ -79,6 +81,7 @@ export interface UpdateProductPayload {
   image?: File;
   serviceId?: string;
   isActive?: boolean;
+  apiProviderId?: string;
 }
 
 export interface ExternalService {
@@ -214,6 +217,7 @@ export const useCreateProduct = () => {
         formData.append("quantity", payload.quantity?.toString());
       }
       formData.append("serviceId", payload.serviceId.toString());
+      formData.append("apiProviderId", payload.apiProviderId);
 
       // console.log("form data", formData);
       const response = await axiosPrivate.post(
@@ -259,6 +263,9 @@ export const useUpdateProduct = () => {
       if (payload.isActive !== undefined) {
         formData.append("isActive", String(payload.isActive));
       }
+      if (payload.apiProviderId) {
+        formData.append("apiProviderId", payload.apiProviderId);
+      }
 
       const response = await axiosPrivate.put(
         `/products/updateProduct/${id}`,
@@ -294,20 +301,43 @@ export const useDeleteProduct = () => {
   });
 };
 
-export const useProductServices = () => {
+// export const useProductServices = () => {
+//   return useQuery({
+//     queryKey: ["productServices"],
+//     queryFn: async (): Promise<ProductServicesResponse> => {
+//       const response = await axiosPrivate.post(
+//         "/products/getProductServices",
+//         { request: "servicelist" }, // ✅ still send body for consistency
+//         {
+//           headers: {
+//             "Content-Type": "application/json",
+//           },
+//         }
+//       );
+//       return response.data;
+//     },
+//     staleTime: 10 * 60 * 1000,
+//   });
+// };
+
+export const useProductServices = (providerId?: string | null) => {
   return useQuery({
-    queryKey: ["productServices"],
-    queryFn: async (): Promise<ProductServicesResponse> => {
-      const response = await axiosPrivate.post(
+    queryKey: ["productServices", providerId],
+    enabled: !!providerId,
+    queryFn: async () => {
+      const { data } = await axiosPrivate.post(
         "/products/getProductServices",
-        { request: "servicelist" }, // ✅ still send body for consistency
+        {
+          request: "servicelist",
+          providerId,
+        },
         {
           headers: {
             "Content-Type": "application/json",
           },
         }
       );
-      return response.data;
+      return data;
     },
     staleTime: 10 * 60 * 1000,
   });

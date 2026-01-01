@@ -235,25 +235,25 @@ class WalletController {
         .from(users)
         .where(eq(users.role, "admin"));
 
-      // for (const admin of admins) {
-      //   await EmailService.sendTemplateEmail(
-      //     "refundRequestAdminNotification",
-      //     admin.email,
-      //     {
-      //       adminName: admin.name,
-      //       admin: admin.name,
-      //       requestedBy: user.name,
-      //       name: user.name,
-      //       requesterEmail: user.email,
-      //       email: user.email,
-      //       amount,
-      //       refundAmount: amount,
-      //       refundId: rr.id,
-      //       id: rr.id,
-      //       status: rr.status || "pending",
-      //     }
-      //   );
-      // }
+      for (const admin of admins) {
+        await EmailService.sendTemplateEmail(
+          "refundRequestAdminNotification",
+          admin.email,
+          {
+            adminName: admin.name,
+            admin: admin.name,
+            requestedBy: user.name,
+            name: user.name,
+            requesterEmail: user.email,
+            email: user.email,
+            amount,
+            refundAmount: amount,
+            refundId: rr.id,
+            id: rr.id,
+            status: rr.status || "pending",
+          }
+        );
+      }
 
       return res.status(201).json({ success: true, refundRequest: rr });
     } catch (err) {
@@ -711,21 +711,21 @@ class WalletController {
           // invalidateWalletCaches(refund.userId)a,
         ]);
 
-        // if (user) {
-        //   await EmailService.sendTemplateEmail(
-        //     "refundApprovedNotification",
-        //     user.email,
-        //     {
-        //       name: user.name,
-        //       refundId: refund.id,
-        //       amount: refund.amount.toString(),
-        //       newBalance: newBalance.toString(),
-        //       destination,
-        //       sentBy,
-        //       status: approvedRefund.status || "accepted",
-        //     }
-        //   );
-        // }
+        if (user) {
+          await EmailService.sendTemplateEmail(
+            "refundApprovedNotification",
+            user.email,
+            {
+              name: user.name,
+              refundId: refund.id,
+              amount: refund.amount.toString(),
+              newBalance: newBalance.toString(),
+              destination,
+              sentBy,
+              status: approvedRefund.status || "accepted",
+            }
+          );
+        }
 
         return res.json({
           success: true,
@@ -904,7 +904,9 @@ class WalletController {
           success: true,
           wallet: updatedWallet,
           newBalance,
-          message: `Wallet ${type === "credit" ? "credited" : "debited"} successfully`,
+          message: `Wallet ${
+            type === "credit" ? "credited" : "debited"
+          } successfully`,
         });
       } catch (err: any) {
         // Everything rolls back automatically thanks to `tx.rollback()` on error
@@ -918,6 +920,7 @@ class WalletController {
       }
     });
   }
+
   static async createPayPalOrder(req: Request, res: Response) {
     try {
       const userId = req.user!.id;
@@ -951,8 +954,9 @@ class WalletController {
         },
       });
 
-      const order = await paypalClient().execute(request);
-
+      // const order = await paypalClient().execute(request);
+      const client = await paypalClient();
+      const order = await client.execute(request);
       // Save pending transaction (store in dollars, not cents)
       await db.insert(transactions).values({
         walletId: wallet.id,
@@ -989,7 +993,9 @@ class WalletController {
           orderId
         );
         request.requestBody({});
-        const capture = await paypalClient().execute(request);
+        // const capture = await paypalClient().execute(request);
+        const client = await paypalClient();
+        const capture = await client.execute(request);
 
         const status = capture.result.status;
         const captureId =
@@ -1073,16 +1079,16 @@ class WalletController {
 
         // 7. Invalidate cache (non-critical)
         await invalidateUserTransactionsCache(userId);
-        // if (user) {
-        //   await EmailService.sendTemplateEmail("topup", user.email, {
-        //     name: user.name,
-        //     amount,
-        //     currency,
-        //     newBalance: updatedwallet.balance.toString(),
-        //     referenceId: captureId,
-        //     date: new Date().toLocaleString(),
-        //   });
-        // }
+        if (user) {
+          await EmailService.sendTemplateEmail("topup", user.email, {
+            name: user.name,
+            amount,
+            currency,
+            newBalance: updatedWallet.balance.toString(),
+            referenceId: captureId,
+            date: new Date().toLocaleString(),
+          });
+        }
 
         return res.json({
           success: true,

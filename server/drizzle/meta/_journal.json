@@ -176,6 +176,27 @@
       "when": 1763997785103,
       "tag": "0024_lean_ben_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1766399886839,
+      "tag": "0025_real_strong_guy",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1766481462872,
+      "tag": "0026_previous_jubilee",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1766580330772,
+      "tag": "0027_jazzy_the_leader",
+      "breakpoints": true
     }
   ]
 }

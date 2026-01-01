@@ -486,6 +486,8 @@ authRouter.get(
   AuthController.getUserByIdWithWalletAndPurchases
 );
 
+authRouter.get("/orders", authenticate, AuthController.getAllOrders);
+
 authRouter.get("/users", authenticate, AuthController.getAllUsers);
 /**
  * @swagger

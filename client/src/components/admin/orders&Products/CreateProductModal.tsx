@@ -27,6 +27,7 @@ import { Button as PopButton } from "../../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useApiProviders } from "../../../api/useExternalProvider";
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -41,8 +42,20 @@ interface FormData {
   image: File | null;
   imageUrl: string | undefined;
   pricingGroupPrices: Record<string, string>;
+  apiProviderId?: string;
   serviceId?: string;
   isActive: boolean;
+}
+
+interface ApiProvider {
+  id: string;
+  providerName: string;
+  hostUrl: string;
+  username: string;
+  password: string;
+  token?: string;
+  active: boolean;
+  createdAt: string;
 }
 
 interface ServiceResponse {
@@ -65,6 +78,10 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     isActive: true,
   });
 
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+    null
+  );
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: pricingGroupsData, isLoading: isLoadingPricingGroups } =
@@ -73,8 +90,20 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     useCategoriesTree();
   const createProductMutation = useCreateProduct();
 
+  const {
+    data: apiProviders,
+    isLoading: isLoadingApiProviders,
+    refetch,
+  } = useApiProviders();
+
+  const providers: ApiProvider[] = apiProviders ?? [];
+
   // const { data: services = [] } = useProductServices();
-  const { data: servicesData } = useProductServices();
+  // const { data: servicesData } = useProductServices();
+
+  const { data: servicesData, isLoading: isLoadingServices } =
+    useProductServices(selectedProviderId);
+
   const services = (servicesData as ServiceResponse)?.services || [];
 
   const pricingGroups = pricingGroupsData?.pricingGroups || [];
@@ -122,6 +151,9 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     // Quantity validation (optional field)
     if (formData.quantity && isNaN(parseFloat(formData.quantity))) {
       newErrors.quantity = "Quantity must be a valid number";
+    }
+    if (!formData.apiProviderId) {
+      newErrors.apiProviderId = "Please select an API provider";
     }
 
     // Description validation
@@ -197,6 +229,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
         pricingGroupPrices,
+        apiProviderId: formData.apiProviderId!,
         serviceId: formData.serviceId?.toString() || "",
         isActive: formData.isActive,
       });
@@ -252,6 +285,8 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
       image: null,
       imageUrl: undefined,
       pricingGroupPrices: {},
+      serviceId: "",
+      apiProviderId: undefined,
       isActive: true,
     });
     setErrors({});
@@ -386,12 +421,70 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
             </div>
 
             <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                External API Provider <span className="text-red-500">*</span>
+              </label>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <PopButton
                     variant="outline"
                     role="combobox"
                     className="w-full justify-between"
+                    disabled={isLoadingApiProviders}
+                  >
+                    {selectedProviderId
+                      ? providers.find((p) => p.id === selectedProviderId)
+                          ?.providerName
+                      : "Select API Provider..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  </PopButton>
+                </PopoverTrigger>
+
+                <PopoverContent className="p-0 w-full">
+                  <Command>
+                    <CommandInput placeholder="Search provider..." />
+                    <CommandList>
+                      <CommandEmpty>No providers found.</CommandEmpty>
+                      <CommandGroup>
+                        {providers
+                          .filter((p) => p.active)
+                          .map((provider) => (
+                            <CommandItem
+                              key={provider.id}
+                              value={provider.providerName}
+                              onSelect={() => {
+                                setSelectedProviderId(provider.id);
+                                handleInputChange("apiProviderId", provider.id);
+                                handleInputChange("serviceId", ""); // reset service
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedProviderId === provider.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {provider.providerName}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="w-full">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <PopButton
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                    disabled={!selectedProviderId || isLoadingServices}
                   >
                     {/* {formData.serviceId
                       ? services?.find(

@@ -16,6 +16,7 @@ import { CreateProductModal } from "../../components/admin/orders&Products/Creat
 import { EditProductModal } from "../../components/admin/orders&Products/EditProductModal";
 import { ProductDetailModal } from "../../components/admin/orders&Products/ProductDetailModal";
 import ConfirmationModalNew from "../../components/common/NewConfirmationModal";
+import OrderManagement from "./OrderManagement";
 
 // Updated Product interface to match API response
 
@@ -267,14 +268,15 @@ const ProductsManagement = () => {
       label: "Order Management",
       content: (
         <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Orders Management
             </h3>
             <p className="text-gray-500">
               Order management functionality will be implemented here.
             </p>
-          </div>
+          </div> */}
+          <OrderManagement />
         </div>
       ),
     },

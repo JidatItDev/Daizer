@@ -14,6 +14,7 @@ import { ZohoItemService } from "../services/ZohoServices/zohoItems.service";
 import { ZohoAccountIdsFetchingService } from "../services/ZohoServices/zohoAccountIdsFetching.service";
 import { ZohoWalletService } from "../services/ZohoServices/zohoWallet.service";
 import { ZohoProductPurchaseService } from "../services/ZohoServices/zohoProductsPurchase.service";
+import { externalProviders } from "../db/schema/externalProviders.schema";
 
 // Helper → Invalidate product caches
 // const invalidateProductsCache = async () => {
@@ -69,7 +70,28 @@ class ProductController {
         quantity,
         serviceId,
         isActive,
+        apiProviderId,
       } = body;
+
+      if (!apiProviderId) {
+        return res.status(400).json({
+          success: false,
+          message: "apiProviderId is required",
+        });
+      }
+
+      const [provider] = await db
+        .select()
+        .from(externalProviders)
+        .where(eq(externalProviders.id, apiProviderId))
+        .limit(1);
+
+      if (!provider || !provider.active) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid or inactive API provider",
+        });
+      }
 
       // Parse JSON if it's string
       if (typeof pricingGroupPrices === "string") {
@@ -167,6 +189,8 @@ class ProductController {
             subcategoryId: subcategory.id,
             subcategoryName: subcategory.name,
             serviceId,
+            apiProviderId: provider.id,
+            apiProviderName: provider.providerName,
             image,
             isActive: isActive ?? true,
             zohoItemId: zohoItem.item_id,
@@ -191,6 +215,7 @@ class ProductController {
       });
     }
   }
+
   // static async updateProduct(req: Request, res: Response) {
   //   try {
   //     const { id } = req.params;
@@ -296,6 +321,7 @@ class ProductController {
   //     });
   //   }
   // }
+
   static async updateProduct(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -307,6 +333,7 @@ class ProductController {
         quantity,
         serviceId,
         isActive,
+        apiProviderId,
       } = req.body;
 
       // Parse JSON if it's string
@@ -347,6 +374,24 @@ class ProductController {
       if (quantity !== undefined) updateData.quantity = quantity;
       if (serviceId !== undefined) updateData.serviceId = serviceId;
       if (isActive !== undefined) updateData.isActive = isActive;
+
+      if (apiProviderId !== undefined) {
+        const [provider] = await db
+          .select()
+          .from(externalProviders)
+          .where(eq(externalProviders.id, apiProviderId))
+          .limit(1);
+
+        if (!provider || !provider.active) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid or inactive API provider",
+          });
+        }
+
+        updateData.apiProviderId = provider.id;
+        updateData.apiProviderName = provider.providerName;
+      }
 
       let enrichedPricingGroups:
         | {
@@ -759,55 +804,56 @@ class ProductController {
     }
   }
 
-  static async getProductServices(req: Request, res: Response) {
-    try {
-      const apiUrl = process.env.EXTERNAL_PRODUCT_API;
-      if (!apiUrl) {
-        return res.status(500).json({
-          success: false,
-          message: "External API URL not configured",
-        });
-      }
+  // static async getProductServices(req: Request, res: Response) {
+  //   try {
+  //     const apiUrl = process.env.EXTERNAL_PRODUCT_API;
+  //     if (!apiUrl) {
+  //       return res.status(500).json({
+  //         success: false,
+  //         message: "External API URL not configured",
+  //       });
+  //     }
 
-      const cacheKey = "external:productServices";
+  //     const cacheKey = "external:productServices";
 
-      const cached = await redisClient.get(cacheKey);
-      if (cached) {
-        return res.status(200).json(JSON.parse(cached));
-      }
+  //     const cached = await redisClient.get(cacheKey);
+  //     if (cached) {
+  //       return res.status(200).json(JSON.parse(cached));
+  //     }
 
-      const formData = new URLSearchParams();
-      formData.append("request", "servicelist");
+  //     const formData = new URLSearchParams();
+  //     formData.append("request", "servicelist");
 
-      const { data } = await axios.post(apiUrl, formData, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
+  //     const { data } = await axios.post(apiUrl, formData, {
+  //       headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  //     });
 
-      if (!data || !data.status) {
-        return res.status(500).json({
-          success: false,
-          message: "Failed to fetch services",
-          raw: data,
-        });
-      }
+  //     if (!data || !data.status) {
+  //       return res.status(500).json({
+  //         success: false,
+  //         message: "Failed to fetch services",
+  //         raw: data,
+  //       });
+  //     }
 
-      const response = {
-        success: true,
-        count: data.ServiceCount,
-        services: data.ServiceList,
-      };
+  //     const response = {
+  //       success: true,
+  //       count: data.ServiceCount,
+  //       services: data.ServiceList,
+  //     };
 
-      await redisClient.setEx(cacheKey, 600, JSON.stringify(response));
+  //     await redisClient.setEx(cacheKey, 600, JSON.stringify(response));
 
-      return res.status(200).json(response);
-    } catch (error: any) {
-      console.error("getProductServices error:", error.message);
-      return res.status(500).json({
-        success: false,
-        message: "Error fetching external product services",
-      });
-    }
-  }
+  //     return res.status(200).json(response);
+  //   } catch (error: any) {
+  //     console.error("getProductServices error:", error.message);
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: "Error fetching external product services",
+  //     });
+  //   }
+  // }
+
   // Add this method to your ProductController class
   // static async purchaseProduct(req: Request, res: Response) {
   //   try {
@@ -1088,6 +1134,100 @@ class ProductController {
   // PRODUCT PURCHASE WITH PROPER ZOHO SYNC
   // ==========================================
 
+  static async getProductServices(req: Request, res: Response) {
+    try {
+      const { providerId } = req.body;
+
+      if (!providerId) {
+        return res.status(400).json({
+          success: false,
+          message: "providerId is required",
+        });
+      }
+
+      /* ---------------------------------------------
+       * 1️⃣ Fetch provider from DB (Drizzle-safe)
+       * --------------------------------------------- */
+      const [provider] = await db
+        .select()
+        .from(externalProviders)
+        .where(eq(externalProviders.id, providerId))
+        .limit(1);
+
+      if (!provider || !provider.active) {
+        return res.status(404).json({
+          success: false,
+          message: "API provider not found or inactive",
+        });
+      }
+
+      /* ---------------------------------------------
+       * 2️⃣ Build external API URL dynamically
+       * --------------------------------------------- */
+      const base = provider.hostUrl.replace(/\/$/, "");
+      const apiUrl =
+        provider.username && provider.token
+          ? `${base}/${provider.username}/${provider.token}`
+          : base;
+
+      /* ---------------------------------------------
+       * 3️⃣ Provider-specific cache
+       * --------------------------------------------- */
+      const cacheKey = `external:productServices:${provider.id}`;
+      const cached = await redisClient.get(cacheKey);
+
+      if (cached) {
+        return res.status(200).json(JSON.parse(cached));
+      }
+
+      /* ---------------------------------------------
+       * 4️⃣ Call external API
+       * --------------------------------------------- */
+      const formData = new URLSearchParams();
+      formData.append("request", "servicelist");
+
+      const { data } = await axios.post(apiUrl, formData, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        timeout: 15000,
+      });
+
+      if (!data?.status) {
+        return res.status(502).json({
+          success: false,
+          message: "External API failed",
+          raw: data,
+        });
+      }
+
+      /* ---------------------------------------------
+       * 5️⃣ Normalize response
+       * --------------------------------------------- */
+      const response = {
+        success: true,
+        providerId: provider.id,
+        providerName: provider.providerName,
+        currency: provider.currency,
+        count: data.ServiceCount,
+        services: data.ServiceList,
+      };
+
+      /* ---------------------------------------------
+       * 6️⃣ Cache result (10 minutes)
+       * --------------------------------------------- */
+      await redisClient.setEx(cacheKey, 600, JSON.stringify(response));
+
+      return res.status(200).json(response);
+    } catch (error: any) {
+      console.error("getProductServices error:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching product services",
+      });
+    }
+  }
+
   static async purchaseProduct(req: Request, res: Response) {
     try {
       const { productId } = req.params;
@@ -1182,13 +1322,18 @@ class ProductController {
       const formData = new URLSearchParams();
       formData.append("request", "neworder");
       formData.append("service", product.serviceId.toString());
+      console.log("service", product.serviceId.toString());
       formData.append("reference", referenceNumber.toString());
+      console.log("reference", referenceNumber.toString());
       formData.append("player_id", playerId);
+      console.log("player_id", playerId);
 
       const { data } = await axios.post(apiUrl, formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         timeout: 30000,
       });
+
+      console.log("external service response", data);
 
       if (!data || !data.status) {
         return res.status(500).json({

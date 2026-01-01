@@ -180,7 +180,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         onClose={onClose}
         heading="Manage Categories"
         subheading="Create, edit, and organize your product categories"
-        widthClass="w-[700px] max-h-[90vh] overflow-y-auto"
+        widthClass="max-w-[700px] max-h-[90vh] overflow-y-auto"
       >
         <div className="space-y-6">
           {/* Search Bar */}
@@ -323,7 +323,9 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         onClose={() => setDeleteConfirmation({ isOpen: false, category: null })}
         onConfirm={handleDeleteCategory}
         title="Delete Category"
-        message={`Are you sure you want to delete "${deleteConfirmation.category?.name}"? ${
+        message={`Are you sure you want to delete "${
+          deleteConfirmation.category?.name
+        }"? ${
           deleteConfirmation.category?.subcategories?.length
             ? "This will also delete all subcategories."
             : ""

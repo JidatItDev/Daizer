@@ -13,6 +13,7 @@ import configRouter from "./routes/config.routes";
 import emailTemplateRouter from "./routes/emailTemplate.routes";
 import zohoRoutes from "./routes/zoho.routes";
 import axios from "axios";
+import externalProviderRouter from "./routes/externalProvider.routes";
 
 dotenv.config();
 
@@ -45,6 +46,8 @@ app.use("/api/v1/pricing-groups", pricingGroupRouter);
 app.use("/api/v1/wallet", walletRouter);
 app.use("/api/v1/config", configRouter);
 app.use("/api/v1/emailTemplate", emailTemplateRouter);
+app.use("/api/v1/external-providers", externalProviderRouter);
+
 app.use("/api/v1/zoho", zohoRoutes);
 // async function verifyZohoBooksConnection(accessToken: string) {
 //   try {

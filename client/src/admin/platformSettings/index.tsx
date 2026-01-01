@@ -29,6 +29,10 @@ const Settings = () => {
   const updateConfig = useUpdateOrCreateConfig();
   const configobj = useConfigContext();
   const logoUrl = configobj?.logoUrl || "";
+  const [paypalClientId, setPaypalClientId] = useState("");
+  const [paypalClientSecret, setPaypalClientSecret] = useState("");
+  const [paypalMode, setPaypalMode] = useState<"sandbox" | "live">("sandbox");
+
   const [paginationState, setPaginationState] = useState({
     page: 1,
     limit: 10,
@@ -41,7 +45,7 @@ const Settings = () => {
 
   const [editMode, setEditMode] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [minBalance, setMinBalance] = useState("0");
+  // const [minBalance, setMinBalance] = useState("0");
 
   // Email templates modal state
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -60,11 +64,19 @@ const Settings = () => {
     });
   };
 
+  // useEffect(() => {
+  //   if (config?.config) {
+  //     setMinBalance(config?.config?.minimumBalanceRequirement || "0");
+  //   }
+  // }, [config?.config]);
+
   useEffect(() => {
     if (config?.config) {
-      setMinBalance(config?.config?.minimumBalanceRequirement || "0");
+      setPaypalClientId(config.config.paypalClientId || "");
+      setPaypalClientSecret(config.config.paypalClientSecret || "");
+      setPaypalMode(config.config.paypalMode || "sandbox");
     }
-  }, [config?.config]);
+  }, [config]);
 
   const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,8 +87,11 @@ const Settings = () => {
 
   const handleSave = () => {
     const formData = new FormData();
-    const mainBalanceRequirement = String(minBalance);
-    formData.append("minimumBalanceRequirement", mainBalanceRequirement);
+    // const mainBalanceRequirement = String(minBalance);
+    // formData.append("minimumBalanceRequirement", mainBalanceRequirement);
+    formData.append("paypalClientId", paypalClientId);
+    formData.append("paypalClientSecret", paypalClientSecret);
+    formData.append("paypalMode", paypalMode);
 
     if (logoFile) {
       formData.append("logo", logoFile);
@@ -91,9 +106,9 @@ const Settings = () => {
 
   const handleCancel = () => {
     setEditMode(false);
-    if (config) {
-      setMinBalance(config.minBalance || "1000");
-    }
+    // if (config) {
+    //   setMinBalance(config.minBalance || "1000");
+    // }
     setLogoFile(null);
   };
 
@@ -243,6 +258,41 @@ const Settings = () => {
                   />
                 </label>
               )}
+            </div>
+          </div>
+          <div className=" p-6 rounded-2xl w-full mt-10">
+            {/* <Heading size="sm">PayPal Configuration</Heading> */}
+
+            <div className="grid grid-cols-2 gap-6 mt-6">
+              <Input
+                label="PayPal Client ID"
+                value={paypalClientId}
+                disabled={!editMode}
+                onChange={(e) => setPaypalClientId(e.target.value)}
+              />
+
+              <Input
+                label="PayPal Client Secret"
+                type="password"
+                value={paypalClientSecret}
+                disabled={!editMode}
+                onChange={(e) => setPaypalClientSecret(e.target.value)}
+              />
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Mode</label>
+                <select
+                  value={paypalMode}
+                  disabled={!editMode}
+                  onChange={(e) =>
+                    setPaypalMode(e.target.value as "sandbox" | "live")
+                  }
+                  className="w-full border rounded-md px-3 py-2"
+                >
+                  <option value="sandbox">Sandbox</option>
+                  <option value="live">Live</option>
+                </select>
+              </div>
             </div>
           </div>
 
