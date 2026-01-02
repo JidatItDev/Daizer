@@ -805,22 +805,45 @@ class AuthController {
     try {
       const { email, name, pricingGroupId } = req.body;
       const normalizedEmail = email.toLowerCase().trim();
+      const now = new Date();
 
-      // check if email already used
+      // // 1️⃣ Check if user already exists
       const [existingUser] = await db
         .select({ id: users.id })
         .from(users)
         .where(eq(users.email, normalizedEmail))
         .limit(1);
+
       if (existingUser) {
-        return res.status(409).json({ message: "Email already in use" });
+        return res.status(409).json({
+          message: "User already exists with this email",
+        });
       }
 
-      // generate token
-      const token = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hrs
+      // 2️⃣ Check latest signup link for this email
+      const [existingSignupLink] = await db
+        .select()
+        .from(signupLinks)
+        .where(eq(signupLinks.email, normalizedEmail))
+        .orderBy(desc(signupLinks.createdAt))
+        .limit(1);
 
-      const [link] = await db
+      if (
+        existingSignupLink &&
+        !existingSignupLink.isUsed &&
+        existingSignupLink.expiresAt > now
+      ) {
+        return res.status(409).json({
+          message: "An active signup link already exists",
+          signupLink: existingSignupLink,
+        });
+      }
+
+      // 3️⃣ Create new signup link
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 24); // 24h
+
+      const [newLink] = await db
         .insert(signupLinks)
         .values({
           email: normalizedEmail,
@@ -828,6 +851,7 @@ class AuthController {
           pricingGroupId,
           token,
           expiresAt,
+          isUsed: false,
         })
         .returning();
 
@@ -842,7 +866,7 @@ class AuthController {
       return res.status(201).json({
         success: true,
         message: "Signup link created and sent",
-        link,
+        link: newLink,
       });
     } catch (err) {
       console.error("Create signup link error:", err);
@@ -1373,6 +1397,105 @@ class AuthController {
       });
     } catch (error) {
       console.error("Get all orders error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
+  static async getMyOrders(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+
+      const {
+        page = 1,
+        limit = 10,
+        sortField = "createdAt",
+        sortOrder = "desc",
+        fromDate,
+        toDate,
+      } = req.query;
+
+      const pageNum = Number(page);
+      const limitNum = Number(limit);
+      const offset = (pageNum - 1) * limitNum;
+
+      /* ---------------- Sorting ---------------- */
+      const allowedSortFields: Record<string, any> = {
+        createdAt: transactions.createdAt,
+        amount: transactions.amount,
+        status: transactions.status,
+      };
+
+      const orderByField =
+        allowedSortFields[String(sortField)] || transactions.createdAt;
+
+      const orderDirection =
+        String(sortOrder).toLowerCase() === "asc" ? asc : desc;
+
+      /* ---------------- Filters ---------------- */
+      let whereCondition = and(
+        eq(transactions.type, "purchase"),
+        eq(transactions.userId, userId)
+      );
+
+      if (fromDate) {
+        whereCondition = and(
+          whereCondition,
+          gte(transactions.createdAt, new Date(String(fromDate)))
+        );
+      }
+
+      if (toDate) {
+        whereCondition = and(
+          whereCondition,
+          lte(transactions.createdAt, new Date(`${toDate}T23:59:59.999Z`))
+        );
+      }
+
+      /* ---------------- Queries ---------------- */
+      const [orders, countResult] = await Promise.all([
+        db
+          .select({
+            orderId: transactions.id,
+            amount: transactions.amount,
+            currency: transactions.currency,
+            status: transactions.status,
+            metadata: transactions.metadata,
+            createdAt: transactions.createdAt,
+
+            walletId: wallets.id,
+          })
+          .from(transactions)
+          .leftJoin(wallets, eq(wallets.userId, transactions.userId))
+          .where(whereCondition)
+          .orderBy(orderDirection(orderByField))
+          .limit(limitNum)
+          .offset(offset),
+
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(transactions)
+          .where(whereCondition),
+      ]);
+
+      const [{ count }] = countResult;
+
+      return res.status(200).json({
+        success: true,
+        orders: orders.map((o) => ({
+          ...o,
+          amount: Number(o.amount),
+        })),
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalOrders: Number(count),
+          totalPages: Math.ceil(Number(count) / limitNum),
+        },
+      });
+    } catch (error) {
+      console.error("Get my orders error:", error);
       return res.status(500).json({
         success: false,
         message: "Internal server error",

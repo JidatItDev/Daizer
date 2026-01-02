@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../../components/common/Button";
 import { Table, type TableColumn } from "../../components/common/Table";
 
@@ -164,35 +164,61 @@ const WalletManagement = () => {
   const refundRequests = refundsData?.refundRequests || refundsData || [];
 
   // Update pagination totals
-  if (
-    walletsData?.pagination?.total &&
-    walletsPagination.total !== walletsData.pagination.total
-  ) {
-    setWalletsPagination((prev) => ({
-      ...prev,
-      total: walletsData.pagination.total,
-    }));
-  }
+  // if (
+  //   walletsData?.pagination?.total &&
+  //   walletsPagination.total !== walletsData.pagination.total
+  // ) {
+  //   setWalletsPagination((prev) => ({
+  //     ...prev,
+  //     total: walletsData.pagination.total,
+  //   }));
+  // }
 
-  if (
-    transactionsData?.pagination?.total &&
-    transactionsPagination.total !== transactionsData.pagination.total
-  ) {
-    setTransactionsPagination((prev) => ({
-      ...prev,
-      total: transactionsData.pagination.total,
-    }));
-  }
+  // if (
+  //   transactionsData?.pagination?.total &&
+  //   transactionsPagination.total !== transactionsData.pagination.total
+  // ) {
+  //   setTransactionsPagination((prev) => ({
+  //     ...prev,
+  //     total: transactionsData.pagination.total,
+  //   }));
+  // }
 
-  if (
-    refundsData?.pagination?.total &&
-    refundsPagination.total !== refundsData.pagination.total
-  ) {
-    setRefundsPagination((prev) => ({
-      ...prev,
-      total: refundsData.pagination.total,
-    }));
-  }
+  // if (
+  //   refundsData?.pagination?.total &&
+  //   refundsPagination.total !== refundsData.pagination.total
+  // ) {
+  //   setRefundsPagination((prev) => ({
+  //     ...prev,
+  //     total: refundsData.pagination.total,
+  //   }));
+  // }
+  useEffect(() => {
+    if (walletsData?.pagination?.total) {
+      setWalletsPagination((prev) => ({
+        ...prev,
+        total: walletsData.pagination.total,
+      }));
+    }
+  }, [walletsData?.pagination?.total]);
+
+  useEffect(() => {
+    if (transactionsData?.pagination?.total) {
+      setTransactionsPagination((prev) => ({
+        ...prev,
+        total: transactionsData.pagination.total,
+      }));
+    }
+  }, [transactionsData?.pagination?.total]);
+
+  useEffect(() => {
+    if (refundsData?.pagination?.total) {
+      setRefundsPagination((prev) => ({
+        ...prev,
+        total: refundsData.pagination.total,
+      }));
+    }
+  }, [refundsData?.pagination?.total]);
 
   const handleWalletsPageChange = (page: number, pageSize: number) => {
     setWalletsPagination((prev) => ({

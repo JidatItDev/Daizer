@@ -27,6 +27,7 @@ import WalletManagement from "./admin/WalletManagement";
 import Settings from "./admin/platformSettings";
 import UserDetails from "./admin/userManagement/UserDetails";
 import ExternalProviderSettings from "./admin/ExternalApiProvider";
+import MyOrder from "./user/myOrders";
 
 export const Signup = () => <div>Signup Page</div>;
 
@@ -92,6 +93,7 @@ function App() {
           <Route path="/browse-categories/:id" element={<Subcategory />} />
           <Route path="/products/:id" element={<Products />} />
           <Route path="/checkout/:id" element={<Checkout />} />
+          <Route path="/myOrders" element={<MyOrder />} />
           <Route path="/topup" element={<Topup />} />
 
           <Route path="/change-password" element={<Changepassword />} />

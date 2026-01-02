@@ -8,11 +8,13 @@ export class ZohoPriceBookService {
   private tokensService: ZohoTokensService;
   private zohoService: ZohoService;
   private ZohoItemService: ZohoItemService;
+
   constructor() {
     this.tokensService = new ZohoTokensService();
     this.zohoService = new ZohoService();
     this.ZohoItemService = new ZohoItemService();
   }
+
   async createPriceBookInZoho(name: string) {
     const accessToken = await this.zohoService.getValidAccessToken();
 
@@ -24,12 +26,9 @@ export class ZohoPriceBookService {
     }
     const items = await this.ZohoItemService.getZohoItems(accessToken);
 
-    // Suppose you already know the name of the item
     const myItem = items.find((item: any) => item.name === "Placeholder Item");
     const sanitizedName = sanitizePriceBookName(name);
-    // currency_id: '7462675000000000097',
-    // currency_code: 'USD',
-    // NOTE: currency_id is required by Zoho Inventory API
+
     const payload = {
       name: sanitizedName,
       description: `This is ${sanitizedName} Pricing Group`,
@@ -41,13 +40,12 @@ export class ZohoPriceBookService {
       pricebook_items: [
         {
           item_id: myItem.item_id,
-          pricebook_rate: 100, // Correct field
+          pricebook_rate: 100,
         },
       ],
     };
 
-    // Use the Inventory API base URL directly
-    const inventoryBaseUrl = ZOHO_ENV.BOOKS_API; // e.g. "https://www.zohoapis.com/inventory/v1"
+    const inventoryBaseUrl = ZOHO_ENV.BOOKS_API;
     const url = `${inventoryBaseUrl}/pricebooks?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
@@ -72,12 +70,114 @@ export class ZohoPriceBookService {
         );
       }
 
-      // Provide more context in error
       throw new Error(
         `Failed to create price book in Zoho: ` +
           `${error.response?.data?.message || error.message}. ` +
           `Ensure: (1) OAuth token has ZohoInventory.settings.CREATE scope, ` +
           `(2) payload includes required currency_id, and (3) your organization has pricing lists enabled.`
+      );
+    }
+  }
+
+  /**
+   * Helper: Get all customers that have a specific pricing group
+   */
+  private async getCustomersWithPricingGroup(
+    accessToken: string,
+    priceBookName: string
+  ): Promise<any[]> {
+    try {
+      console.log(
+        `   → Fetching customers with pricing group "${priceBookName}"...`
+      );
+
+      const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
+      const { data } = await axios.get(url, {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      });
+
+      const customers = data.contacts || [];
+
+      // Filter customers that have this pricing group in their custom field
+      const matchingCustomers = customers.filter((customer: any) => {
+        const customFields = customer.custom_fields || [];
+        const pricingGroupField = customFields.find(
+          (cf: any) => cf.label === "Pricing Group"
+        );
+        return pricingGroupField?.value === priceBookName;
+      });
+
+      console.log(
+        `   ✅ Found ${matchingCustomers.length} customers with pricing group "${priceBookName}"`
+      );
+      return matchingCustomers;
+    } catch (error: any) {
+      console.error(
+        "❌ Failed to fetch customers:",
+        error.response?.data || error.message
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Helper: Update customer's pricing group custom field
+   */
+  private async updateCustomerPricingGroup(
+    accessToken: string,
+    customerId: string,
+    newPricingGroup: string | null
+  ): Promise<void> {
+    try {
+      // Get current customer details
+      const { data: customerData } = await axios.get(
+        `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+          },
+        }
+      );
+
+      const customer = customerData.contact;
+      const customFields = customer.custom_fields || [];
+
+      // Find and update the Pricing Group field
+      const pricingGroupField = customFields.find(
+        (cf: any) => cf.label === "Pricing Group"
+      );
+
+      if (pricingGroupField) {
+        pricingGroupField.value = newPricingGroup || "";
+      }
+
+      // Update customer
+      const payload = {
+        custom_fields: customFields,
+      };
+
+      await axios.put(
+        `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Zoho-oauthtoken ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log(
+        `      ✅ Updated customer ${customerId} pricing group to: "${
+          newPricingGroup || "(empty)"
+        }"`
+      );
+    } catch (error: any) {
+      console.warn(
+        `      ⚠️ Could not update customer ${customerId}:`,
+        error.response?.data?.message || error.message
       );
     }
   }
@@ -155,10 +255,8 @@ export class ZohoPriceBookService {
 
         for (const priceBookItem of priceBookItems) {
           const itemId = priceBookItem.item_id;
-          const itemPrice = priceBookItem.pricebook_rate;
 
           try {
-            // Get current item details
             const { data: itemData } = await axios.get(
               `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               {
@@ -171,16 +269,13 @@ export class ZohoPriceBookService {
             const item = itemData.item;
             const customFields = item.custom_fields || [];
 
-            // ✅ Update "Pricing Groups" field - replace old name with new name
             const pricingGroupsField = customFields.find(
               (cf: any) => cf.label === "Pricing Groups"
             );
 
             if (pricingGroupsField && pricingGroupsField.value) {
-              // Parse current pricing groups: "Retail: 100 | Wholesale: 80 | VIP: 75"
               const pricingParts = pricingGroupsField.value.split(" | ");
 
-              // Replace the old price book name with the new one
               const updatedPricingParts = pricingParts.map((part: string) => {
                 const [groupName, price] = part.split(":").map((s) => s.trim());
                 if (groupName === oldPriceBookName) {
@@ -192,10 +287,6 @@ export class ZohoPriceBookService {
               pricingGroupsField.value = updatedPricingParts.join(" | ");
             }
 
-            // ✅ Min/Max prices stay the same since only the name changed
-            // (The prices themselves haven't changed)
-
-            // ✅ Update the item with updated custom fields
             const updatePayload = {
               custom_fields: customFields,
             };
@@ -219,14 +310,44 @@ export class ZohoPriceBookService {
               `      ⚠️ Could not update item ${itemId}:`,
               itemError.response?.data?.message || itemError.message
             );
-            // Continue with other items
           }
         }
 
-        console.log("   ✅ Step 3 complete: All custom fields updated");
-      } else if (!updates.name || updates.name === oldPriceBookName) {
+        console.log("   ✅ Step 3 complete: All items' custom fields updated");
+      } else {
         console.log(
-          "   ⏭️  Step 3 skipped: Name unchanged, no custom field updates needed"
+          "   ⏭️  Step 3 skipped: Name unchanged, no item custom field updates needed"
+        );
+      }
+
+      // ✅ STEP 4: Update customers' pricing group custom field if name changed
+      if (updates.name && updates.name !== oldPriceBookName) {
+        console.log("   → Step 4: Updating customers' pricing group field...");
+
+        const customers = await this.getCustomersWithPricingGroup(
+          accessToken,
+          oldPriceBookName
+        );
+
+        if (customers.length > 0) {
+          for (const customer of customers) {
+            await this.updateCustomerPricingGroup(
+              accessToken,
+              customer.contact_id,
+              newPriceBookName
+            );
+          }
+          console.log(
+            `   ✅ Step 4 complete: Updated ${customers.length} customers' pricing group field`
+          );
+        } else {
+          console.log(
+            "   ⏭️  Step 4: No customers found with this pricing group"
+          );
+        }
+      } else {
+        console.log(
+          "   ⏭️  Step 4 skipped: Name unchanged, no customer updates needed"
         );
       }
 
@@ -255,7 +376,9 @@ export class ZohoPriceBookService {
       }
 
       throw new Error(
-        `Failed to update price book in Zoho Books: ${error.response?.data?.message || error.message}`
+        `Failed to update price book in Zoho Books: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -295,7 +418,6 @@ export class ZohoPriceBookService {
           const itemId = priceBookItem.item_id;
 
           try {
-            // Get current item details
             const { data: itemData } = await axios.get(
               `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               {
@@ -308,16 +430,13 @@ export class ZohoPriceBookService {
             const item = itemData.item;
             const customFields = item.custom_fields || [];
 
-            // ✅ Update "Pricing Groups" field - remove this price book
             const pricingGroupsField = customFields.find(
               (cf: any) => cf.label === "Pricing Groups"
             );
 
             if (pricingGroupsField) {
-              // Parse current pricing groups: "Retail: 100 | Wholesale: 80 | VIP: 75"
               const pricingParts = pricingGroupsField.value.split(" | ");
 
-              // Filter out the price book being deleted
               const updatedPricingParts = pricingParts.filter(
                 (part: string) => {
                   const groupName = part.split(":")[0].trim();
@@ -325,20 +444,16 @@ export class ZohoPriceBookService {
                 }
               );
 
-              // Update the field
               pricingGroupsField.value = updatedPricingParts.join(" | ");
 
-              // If no pricing groups left, set to empty
               if (updatedPricingParts.length === 0) {
                 pricingGroupsField.value = "";
               }
             }
 
-            // ✅ Update Min/Max prices if other pricing groups exist
             const updatedCustomFields = [...customFields];
 
             if (pricingGroupsField && pricingGroupsField.value) {
-              // Recalculate min/max from remaining pricing groups
               const remainingPriceParts = pricingGroupsField.value.split(" | ");
               const remainingPrices = remainingPriceParts
                 .map((part: string) => {
@@ -351,7 +466,6 @@ export class ZohoPriceBookService {
                 const minPrice = Math.min(...remainingPrices);
                 const maxPrice = Math.max(...remainingPrices);
 
-                // Update Min Price field
                 const minPriceField = updatedCustomFields.find(
                   (cf: any) => cf.label === "Min Price"
                 );
@@ -359,7 +473,6 @@ export class ZohoPriceBookService {
                   minPriceField.value = minPrice.toString();
                 }
 
-                // Update Max Price field
                 const maxPriceField = updatedCustomFields.find(
                   (cf: any) => cf.label === "Max Price"
                 );
@@ -367,7 +480,6 @@ export class ZohoPriceBookService {
                   maxPriceField.value = maxPrice.toString();
                 }
               } else {
-                // No pricing groups left, clear min/max
                 updatedCustomFields.forEach((cf: any) => {
                   if (cf.label === "Min Price" || cf.label === "Max Price") {
                     cf.value = "";
@@ -375,7 +487,6 @@ export class ZohoPriceBookService {
                 });
               }
             } else {
-              // No pricing groups left, clear all pricing fields
               updatedCustomFields.forEach((cf: any) => {
                 if (
                   cf.label === "Pricing Groups" ||
@@ -387,7 +498,6 @@ export class ZohoPriceBookService {
               });
             }
 
-            // ✅ Update the item with cleaned custom fields
             const updatePayload = {
               custom_fields: updatedCustomFields,
             };
@@ -411,17 +521,41 @@ export class ZohoPriceBookService {
               `      ⚠️ Could not update item ${itemId}:`,
               itemError.response?.data?.message || itemError.message
             );
-            // Continue with other items
           }
         }
 
-        console.log("   ✅ Step 2 complete: Custom fields updated");
+        console.log("   ✅ Step 2 complete: Items' custom fields updated");
       }
 
-      // ✅ STEP 3: Clear all items from the price book
+      // ✅ STEP 3: Remove pricing group from all customers
+      console.log("   → Step 3: Removing pricing group from customers...");
+
+      const customers = await this.getCustomersWithPricingGroup(
+        accessToken,
+        priceBookName
+      );
+
+      if (customers.length > 0) {
+        for (const customer of customers) {
+          await this.updateCustomerPricingGroup(
+            accessToken,
+            customer.contact_id,
+            null // Set to empty/null
+          );
+        }
+        console.log(
+          `   ✅ Step 3 complete: Removed pricing group from ${customers.length} customers`
+        );
+      } else {
+        console.log(
+          "   ⏭️  Step 3: No customers found with this pricing group"
+        );
+      }
+
+      // ✅ STEP 4: Clear all items from the price book
       if (priceBookItems.length > 0) {
         console.log(
-          `   → Step 3: Clearing ${priceBookItems.length} items from price book...`
+          `   → Step 4: Clearing ${priceBookItems.length} items from price book...`
         );
 
         const payload = {
@@ -432,7 +566,7 @@ export class ZohoPriceBookService {
           is_increase: priceBook.is_increase,
           rounding_type: priceBook.rounding_type || "no_rounding",
           sales_or_purchase_type: priceBook.sales_or_purchase_type || "sales",
-          pricebook_items: [], // ✅ Empty array to remove all items
+          pricebook_items: [],
         };
 
         await axios.put(
@@ -446,11 +580,11 @@ export class ZohoPriceBookService {
           }
         );
 
-        console.log("   ✅ Step 3 complete: All items removed from price book");
+        console.log("   ✅ Step 4 complete: All items removed from price book");
       }
 
-      // ✅ STEP 4: Delete the price book
-      console.log("   → Step 4: Deleting price book...");
+      // ✅ STEP 5: Delete the price book
+      console.log("   → Step 5: Deleting price book...");
       const url = `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
       await axios.delete(url, {
@@ -463,6 +597,9 @@ export class ZohoPriceBookService {
       console.log(`   Summary:`);
       console.log(`   - Updated ${priceBookItems.length} items' custom fields`);
       console.log(
+        `   - Removed pricing group from ${customers.length} customers`
+      );
+      console.log(
         `   - Removed ${priceBookItems.length} items from price book`
       );
       console.log(`   - Deleted price book "${priceBookName}"`);
@@ -471,6 +608,7 @@ export class ZohoPriceBookService {
         success: true,
         priceBookName,
         itemsUpdated: priceBookItems.length,
+        customersUpdated: customers.length,
       };
     } catch (error: any) {
       console.error(
@@ -486,7 +624,9 @@ export class ZohoPriceBookService {
       }
 
       throw new Error(
-        `Failed to delete price book in Zoho Books: ${error.response?.data?.message || error.message}`
+        `Failed to delete price book in Zoho Books: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }

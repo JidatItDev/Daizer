@@ -250,11 +250,42 @@ export const CreditDebitModal = ({
               step="0.01"
               min="0.01"
               value={amount}
-              // onChange={(e) => setAmount(e.target.value)}
+              placeholder="Enter amount"
+              required
+              className="w-full py-3 border-b-[2px] p-2 border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black"
+              onKeyDown={(e) => {
+                const allowedKeys = [
+                  "Backspace",
+                  "Delete",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "Tab",
+                  ".",
+                ];
+
+                // allow copy/paste/select-all
+                if (e.ctrlKey || e.metaKey) return;
+
+                // allow numbers + allowed keys only
+                if (!/^\d$/.test(e.key) && !allowedKeys.includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => {
                 const value = e.target.value;
 
-                if (type === "debit" && Number(value) > walletBalance) {
+                // allow clearing input
+                if (value === "") {
+                  setAmount("");
+                  return;
+                }
+
+                const numericValue = Number(value);
+
+                // safety check
+                if (isNaN(numericValue) || numericValue < 0) return;
+
+                if (type === "debit" && numericValue > walletBalance) {
                   setAmount(walletBalance.toString());
                   toast.error("Amount exceeds current wallet balance of user.");
                   return;
@@ -262,9 +293,6 @@ export const CreditDebitModal = ({
 
                 setAmount(value);
               }}
-              placeholder="Enter amount"
-              required
-              className="w-full py-3 border-b-[2px] p-2 border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black"
             />
           </div>
 

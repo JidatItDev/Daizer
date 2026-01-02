@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import { db } from "../db/dbConnection";
 import { categories } from "../db/schema/categories.schema";
-import { eq, isNull, and, sql } from "drizzle-orm";
+import { eq, isNull, and, sql, inArray } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { ZohoCategoryService } from "../services/ZohoServices/zohoCategory.service";
 import { ZohoService } from "../services/zoho.service";
 import axios from "axios";
 import { ZOHO_ENV } from "../config/Zoho";
+import { products } from "../db/schema";
 
 interface S3File extends Express.Multer.File {
   location: string; // AWS S3 gives this
@@ -47,7 +48,18 @@ const invalidateCategoryCaches = async (categoryId?: string) => {
     console.error("Failed invalidating category caches:", e);
   }
 };
-
+// Add this function to invalidate product caches
+async function invalidateProductsCache() {
+  try {
+    const keys = await redisClient.keys("products:*");
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+      console.log(`🗑️ Cleared ${keys.length} product cache keys`);
+    }
+  } catch (error) {
+    console.error("Failed to invalidate product cache:", error);
+  }
+}
 // ---- Controller ----
 class CategoryController {
   // Create Parent Category
@@ -248,6 +260,15 @@ class CategoryController {
           .set(updateData)
           .where(eq(categories.id, id))
           .returning();
+        // After updating category
+        if (name && name !== existingCategory.name) {
+          await tx
+            .update(products)
+            .set({
+              subcategoryName: name,
+            })
+            .where(eq(products.subcategoryId, id));
+        }
 
         return updated;
       });
@@ -259,8 +280,11 @@ class CategoryController {
         });
       }
 
-      await invalidateCategoryCaches(parentCategoryId ?? undefined);
-      await invalidateCategoryCaches(id);
+      await Promise.all([
+        invalidateCategoryCaches(parentCategoryId ?? undefined),
+        invalidateCategoryCaches(id),
+        invalidateProductsCache(), // ✅ ADD THIS LINE
+      ]);
 
       return res.status(200).json({
         success: true,
@@ -289,7 +313,7 @@ class CategoryController {
         .select({
           id: categories.id,
           name: categories.name,
-          zohoGroupId: categories.zohoGroupId, // ✅ If you store Zoho group ID
+          zohoGroupId: categories.zohoGroupId,
         })
         .from(categories)
         .where(eq(categories.id, id))
@@ -308,61 +332,119 @@ class CategoryController {
 
       // ✅ Use transaction
       await db.transaction(async (tx) => {
-        // ✅ Step 1: Remove category from all Zoho items FIRST
-        try {
-          const zohoCategoryService = new ZohoCategoryService();
-          itemsUpdatedInZoho =
-            await zohoCategoryService.removeCategoryFromZohoItems(categoryName);
-          console.log(
-            `✅ Removed category from ${itemsUpdatedInZoho} items in Zoho`
-          );
-        } catch (zohoError: any) {
-          console.warn(
-            "⚠️ Could not remove category from Zoho items:",
-            zohoError.message
-          );
-          // ⚠️ You can choose to:
-          // Option A: Continue with deletion (current behavior)
-          // Option B: Throw error to stop deletion
-          // throw zohoError; // Uncomment to stop deletion on Zoho failure
+        // ✅ Step 1: Get all child categories BEFORE deleting
+        const childCategories = await tx
+          .select({
+            id: categories.id,
+            name: categories.name,
+            zohoGroupId: categories.zohoGroupId,
+          })
+          .from(categories)
+          .where(eq(categories.parentCategoryId, id));
+
+        const childIds = childCategories.map((c) => c.id);
+
+        // ✅ Step 2: Collect all category names (parent + children) to remove from Zoho
+        const allCategoriesToRemove = [
+          categoryName,
+          ...childCategories.map((c) => c.name),
+        ];
+
+        console.log(
+          `📋 Categories to remove from Zoho:`,
+          allCategoriesToRemove
+        );
+
+        // ✅ Step 3: Remove parent category from products in DB
+        await tx
+          .update(products)
+          .set({
+            subcategoryId: null,
+            subcategoryName: null,
+          })
+          .where(eq(products.subcategoryId, id));
+
+        // ✅ Step 4: Remove child categories from products in DB
+        if (childIds.length > 0) {
+          await tx
+            .update(products)
+            .set({
+              subcategoryId: null,
+              subcategoryName: null,
+            })
+            .where(inArray(products.subcategoryId, childIds));
         }
 
-        // ✅ Step 2: Delete Zoho item group if zohoGroupId exists
-        if (existingCategory.zohoGroupId) {
+        // ✅ Step 5: Remove ALL categories (parent + children) from Zoho items
+        try {
+          const zohoCategoryService = new ZohoCategoryService();
+
+          // Remove each category from Zoho
+          for (const catName of allCategoriesToRemove) {
+            const updated =
+              await zohoCategoryService.removeCategoryFromZohoItems(catName);
+            itemsUpdatedInZoho += updated;
+            console.log(
+              `✅ Removed "${catName}" from ${updated} items in Zoho`
+            );
+          }
+
+          console.log(`✅ Total items updated in Zoho: ${itemsUpdatedInZoho}`);
+        } catch (zohoError: any) {
+          console.warn(
+            "⚠️ Could not remove categories from Zoho items:",
+            zohoError.message
+          );
+        }
+
+        // ✅ Step 6: Delete Zoho item groups (parent + children)
+        const allZohoGroupIds = [
+          existingCategory.zohoGroupId,
+          ...childCategories.map((c) => c.zohoGroupId),
+        ].filter(Boolean);
+
+        for (const zohoGroupId of allZohoGroupIds) {
           try {
-            // Delete the item group from Zoho Books
             const accessToken = await new ZohoService().getValidAccessToken();
             await axios.delete(
-              `${ZOHO_ENV.BOOKS_API}/itemgroups/${existingCategory.zohoGroupId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
+              `${ZOHO_ENV.BOOKS_API}/itemgroups/${zohoGroupId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               {
                 headers: {
                   Authorization: `Zoho-oauthtoken ${accessToken}`,
                 },
               }
             );
-            console.log(
-              `✅ Deleted Zoho item group: ${existingCategory.zohoGroupId}`
-            );
+            console.log(`✅ Deleted Zoho item group: ${zohoGroupId}`);
           } catch (groupError: any) {
             console.warn(
               "⚠️ Could not delete Zoho item group:",
               groupError.response?.data?.message || groupError.message
             );
-            // Continue with deletion
           }
         }
 
-        // ✅ Step 3: Delete from local database
+        // ✅ Step 7: Delete child categories from database
+        if (childIds.length > 0) {
+          await tx.delete(categories).where(inArray(categories.id, childIds));
+          console.log(`✅ Deleted ${childIds.length} child categories from DB`);
+        }
+
+        // ✅ Step 8: Delete parent category from database
         await tx.delete(categories).where(eq(categories.id, id));
-        console.log(`✅ Deleted category from database`);
+        console.log(`✅ Deleted parent category from DB`);
       });
 
-      // Clear caches
-      await invalidateCategoryCaches(id);
+      // ✅ Clear BOTH category AND product caches
+      await Promise.all([
+        invalidateCategoryCaches(id),
+        invalidateProductsCache(), // ✅ ADD THIS LINE
+      ]);
+
+      console.log("✅ Cleared all caches");
 
       return res.status(200).json({
         success: true,
-        message: `Category "${categoryName}" deleted successfully`,
+        message: `Category "${categoryName}" and its subcategories deleted successfully`,
         itemsUpdatedInZoho,
       });
     } catch (error: any) {
@@ -373,7 +455,6 @@ class CategoryController {
       });
     }
   }
-
   static async getAllCategories(req: Request, res: Response) {
     try {
       const page = Number(req.query.page ?? 1);

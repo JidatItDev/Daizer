@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SlidersHorizontal, ArrowUp, ArrowDown, X } from "lucide-react";
 
-import { useAllOrders } from "../../api/auth";
+import { useAllOrders, useMyOrders } from "../../api/auth";
 import { Table, type TableColumn } from "../../components/common/Table";
 import { Input } from "../../components/common/Input";
 import Heading from "../../components/common/Heading";
@@ -29,7 +29,7 @@ interface DateFilter {
   to?: string;
 }
 
-const OrderManagement = () => {
+const MyOrder = () => {
   const navigate = useNavigate();
   /* ---------------- Pagination ---------------- */
   const [pagination, setPagination] = useState({
@@ -70,7 +70,7 @@ const OrderManagement = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   /* ---------------- API ---------------- */
-  const { data, isFetching } = useAllOrders({
+  const { data, isFetching } = useMyOrders({
     page: pagination.current,
     limit: pagination.pageSize,
     sortField: sort.field,
@@ -81,8 +81,6 @@ const OrderManagement = () => {
 
   const orders = data?.orders ?? [];
   const totalOrders = data?.pagination?.totalOrders ?? 0;
-
-  console.log("orders", orders);
 
   if (pagination.total !== totalOrders) {
     setPagination((prev) => ({ ...prev, total: totalOrders }));
@@ -96,12 +94,10 @@ const OrderManagement = () => {
       return "N/A";
     }
   };
-  console.log("object");
+
   /* ---------------- Table Columns ---------------- */
   const orderColumns: TableColumn<OrderRow>[] = [
     { key: "orderId", title: "Order ID" },
-    { key: "userName", title: "User" },
-    { key: "userEmail", title: "Email" },
     { key: "productName", title: "Product" },
     { key: "date", title: "Date" },
     { key: "price", title: "Price" },
@@ -122,23 +118,23 @@ const OrderManagement = () => {
         </span>
       ),
     },
-    {
-      key: "action",
-      title: "Action",
-      align: "center",
-      render: (_, record) => (
-        <div className="flex gap-2 justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            className="px-3 py-1 text-primary-dark border-primary-dark hover:bg-gray-50 min-w-[140px]"
-            onClick={() => handleViewDetails(record.userId)}
-          >
-            View User
-          </Button>
-        </div>
-      ),
-    },
+    // {
+    //   key: "action",
+    //   title: "Action",
+    //   align: "center",
+    //   render: (_, record) => (
+    //     <div className="flex gap-2 justify-center">
+    //       <Button
+    //         variant="outline"
+    //         size="sm"
+    //         className="px-3 py-1 text-primary-dark border-primary-dark hover:bg-gray-50 min-w-[140px]"
+    //         onClick={() => handleViewDetails(record.userId)}
+    //       >
+    //         View User
+    //       </Button>
+    //     </div>
+    //   ),
+    // },
   ];
 
   /* ---------------- Map Data ---------------- */
@@ -157,7 +153,7 @@ const OrderManagement = () => {
   return (
     <div className="bg-white relative">
       <div className="flex justify-between items-center mb-6">
-        <Heading>Order Managementss</Heading>
+        <Heading>Order Management</Heading>
 
         <div className="relative">
           <button
@@ -238,4 +234,4 @@ const OrderManagement = () => {
   );
 };
 
-export default OrderManagement;
+export default MyOrder;

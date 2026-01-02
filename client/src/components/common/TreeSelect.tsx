@@ -83,6 +83,7 @@ export const TreeSelect: React.FC<TreeSelectProps> = ({
             <button
               onClick={(e) => toggleExpanded(node.id, e)}
               className="mr-2 p-0.5 hover:bg-gray-200 rounded"
+              type="button"
             >
               {isExpanded ? (
                 <ChevronDown size={14} />
@@ -112,17 +113,25 @@ export const TreeSelect: React.FC<TreeSelectProps> = ({
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full py-3 px-0 border-b-[2px] cursor-pointer flex items-center justify-between
-          ${error ? "border-red-300" : "border-gray-300 focus-within:border-black"}
+          ${
+            error
+              ? "border-red-300"
+              : "border-gray-300 focus-within:border-black"
+          }
         `}
       >
         <span
-          className={`lg:text-lg md:text-base text-sm ${selectedNode ? "text-black" : "text-gray-500"}`}
+          className={`lg:text-lg md:text-base text-sm ${
+            selectedNode ? "text-black" : "text-gray-500"
+          }`}
         >
           {selectedNode ? `${selectedNode.name}` : placeholder}
         </span>
         <ChevronDown
           size={16}
-          className={`transform transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`transform transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
         />
       </div>
 

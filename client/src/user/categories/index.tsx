@@ -58,6 +58,7 @@ const Categories = () => {
   // const observer = useRef<IntersectionObserver>();
   const observer = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const limit = 10;
 
@@ -137,6 +138,7 @@ const Categories = () => {
             variant="outline"
             size="md"
             className="border-2 border-primary-dark px-6 !py-2"
+            onClick={() => navigate("/myOrders")}
           >
             My Orders
           </Button>

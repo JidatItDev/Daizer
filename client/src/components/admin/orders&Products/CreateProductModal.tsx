@@ -149,8 +149,8 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     }
 
     // Quantity validation (optional field)
-    if (formData.quantity && isNaN(parseFloat(formData.quantity))) {
-      newErrors.quantity = "Quantity must be a valid number";
+    if (!formData.quantity) {
+      newErrors.quantity = "Quantity is required";
     }
     if (!formData.apiProviderId) {
       newErrors.apiProviderId = "Please select an API provider";
@@ -202,7 +202,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  console.log("errors", errors);
+  console.log("formdata", formData);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

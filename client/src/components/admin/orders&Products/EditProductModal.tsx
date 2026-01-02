@@ -152,7 +152,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       newErrors.subcategoryId = "Please select a category";
     }
 
-    if (formData.quantity && isNaN(parseFloat(formData.quantity))) {
+    if (!formData.quantity) {
       newErrors.quantity = "Quantity must be a valid number";
     }
     // Validate that at least one pricing group has a price

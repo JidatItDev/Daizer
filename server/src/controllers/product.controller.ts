@@ -162,18 +162,6 @@ class ProductController {
         const avgRate = (
           rates.reduce((sum, r) => sum + r, 0) / rates.length
         ).toFixed(2);
-
-        const zohoItem = await zohoItemService.createItemInZoho({
-          name,
-          description: `${description}\n\nPrice Range: ${minRate} - ${maxRate}`,
-          rate: avgRate, // ✅ Numeric average rate
-          categoryName: subcategory.name,
-          sku: serviceId,
-          unit: "pcs",
-          pricingGroupPrices: enrichedPricingGroups,
-          isActive: isActive === true ? "Active" : "Disabled",
-          imageUrl: image?.url,
-        });
         const [newProduct] = await tx
           .insert(products)
           .values({
@@ -193,10 +181,24 @@ class ProductController {
             apiProviderName: provider.providerName,
             image,
             isActive: isActive ?? true,
-            zohoItemId: zohoItem.item_id,
+            // zohoItemId: zohoItem.item_id,
           })
           .returning();
-
+        const zohoItem = await zohoItemService.createItemInZoho({
+          name,
+          description: `${description}\n\nPrice Range: ${minRate} - ${maxRate}`,
+          rate: avgRate, // ✅ Numeric average rate
+          categoryName: subcategory.name,
+          sku: newProduct.id.toString(), // ✅ Using local product ID as SKU
+          unit: "pcs",
+          pricingGroupPrices: enrichedPricingGroups,
+          isActive: isActive === true ? "Active" : "Disabled",
+          imageUrl: image?.url,
+        });
+        await tx
+          .update(products)
+          .set({ zohoItemId: zohoItem.item_id })
+          .where(eq(products.id, newProduct.id));
         return { product: newProduct, zohoItem };
       });
 
@@ -490,8 +492,9 @@ class ProductController {
             zohoUpdatePayload.pricingGroupPrices = enrichedPricingGroups;
           }
 
-          if (subcategory?.zohoGroupId) {
+          if (subcategory) {
             zohoUpdatePayload.groupId = subcategory.zohoGroupId;
+            zohoUpdatePayload.categoryName = subcategory.name; // Add this line
           }
 
           if (isActive !== undefined) {

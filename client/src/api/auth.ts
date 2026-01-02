@@ -234,7 +234,47 @@ export const useAllOrders = ({
     staleTime: 1000 * 60 * 2,
   });
 };
-
+export const useMyOrders = ({
+  page,
+  limit,
+  sortField,
+  sortOrder,
+  fromDate,
+  toDate,
+}: {
+  page: number;
+  limit: number;
+  sortField?: string;
+  sortOrder?: string;
+  fromDate?: string;
+  toDate?: string;
+}) => {
+  return useQuery({
+    queryKey: [
+      "all-orders",
+      page,
+      limit,
+      sortField,
+      sortOrder,
+      fromDate,
+      toDate,
+    ],
+    queryFn: async () => {
+      const res = await axiosPrivate.get("/auth/myOrders", {
+        params: {
+          page,
+          limit,
+          sortField,
+          sortOrder,
+          fromDate,
+          toDate,
+        },
+      });
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+};
 // export const useAllOrders = ({ page, limit }: OrdersParams) => {
 //   return useQuery({
 //     queryKey: ["all-orders", page, limit],

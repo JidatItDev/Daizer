@@ -24,8 +24,9 @@ import { usePricingGroups } from "../../api/pricingGroup";
 import Modal from "../../components/common/Modal";
 import { Input } from "../../components/common/Input";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 interface User {
   id: string;
@@ -218,6 +219,7 @@ const FilterDropdown = ({
 
 const UserManagement = () => {
   const navigate = useNavigate();
+  const user = useAuth();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 5,
@@ -280,7 +282,7 @@ const UserManagement = () => {
     }
   }, [signupLinksData]);
 
-  // console.log("signupLinks", signupLinksData);
+  console.log("signupLinks", signupLinksData);
 
   const [sort, setSort] = useState<SortState>({
     field: "name",
@@ -310,8 +312,8 @@ const UserManagement = () => {
   const isUpdating = updateUserMutation.isPending;
   const deleteUserMutation = useDeleteUser();
 
-  const users = data?.users ?? [];
-  // console.log("users", users);
+  const users = (data?.users ?? []).filter((u: User) => u.id !== user.user?.id);
+
   const totalUsers = data?.pagination?.totalUsers ?? 0;
 
   if (pagination.total !== totalUsers) {
@@ -425,12 +427,16 @@ const UserManagement = () => {
 
       // console.log("Account created successfully//");
     } catch (error: any) {
+      console.error("Failed to create account:", error);
       if (error?.response?.status === 409) {
         // console.log("error if called");
-        toast.error("Email already exists.");
+        toast.error(
+          error?.response?.data?.message || "Signup link already exists"
+        );
+        // `Error: ${error.response.data.message`);
+      } else {
+        toast.error(`Failed to create account`);
       }
-      // console.log("Failed to create account:", error);
-      toast.error(`Failed to create account`);
     } finally {
       setIsSubmitting(false);
     }
@@ -607,12 +613,12 @@ const UserManagement = () => {
           >
             <Edit size={16} />
           </button>
-          <button
+          {/* <button
             onClick={() => handleDelete(record)}
             className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center py-2 md:py-3"
           >
             <Trash2 size={16} />
-          </button>
+          </button> */}
         </div>
       ),
     },
@@ -628,11 +634,7 @@ const UserManagement = () => {
         const pricingGroup = pricingGroups.find(
           (group: PricingGroup) => group.id === record.pricingGroupId
         );
-        return (
-          <span>
-            {pricingGroup ? pricingGroup.name : record.pricingGroupId}
-          </span>
-        );
+        return <span>{pricingGroup ? pricingGroup.name : "N/A"}</span>;
       },
     },
     { key: "expiresAt", title: "Expires At" },
@@ -692,6 +694,7 @@ const UserManagement = () => {
 
   return (
     <div className="bg-white relative">
+      <Toaster position="top-right" />
       <div className="flex justify-between items-center mb-6 flex-col md:flex-row gap-4">
         <div className="flex items-center gap-4">
           <Heading>User Management</Heading>

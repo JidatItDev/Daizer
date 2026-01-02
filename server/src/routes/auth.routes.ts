@@ -487,7 +487,7 @@ authRouter.get(
 );
 
 authRouter.get("/orders", authenticate, AuthController.getAllOrders);
-
+authRouter.get("/myOrders", authenticate, AuthController.getMyOrders);
 authRouter.get("/users", authenticate, AuthController.getAllUsers);
 /**
  * @swagger

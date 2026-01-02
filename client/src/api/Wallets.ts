@@ -3,7 +3,19 @@ import axiosPrivate from "../AxiosInstances/PrivateAxiosInstance";
 import { queryClient } from "../main";
 
 const useInvalidateAll = () => {
-  return () => queryClient.invalidateQueries({ queryKey: [], exact: false });
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "transactions"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "refundRequests"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "wallets"],
+      }),
+    ]);
+  };
 };
 
 // =======================
@@ -253,6 +265,7 @@ export const useRefundRequests = (
 
 export const useApproveRefund = () => {
   const invalidateAll = useInvalidateAll();
+
   return useMutation({
     mutationFn: async (payload: {
       refundId: string;
@@ -268,12 +281,24 @@ export const useApproveRefund = () => {
       );
       return res.data;
     },
-    onSuccess: () => invalidateAll(),
+    onSuccess: async () => {
+      await invalidateAll();
+      // Force refetch all active queries
+      await queryClient.refetchQueries({
+        queryKey: ["admin", "refundRequests"],
+        type: "active",
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["admin", "transactions"],
+        type: "active",
+      });
+    },
   });
 };
 
 export const useRejectRefund = () => {
   const invalidateAll = useInvalidateAll();
+
   return useMutation({
     mutationFn: async (refundId: string) => {
       const res = await axiosPrivate.post(
@@ -281,10 +306,20 @@ export const useRejectRefund = () => {
       );
       return res.data;
     },
-    onSuccess: () => invalidateAll(),
+    onSuccess: async () => {
+      await invalidateAll();
+      // Force refetch all active queries
+      await queryClient.refetchQueries({
+        queryKey: ["admin", "refundRequests"],
+        type: "active",
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["admin", "transactions"],
+        type: "active",
+      });
+    },
   });
 };
-
 export const useAdjustWallet = () => {
   const invalidateAll = useInvalidateAll();
   return useMutation({

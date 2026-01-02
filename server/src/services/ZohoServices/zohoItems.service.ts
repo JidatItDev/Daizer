@@ -214,6 +214,7 @@ export class ZohoItemService {
       description?: string;
       rate?: string;
       groupId?: string;
+      categoryName?: string; // ✅ Add this
       unit?: string;
       pricingGroupPrices?: {
         id: string;
@@ -236,7 +237,12 @@ export class ZohoItemService {
         value: updates.isActive,
       });
     }
-
+    if (updates.categoryName) {
+      customFields.push({
+        label: "Category", // or whatever label you use in creation
+        value: updates.categoryName,
+      });
+    }
     // ✅ ADD PRICING GROUPS TO CUSTOM FIELDS (NO DYNAMIC FIELDS)
     if (updates.pricingGroupPrices && updates.pricingGroupPrices.length > 0) {
       const pricingInfo = updates.pricingGroupPrices
@@ -356,6 +362,7 @@ export class ZohoItemService {
       ...(updates.rate !== undefined && { rate: updates.rate }),
       ...(updates.unit && { unit: "pcs" }),
       ...(updates.groupId && { group_id: updates.groupId }),
+
       ...(updates.isActive !== undefined && {
         status: updates.isActive ? "active" : "inactive",
       }),
