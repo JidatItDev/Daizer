@@ -10,32 +10,42 @@ interface PartialRefundModalProps {
   onClose: () => void;
   currentBalance: number;
   currency: string;
+  onSuccess?: () => void; // Add success callback
 }
 
 export const PartialRefundModal = ({
   isOpen,
   onClose,
   currentBalance,
+  onSuccess,
 }: PartialRefundModalProps) => {
   const [amount, setAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const requestRefund = useRequestRefund();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount) return;
+
+    if (!amount) return toast.error("Please enter an amount");
+    if (parseFloat(amount) <= 0)
+      return toast.error("Amount must be greater than 0");
 
     setIsSubmitting(true);
+
     try {
+      // Call onSuccess immediately to show loading state
+      onSuccess?.();
+
       await requestRefund.mutateAsync({
         amount: parseFloat(amount),
       });
-      onClose();
+
       resetForm();
+      onClose();
       toast.success("Refund request sent successfully");
     } catch (error) {
       console.error("Error requesting refund:", error);
+      toast.error("Failed to request refund");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,19 +82,46 @@ export const PartialRefundModal = ({
               min="0.01"
               max={maxAmount}
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={`write here`}
+              onKeyDown={(e) => {
+                const allowedKeys = [
+                  "Backspace",
+                  "Delete",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "Tab",
+                  ".",
+                ];
+                if (e.ctrlKey || e.metaKey) return;
+                if (!/^\d$/.test(e.key) && !allowedKeys.includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "") {
+                  setAmount("");
+                  return;
+                }
+                const numericValue = Number(value);
+                if (isNaN(numericValue) || numericValue < 0) return;
+                if (numericValue > maxAmount) {
+                  setAmount(maxAmount.toString());
+                  return;
+                }
+                setAmount(value);
+              }}
+              placeholder="Enter amount"
               required
               className="w-full py-3 border-b-[2px] p-2 border-gray-300 lg:text-lg md:text-base text-sm bg-transparent focus:outline-none focus:border-black"
             />
           </div>
-
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               className="flex-1"
+              disabled={isSubmitting}
             >
               Cancel
             </Button>

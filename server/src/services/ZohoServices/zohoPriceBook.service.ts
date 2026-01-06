@@ -3,6 +3,7 @@ import { ZOHO_ENV } from "../../config/Zoho";
 import { ZohoService } from "../zoho.service";
 import { ZohoTokensService } from "../zohoTokens.service";
 import { ZohoItemService } from "./zohoItems.service";
+import zohoHttpClient from "../../utils/zohoHttpClient";
 
 export class ZohoPriceBookService {
   private tokensService: ZohoTokensService;
@@ -49,7 +50,7 @@ export class ZohoPriceBookService {
     const url = `${inventoryBaseUrl}/pricebooks?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
-      const { data } = await axios.post(url, payload, {
+      const { data } = await zohoHttpClient.post(url, payload, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
           "Content-Type": "application/json",
@@ -92,7 +93,7 @@ export class ZohoPriceBookService {
       );
 
       const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-      const { data } = await axios.get(url, {
+      const { data } = await zohoHttpClient.get(url, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },
@@ -132,7 +133,7 @@ export class ZohoPriceBookService {
   ): Promise<void> {
     try {
       // Get current customer details
-      const { data: customerData } = await axios.get(
+      const { data: customerData } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -158,7 +159,7 @@ export class ZohoPriceBookService {
         custom_fields: customFields,
       };
 
-      await axios.put(
+      await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         payload,
         {
@@ -196,7 +197,7 @@ export class ZohoPriceBookService {
 
       // ✅ STEP 1: Get current price book details
       console.log("   → Step 1: Fetching current price book details...");
-      const { data: priceBookData } = await axios.get(
+      const { data: priceBookData } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -230,7 +231,7 @@ export class ZohoPriceBookService {
         })),
       };
 
-      const { data: updatedData } = await axios.put(
+      const { data: updatedData } = await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         payload,
         {
@@ -257,7 +258,7 @@ export class ZohoPriceBookService {
           const itemId = priceBookItem.item_id;
 
           try {
-            const { data: itemData } = await axios.get(
+            const { data: itemData } = await zohoHttpClient.get(
               `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               {
                 headers: {
@@ -291,7 +292,7 @@ export class ZohoPriceBookService {
               custom_fields: customFields,
             };
 
-            await axios.put(
+            await zohoHttpClient.put(
               `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               updatePayload,
               {
@@ -391,7 +392,7 @@ export class ZohoPriceBookService {
 
       // ✅ STEP 1: Get price book details
       console.log("   → Step 1: Fetching price book details...");
-      const { data: priceBookData } = await axios.get(
+      const { data: priceBookData } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -418,7 +419,7 @@ export class ZohoPriceBookService {
           const itemId = priceBookItem.item_id;
 
           try {
-            const { data: itemData } = await axios.get(
+            const { data: itemData } = await zohoHttpClient.get(
               `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               {
                 headers: {
@@ -502,7 +503,7 @@ export class ZohoPriceBookService {
               custom_fields: updatedCustomFields,
             };
 
-            await axios.put(
+            await zohoHttpClient.put(
               `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               updatePayload,
               {
@@ -514,7 +515,7 @@ export class ZohoPriceBookService {
             );
 
             console.log(
-              `      ✅ Updated custom fields for item ${itemId} (removed "${priceBookName}")`
+              `✅ Updated custom fields for item ${itemId} (removed "${priceBookName}")`
             );
           } catch (itemError: any) {
             console.warn(
@@ -524,11 +525,11 @@ export class ZohoPriceBookService {
           }
         }
 
-        console.log("   ✅ Step 2 complete: Items' custom fields updated");
+        console.log("✅ Step 2 complete: Items' custom fields updated");
       }
 
       // ✅ STEP 3: Remove pricing group from all customers
-      console.log("   → Step 3: Removing pricing group from customers...");
+      console.log("→ Step 3: Removing pricing group from customers...");
 
       const customers = await this.getCustomersWithPricingGroup(
         accessToken,
@@ -569,7 +570,7 @@ export class ZohoPriceBookService {
           pricebook_items: [],
         };
 
-        await axios.put(
+        await zohoHttpClient.put(
           `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           payload,
           {
@@ -587,7 +588,7 @@ export class ZohoPriceBookService {
       console.log("   → Step 5: Deleting price book...");
       const url = `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-      await axios.delete(url, {
+      await zohoHttpClient.delete(url, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },

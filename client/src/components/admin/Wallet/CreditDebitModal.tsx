@@ -174,9 +174,35 @@ export const CreditDebitModal = ({
   }, [accounts]);
 
   const handleSubmit = async () => {
-    if (!amount || !destination || !sentReceived) return;
+    // Amount validation
+    if (!amount) {
+      toast.error("Please enter amount");
+      return;
+    }
+
+    if (parseFloat(amount) <= 0) {
+      toast.error("Amount must be greater than 0");
+      return;
+    }
+
+    // Destination validation
+    if (!destination) {
+      toast.error("Please select destination account");
+      return;
+    }
+
+    // Sent / Received validation
+    if (!sentReceived) {
+      toast.error(
+        type === "credit"
+          ? "Please select received into account"
+          : "Please select sent by account"
+      );
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
       await adjustWallet.mutateAsync({
         userId: wallet.user.id,
@@ -185,10 +211,13 @@ export const CreditDebitModal = ({
         destination,
         sentReceived,
       });
-      onClose();
+
+      toast.success("Wallet adjusted successfully");
       resetForm();
+      onClose();
     } catch (error) {
       console.error("Error adjusting wallet:", error);
+      toast.error("Failed to adjust wallet");
     } finally {
       setIsSubmitting(false);
     }
@@ -318,6 +347,7 @@ export const CreditDebitModal = ({
             <Button
               type="button"
               variant="outline"
+              disabled={isSubmitting}
               onClick={handleClose}
               className="flex-1 py-3 border-2 border-gray-300 hover:border-gray-400"
             >

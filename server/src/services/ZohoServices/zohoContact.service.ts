@@ -3,6 +3,7 @@ import { ZOHO_ENV } from "../../config/Zoho";
 import { ZohoService } from "../zoho.service";
 import { ZohoTokensService } from "../zohoTokens.service";
 import { ZohoItemService } from "./zohoItems.service";
+import zohoHttpClient from "../../utils/zohoHttpClient";
 
 export class ZohoContactService {
   private tokensService: ZohoTokensService;
@@ -16,11 +17,11 @@ export class ZohoContactService {
   async findContactByEmail(email: string) {
     const accessToken = await this.zohoService.getValidAccessToken();
 
-    const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&email=${encodeURIComponent(
-      email
-    )}`;
+    const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${
+      ZOHO_ENV.ZOHO_ORG_ID
+    }&email=${encodeURIComponent(email)}`;
 
-    const { data } = await axios.get(url, {
+    const { data } = await zohoHttpClient.get(url, {
       headers: {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
       },
@@ -33,7 +34,7 @@ export class ZohoContactService {
 
     const url = `${ZOHO_ENV.BOOKS_API}/contacts/${contactId}/active?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-    await axios.post(
+    await zohoHttpClient.post(
       url,
       {},
       {
@@ -107,7 +108,7 @@ export class ZohoContactService {
     const url = `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
-      const { data } = await axios.post(url, payload, {
+      const { data } = await zohoHttpClient.post(url, payload, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
           "Content-Type": "application/json",
@@ -173,7 +174,7 @@ export class ZohoContactService {
     const url = `${ZOHO_ENV.BOOKS_API}/contacts/${contactId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
-      const { data } = await axios.put(url, payload, {
+      const { data } = await zohoHttpClient.put(url, payload, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
           "Content-Type": "application/json",
@@ -198,7 +199,7 @@ export class ZohoContactService {
     const url = `${ZOHO_ENV.BOOKS_API}/contacts/${contactId}/${action}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
-      await axios.post(
+      await zohoHttpClient.post(
         url,
         {},
         {
@@ -225,7 +226,7 @@ export class ZohoContactService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      const { data } = await axios.get(
+      const { data } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -261,7 +262,7 @@ export class ZohoContactService {
         pricebook_id: priceListId,
       };
 
-      await axios.put(
+      await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         payload,
         {
@@ -351,7 +352,7 @@ export class ZohoContactService {
       // Try to delete the customer
       const url = `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-      await axios.delete(url, {
+      await zohoHttpClient.delete(url, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },
@@ -393,7 +394,9 @@ export class ZohoContactService {
       }
 
       throw new Error(
-        `Failed to delete customer: ${error.response?.data?.message || error.message}`
+        `Failed to delete customer: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -413,7 +416,7 @@ export class ZohoContactService {
 
       const url = `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}/inactive?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-      await axios.post(
+      await zohoHttpClient.post(
         url,
         {},
         {
@@ -445,7 +448,9 @@ export class ZohoContactService {
       }
 
       throw new Error(
-        `Failed to mark customer as inactive: ${error.response?.data?.message || error.message}`
+        `Failed to mark customer as inactive: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -470,7 +475,7 @@ export class ZohoContactService {
       // Get customer details which includes transaction info
       const url = `${ZOHO_ENV.BOOKS_API}/contacts/${customerId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-      const { data } = await axios.get(url, {
+      const { data } = await zohoHttpClient.get(url, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },

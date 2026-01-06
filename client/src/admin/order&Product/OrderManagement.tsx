@@ -59,12 +59,36 @@ const OrderManagement = () => {
         prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
+
+  const handleResetSort = () => {
+    setSort({
+      field: "user",
+      direction: "asc",
+    });
+  };
+
   const handleViewDetails = (userId: string) => {
     navigate(`/admin/user/${userId}`);
   };
 
   /* ---------------- Date Filter ---------------- */
   const [dateFilter, setDateFilter] = useState<DateFilter>({});
+
+  const handleResetDateFilter = () => {
+    setDateFilter({});
+  };
+
+  const handleResetAllFilters = () => {
+    setSort({
+      field: "user",
+      direction: "asc",
+    });
+    setDateFilter({});
+    setPagination((prev) => ({
+      ...prev,
+      current: 1,
+    }));
+  };
 
   /* ---------------- Filter UI ---------------- */
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -96,7 +120,14 @@ const OrderManagement = () => {
       return "N/A";
     }
   };
-  console.log("object");
+
+  /* ---------------- Check if filters are active ---------------- */
+  const hasActiveFilters =
+    sort.field !== "user" ||
+    sort.direction !== "asc" ||
+    dateFilter.from ||
+    dateFilter.to;
+
   /* ---------------- Table Columns ---------------- */
   const orderColumns: TableColumn<OrderRow>[] = [
     { key: "orderId", title: "Order ID" },
@@ -157,7 +188,7 @@ const OrderManagement = () => {
   return (
     <div className="bg-white relative">
       <div className="flex justify-between items-center mb-6">
-        <Heading>Order Managementss</Heading>
+        <Heading>Order Management</Heading>
 
         <div className="relative">
           <button
@@ -169,16 +200,38 @@ const OrderManagement = () => {
 
           {isFilterOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white border rounded-lg shadow-lg z-10 p-4">
-              <div className="flex justify-between mb-4">
+              <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold">Filters & Sort</h3>
                 <button onClick={() => setIsFilterOpen(false)}>
                   <X size={18} />
                 </button>
               </div>
 
+              {/* Reset All Filters Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mb-4 text-error border-error hover:bg-error/10"
+                  onClick={handleResetAllFilters}
+                >
+                  Reset All Filters
+                </Button>
+              )}
+
               {/* Sort */}
               <div className="mb-6">
-                <h4 className="font-medium mb-3">Sort by</h4>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium">Sort by</h4>
+                  {(sort.field !== "user" || sort.direction !== "asc") && (
+                    <button
+                      className="text-xs text-error hover:underline"
+                      onClick={handleResetSort}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
                 {[
                   { key: "createdAt", label: "Date" },
                   { key: "amount", label: "Price" },
@@ -202,7 +255,17 @@ const OrderManagement = () => {
 
               {/* Date Filter */}
               <div>
-                <h4 className="font-medium mb-3">Date Range</h4>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium">Date Range</h4>
+                  {(dateFilter.from || dateFilter.to) && (
+                    <button
+                      className="text-xs text-error hover:underline"
+                      onClick={handleResetDateFilter}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-3">
                   <Input
                     type="date"
@@ -210,6 +273,7 @@ const OrderManagement = () => {
                     onChange={(e) =>
                       setDateFilter((p) => ({ ...p, from: e.target.value }))
                     }
+                    placeholder="From date"
                   />
                   <Input
                     type="date"
@@ -217,6 +281,7 @@ const OrderManagement = () => {
                     onChange={(e) =>
                       setDateFilter((p) => ({ ...p, to: e.target.value }))
                     }
+                    placeholder="To date"
                   />
                 </div>
               </div>

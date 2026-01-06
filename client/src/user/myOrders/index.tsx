@@ -7,6 +7,7 @@ import { Input } from "../../components/common/Input";
 import Heading from "../../components/common/Heading";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/common/Button";
+import { IoCaretBackOutline } from "react-icons/io5";
 
 interface OrderRow {
   orderId: string;
@@ -148,12 +149,23 @@ const MyOrder = () => {
     price: `$${o.amount}`,
     status: o.status,
   }));
-
+  const handleBack = () => {
+    navigate(-1);
+  };
   /* ---------------- UI ---------------- */
   return (
     <div className="bg-white relative">
       <div className="flex justify-between items-center mb-6">
-        <Heading>Order Management</Heading>
+        <div className="flex gap-3 items-center">
+          <button
+            onClick={handleBack}
+            className="flex items-center text-primary-dark hover:text-black transition-colors border border-primary-dark   rounded-full p-2"
+          >
+            {/* <ArrowLeft size={20} className="mr-2" /> */}
+            <IoCaretBackOutline />
+          </button>{" "}
+          <Heading>Order Management</Heading>
+        </div>
 
         <div className="relative">
           <button

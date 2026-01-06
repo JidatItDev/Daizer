@@ -2,6 +2,8 @@ import axios from "axios";
 import { ZOHO_ENV } from "../../config/Zoho";
 import { ZohoService } from "../zoho.service";
 import { ZohoTokensService } from "../zohoTokens.service";
+import zohoHttpClient from "../../utils/zohoHttpClient";
+
 function generateSafeFilename(originalUrl: string, itemId?: string): string {
   const urlParts = originalUrl.split("/");
   const originalFilename = urlParts[urlParts.length - 1] || "image.jpg";
@@ -38,8 +40,11 @@ export class ZohoItemService {
     description?: string;
     rate: string;
     categoryName?: string;
+    status?: string;
     sku?: string;
     unit?: string;
+    serviceId?: string;
+    apiProviderId?: string;
     pricingGroupPrices?: {
       id: string;
       name: string;
@@ -59,13 +64,25 @@ export class ZohoItemService {
       customFields.push({ label: "Category", value: product.categoryName });
     }
 
-    if (product.isActive !== undefined) {
+    // ✅ Update custom field logic for status
+    if (product.status !== undefined) {
       customFields.push({
         label: "Product Status",
-        value: product.isActive,
+        value: product.status === "active" ? "Active" : "Disabled",
       });
     }
-
+    if (product.serviceId !== undefined) {
+      customFields.push({
+        label: "ServiceID",
+        value: product.serviceId,
+      });
+    }
+    if (product.apiProviderId !== undefined) {
+      customFields.push({
+        label: "Api_ProviderId",
+        value: product.apiProviderId,
+      });
+    }
     // ✅ ADD PRICING GROUPS AS CUSTOM FIELDS
     // ✅ ADD PRICING GROUPS AS CUSTOM FIELDS
     if (product.pricingGroupPrices && product.pricingGroupPrices.length > 0) {
@@ -101,7 +118,7 @@ export class ZohoItemService {
       try {
         console.log(`📸 Downloading image from S3: ${product.imageUrl}`);
 
-        const imageResponse = await axios.get(product.imageUrl, {
+        const imageResponse = await zohoHttpClient.get(product.imageUrl, {
           responseType: "arraybuffer",
         });
 
@@ -123,6 +140,7 @@ export class ZohoItemService {
           item_type: "sales",
           ...(product.sku && { sku: product.sku }),
           ...(product.unit && { unit: "pcs" }),
+          ...(product.status && { status: product.status }), // ✅ Add status field
           ...(customFields.length > 0 && { custom_fields: customFields }),
         };
 
@@ -134,7 +152,7 @@ export class ZohoItemService {
 
         console.log(`📤 Creating item with image in Zoho: ${filename}`);
 
-        const { data } = await axios.post(
+        const { data } = await zohoHttpClient.post(
           `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           formData,
           {
@@ -176,10 +194,11 @@ export class ZohoItemService {
       item_type: "sales",
       ...(product.sku && { sku: product.sku }),
       ...(product.unit && { unit: "pcs" }),
+      ...(product.status && { status: product.status }), // ✅ Add status field
       ...(customFields.length > 0 && { custom_fields: customFields }),
     };
 
-    const { data } = await axios.post(
+    const { data } = await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       payload,
       {
@@ -213,16 +232,18 @@ export class ZohoItemService {
       name?: string;
       description?: string;
       rate?: string;
+      status?: string;
       groupId?: string;
       categoryName?: string; // ✅ Add this
       unit?: string;
+      serviceId?: string;
+      apiProviderId?: string;
       pricingGroupPrices?: {
         id: string;
         name: string;
         price: number;
         zohoPriceBookId?: string;
       }[];
-      isActive?: boolean;
       imageUrl?: string;
     }
   ) {
@@ -231,16 +252,28 @@ export class ZohoItemService {
     // ✅ Build custom fields for update (SAME AS CREATE)
     const customFields: any[] = [];
 
-    if (updates.isActive !== undefined) {
+    if (updates.status !== undefined) {
       customFields.push({
         label: "Product Status",
-        value: updates.isActive,
+        value: updates.status === "active" ? "Active" : "Disabled",
       });
     }
     if (updates.categoryName) {
       customFields.push({
         label: "Category", // or whatever label you use in creation
         value: updates.categoryName,
+      });
+    }
+    if (updates.serviceId !== undefined) {
+      customFields.push({
+        label: "ServiceID",
+        value: updates.serviceId,
+      });
+    }
+    if (updates.apiProviderId !== undefined) {
+      customFields.push({
+        label: "Api_ProviderId",
+        value: updates.apiProviderId,
       });
     }
     // ✅ ADD PRICING GROUPS TO CUSTOM FIELDS (NO DYNAMIC FIELDS)
@@ -282,7 +315,7 @@ export class ZohoItemService {
       try {
         console.log(`📸 Downloading image from S3: ${updates.imageUrl}`);
 
-        const imageResponse = await axios.get(updates.imageUrl, {
+        const imageResponse = await zohoHttpClient.get(updates.imageUrl, {
           responseType: "arraybuffer",
         });
 
@@ -304,9 +337,11 @@ export class ZohoItemService {
         if (updates.rate !== undefined) itemData.rate = updates.rate;
         if (updates.unit) itemData.unit = "pcs";
         if (updates.groupId) itemData.group_id = updates.groupId;
-        if (updates.isActive !== undefined) {
-          itemData.status = updates.isActive ? "active" : "inactive";
+        // ✅ Use status directly (already in correct format)
+        if (updates.status !== undefined) {
+          itemData.status = updates.status; // 'active' or 'inactive'
         }
+
         if (customFields.length > 0) {
           itemData.custom_fields = customFields;
         }
@@ -321,7 +356,7 @@ export class ZohoItemService {
 
         const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-        const { data } = await axios.put(url, formData, {
+        const { data } = await zohoHttpClient.put(url, formData, {
           headers: {
             Authorization: `Zoho-oauthtoken ${accessToken}`,
             ...formData.getHeaders(),
@@ -362,17 +397,14 @@ export class ZohoItemService {
       ...(updates.rate !== undefined && { rate: updates.rate }),
       ...(updates.unit && { unit: "pcs" }),
       ...(updates.groupId && { group_id: updates.groupId }),
-
-      ...(updates.isActive !== undefined && {
-        status: updates.isActive ? "active" : "inactive",
-      }),
+      ...(updates.status !== undefined && { status: updates.status }),
       ...(customFields.length > 0 && { custom_fields: customFields }),
     };
 
     const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
-      const { data } = await axios.put(url, payload, {
+      const { data } = await zohoHttpClient.put(url, payload, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
           "Content-Type": "application/json",
@@ -408,7 +440,7 @@ export class ZohoItemService {
     try {
       console.log(`📸 Downloading image from S3: ${imageUrl}`);
 
-      const imageResponse = await axios.get(imageUrl, {
+      const imageResponse = await zohoHttpClient.get(imageUrl, {
         responseType: "arraybuffer",
       });
 
@@ -434,7 +466,7 @@ export class ZohoItemService {
 
       console.log(`📤 Updating item ${itemId} with image`);
 
-      const { data } = await axios.put(
+      const { data } = await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         formData,
         {
@@ -466,7 +498,7 @@ export class ZohoItemService {
       console.log(`📸 Downloading image from S3: ${imageUrl}`);
 
       // Step 1: Download the image from S3
-      const imageResponse = await axios.get(imageUrl, {
+      const imageResponse = await zohoHttpClient.get(imageUrl, {
         responseType: "arraybuffer",
       });
 
@@ -492,7 +524,7 @@ export class ZohoItemService {
         contentType: contentType,
       });
 
-      const { data: docData } = await axios.post(
+      const { data: docData } = await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/documents?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         formData,
         {
@@ -517,7 +549,7 @@ export class ZohoItemService {
         image_document_id: imageDocumentId,
       };
 
-      const { data: itemData } = await axios.put(
+      const { data: itemData } = await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         updatePayload,
         {
@@ -717,7 +749,7 @@ export class ZohoItemService {
     try {
       console.log(`📸 Downloading image from S3: ${imageUrl}`);
 
-      const imageResponse = await axios.get(imageUrl, {
+      const imageResponse = await zohoHttpClient.get(imageUrl, {
         responseType: "arraybuffer",
       });
 
@@ -759,7 +791,7 @@ export class ZohoItemService {
 
       const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-      const { data } = await axios.put(url, formData, {
+      const { data } = await zohoHttpClient.put(url, formData, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
           ...formData.getHeaders(),
@@ -800,7 +832,7 @@ export class ZohoItemService {
         );
 
         // Step 1: Get current pricebook to fetch existing items
-        const { data: priceBookData } = await axios.get(
+        const { data: priceBookData } = await zohoHttpClient.get(
           `${ZOHO_ENV.BOOKS_API}/pricebooks/${pg.zohoPriceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           {
             headers: {
@@ -850,7 +882,7 @@ export class ZohoItemService {
           pricebook_items: updatedItems,
         };
 
-        await axios.put(
+        await zohoHttpClient.put(
           `${ZOHO_ENV.BOOKS_API}/pricebooks/${pg.zohoPriceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           payload,
           {
@@ -959,7 +991,7 @@ export class ZohoItemService {
 
     try {
       // Get current pricebook
-      const { data: priceBookData } = await axios.get(
+      const { data: priceBookData } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/pricebooks/${zohoPriceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -981,7 +1013,7 @@ export class ZohoItemService {
         pricebook_items: updatedItems,
       };
 
-      await axios.put(
+      await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/pricebooks/${zohoPriceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         payload,
         {
@@ -1010,7 +1042,7 @@ export class ZohoItemService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      const { data } = await axios.get(
+      const { data } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -1043,7 +1075,7 @@ export class ZohoItemService {
 
     try {
       // Get price list details
-      const { data } = await axios.get(
+      const { data } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/pricebooks/${priceListId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -1122,7 +1154,7 @@ export class ZohoItemService {
     try {
       // Check invoices
       const invoiceUrl = `${ZOHO_ENV.BOOKS_API}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&item_id=${itemId}&per_page=1`;
-      const invoiceResponse = await axios.get(invoiceUrl, {
+      const invoiceResponse = await zohoHttpClient.get(invoiceUrl, {
         headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
       });
 
@@ -1133,7 +1165,7 @@ export class ZohoItemService {
 
       // Check credit notes
       const creditNoteUrl = `${ZOHO_ENV.BOOKS_API}/creditnotes?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&item_id=${itemId}&per_page=1`;
-      const creditNoteResponse = await axios.get(creditNoteUrl, {
+      const creditNoteResponse = await zohoHttpClient.get(creditNoteUrl, {
         headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
       });
 
@@ -1165,7 +1197,7 @@ export class ZohoItemService {
       status: "inactive",
     };
 
-    await axios.put(url, payload, {
+    await zohoHttpClient.put(url, payload, {
       headers: {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
         "Content-Type": "application/json",
@@ -1178,7 +1210,7 @@ export class ZohoItemService {
   private async deleteItem(itemId: string, accessToken: string) {
     const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
-    await axios.delete(url, {
+    await zohoHttpClient.delete(url, {
       headers: {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
       },
@@ -1197,7 +1229,7 @@ export class ZohoItemService {
     const url = `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     try {
-      const { data } = await axios.get(url, {
+      const { data } = await zohoHttpClient.get(url, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },

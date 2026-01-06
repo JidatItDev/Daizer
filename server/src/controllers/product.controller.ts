@@ -72,7 +72,7 @@ class ProductController {
         isActive,
         apiProviderId,
       } = body;
-
+      console.log("apiProviderId", req.body);
       if (!apiProviderId) {
         return res.status(400).json({
           success: false,
@@ -184,6 +184,14 @@ class ProductController {
             // zohoItemId: zohoItem.item_id,
           })
           .returning();
+        // ✅ Convert isActive to Zoho status format
+        let zohoStatus: string;
+        if (typeof isActive === "string") {
+          zohoStatus =
+            isActive.toLowerCase() === "active" ? "active" : "inactive";
+        } else {
+          zohoStatus = isActive ?? true ? "active" : "inactive";
+        }
         const zohoItem = await zohoItemService.createItemInZoho({
           name,
           description: `${description}\n\nPrice Range: ${minRate} - ${maxRate}`,
@@ -192,8 +200,10 @@ class ProductController {
           sku: newProduct.id.toString(), // ✅ Using local product ID as SKU
           unit: "pcs",
           pricingGroupPrices: enrichedPricingGroups,
-          isActive: isActive === true ? "Active" : "Disabled",
+          status: zohoStatus, // ✅ Send 'active' or 'inactive'
           imageUrl: image?.url,
+          serviceId,
+          apiProviderId: provider.id,
         });
         await tx
           .update(products)
@@ -367,7 +377,16 @@ class ProductController {
             mimetype: file.mimetype,
           }
         : undefined;
+      let normalizedIsActive: boolean | undefined = undefined;
 
+      if (isActive !== undefined) {
+        if (typeof isActive === "string") {
+          normalizedIsActive =
+            isActive.toLowerCase() === "active" || isActive === "true";
+        } else {
+          normalizedIsActive = Boolean(isActive);
+        }
+      }
       // Build update object (only include defined fields)
       const updateData: any = {};
       if (name !== undefined) updateData.name = name;
@@ -481,6 +500,9 @@ class ProductController {
               zohoUpdatePayload.description = description;
             }
           }
+          if (serviceId !== undefined) zohoUpdatePayload.serviceId = serviceId;
+          if (apiProviderId !== undefined)
+            zohoUpdatePayload.apiProviderId = apiProviderId;
 
           // ✅ Calculate and add rate if pricing groups are updated
           if (enrichedPricingGroups && enrichedPricingGroups.length > 0) {
@@ -496,9 +518,18 @@ class ProductController {
             zohoUpdatePayload.groupId = subcategory.zohoGroupId;
             zohoUpdatePayload.categoryName = subcategory.name; // Add this line
           }
-
           if (isActive !== undefined) {
-            zohoUpdatePayload.isActive = isActive;
+            // Convert boolean/string to Zoho status format
+            let statusValue: string;
+
+            if (typeof isActive === "string") {
+              statusValue =
+                isActive.toLowerCase() === "active" ? "active" : "inactive";
+            } else {
+              statusValue = isActive ? "active" : "inactive";
+            }
+
+            zohoUpdatePayload.status = statusValue; // ✅ Use 'status' field
           }
 
           if (image?.url) {
@@ -1312,39 +1343,38 @@ class ProductController {
         });
       }
 
-      // 5. Call external service (your existing code)
-      const apiUrl = process.env.EXTERNAL_PRODUCT_API;
-      if (!apiUrl) {
-        return res.status(500).json({
-          success: false,
-          message: "External API URL not configured",
-        });
-      }
+      // // 5. Call external service (your existing code)
+      // const apiUrl = process.env.EXTERNAL_PRODUCT_API;
+      // if (!apiUrl) {
+      //   return res.status(500).json({
+      //     success: false,
+      //     message: "External API URL not configured",
+      //   });
+      // }
 
       const referenceNumber = Math.floor(Math.random() * 40);
       const formData = new URLSearchParams();
       formData.append("request", "neworder");
       formData.append("service", product.serviceId.toString());
-      console.log("service", product.serviceId.toString());
+
       formData.append("reference", referenceNumber.toString());
-      console.log("reference", referenceNumber.toString());
+
       formData.append("player_id", playerId);
-      console.log("player_id", playerId);
 
-      const { data } = await axios.post(apiUrl, formData, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        timeout: 30000,
-      });
+      // const { data } = await axios.post(apiUrl, formData, {
+      //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      //   timeout: 30000,
+      // });
 
-      console.log("external service response", data);
+      // console.log("external service response", data);
 
-      if (!data || !data.status) {
-        return res.status(500).json({
-          success: false,
-          message: "External service failed",
-          externalResponse: data,
-        });
-      }
+      // if (!data || !data.status) {
+      //   return res.status(500).json({
+      //     success: false,
+      //     message: "External service failed",
+      //     externalResponse: data,
+      //   });
+      // }
 
       // 6. Deduct amount from wallet
       const newBalance = currentBalance - productPrice;
@@ -1376,9 +1406,7 @@ class ProductController {
         quantity: product.quantity || "",
       });
 
-      console.log(
-        `✅ Zoho processing complete: Invoice ${zohoResult.invoiceNumber}`
-      );
+      console.log(`✅ Zoho processing complete: Invoice`, zohoResult);
       // 11. Create purchase transaction in your DB
       await db.insert(transactions).values({
         walletId: wallet.id,
@@ -1388,6 +1416,10 @@ class ProductController {
         currency: wallet.currency,
         status: "completed",
         referenceId: zohoResult.invoiceNumber,
+        // ✅ Zoho invoice reference ONLY
+        invoiceId: zohoResult.invoiceId,
+        invoiceNumber: zohoResult.invoiceNumber,
+
         metadata: JSON.stringify({
           productId: product.id,
           productName: product.name,

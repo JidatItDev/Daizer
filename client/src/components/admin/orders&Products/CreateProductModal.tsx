@@ -32,6 +32,7 @@ import { useApiProviders } from "../../../api/useExternalProvider";
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 interface FormData {
@@ -65,6 +66,7 @@ interface ServiceResponse {
 export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   isOpen,
   onClose,
+  onSuccess,
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -152,8 +154,13 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     if (!formData.quantity) {
       newErrors.quantity = "Quantity is required";
     }
+    // ✅ API Provider validation
     if (!formData.apiProviderId) {
       newErrors.apiProviderId = "Please select an API provider";
+    }
+    // ✅ Service validation - only validate if provider is selected
+    if (formData.apiProviderId && !formData.serviceId) {
+      newErrors.serviceId = "Please select a service";
     }
 
     // Description validation
@@ -236,6 +243,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
 
       toast.success("Product created successfully");
       handleClose();
+      onSuccess();
     } catch (error) {
       if (error instanceof AxiosError) {
         const errorMessage = error.response?.data?.message || error.message;
@@ -430,7 +438,9 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                   <PopButton
                     variant="outline"
                     role="combobox"
-                    className="w-full justify-between"
+                    className={`w-full justify-between ${
+                      errors.apiProviderId ? "border-red-500" : ""
+                    }`}
                     disabled={isLoadingApiProviders}
                   >
                     {selectedProviderId
@@ -457,6 +467,13 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                                 setSelectedProviderId(provider.id);
                                 handleInputChange("apiProviderId", provider.id);
                                 handleInputChange("serviceId", ""); // reset service
+                                // Clear error when selected
+                                if (errors.apiProviderId) {
+                                  setErrors((prev) => ({
+                                    ...prev,
+                                    apiProviderId: "",
+                                  }));
+                                }
                               }}
                             >
                               <Check
@@ -475,34 +492,48 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                   </Command>
                 </PopoverContent>
               </Popover>
+
+              {/* ✅ Show error message */}
+              {errors.apiProviderId && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.apiProviderId}
+                </p>
+              )}
             </div>
 
             <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Service{" "}
+                {formData.apiProviderId && (
+                  <span className="text-red-500">*</span>
+                )}
+              </label>
+
               <Popover>
                 <PopoverTrigger asChild>
                   <PopButton
                     variant="outline"
                     role="combobox"
-                    className="w-full justify-between"
+                    className={`w-full justify-between ${
+                      errors.serviceId ? "border-red-500" : ""
+                    }`}
                     disabled={!selectedProviderId || isLoadingServices}
                   >
-                    {/* {formData.serviceId
-                      ? services?.find(
-                          (s: any) =>
-                            s.ServiceApiID.toString() === formData.serviceId
-                        )?.ServiceName
-                      : "Select service..."} */}
-                    {formData.serviceId
-                      ? (() => {
-                          const selectedService = services?.find(
-                            (s: any) =>
-                              s.ServiceApiID.toString() === formData.serviceId
-                          );
-                          return selectedService
-                            ? `${selectedService.ServiceName} - $${selectedService.Price}`
-                            : "Select service...";
-                        })()
-                      : "Select service..."}
+                    <span className="truncate">
+                      {isLoadingServices
+                        ? "Loading services..."
+                        : formData.serviceId
+                        ? (() => {
+                            const selectedService = services?.find(
+                              (s: any) =>
+                                s.ServiceApiID.toString() === formData.serviceId
+                            );
+                            return selectedService
+                              ? `${selectedService.ServiceName} - $${selectedService.Price}`
+                              : "Select service...";
+                          })()
+                        : "Select service..."}
+                    </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </PopButton>
                 </PopoverTrigger>
@@ -513,36 +544,56 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
                   <Command>
                     <CommandInput placeholder="Search services..." />
                     <CommandList>
-                      <CommandEmpty>No services found.</CommandEmpty>
-                      <CommandGroup>
-                        {services?.map((service: any) => (
-                          <CommandItem
-                            key={service.ServiceApiID}
-                            value={service.ServiceName}
-                            onSelect={() => {
-                              handleInputChange(
-                                "serviceId",
-                                service.ServiceApiID.toString()
-                              );
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.serviceId ===
-                                  service.ServiceApiID.toString()
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {service.ServiceName} - {service.Price}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      {isLoadingServices ? (
+                        <div className="p-4 text-center text-sm text-gray-500">
+                          Loading services...
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>No services found.</CommandEmpty>
+                          <CommandGroup>
+                            {services?.map((service: any) => (
+                              <CommandItem
+                                key={service.ServiceApiID}
+                                value={service.ServiceName}
+                                onSelect={() => {
+                                  handleInputChange(
+                                    "serviceId",
+                                    service.ServiceApiID.toString()
+                                  );
+                                  // Clear error when selected
+                                  if (errors.serviceId) {
+                                    setErrors((prev) => ({
+                                      ...prev,
+                                      serviceId: "",
+                                    }));
+                                  }
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.serviceId ===
+                                      service.ServiceApiID.toString()
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {service.ServiceName} - ${service.Price}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </>
+                      )}
                     </CommandList>
                   </Command>
                 </PopoverContent>
               </Popover>
+
+              {/* ✅ Show error message */}
+              {errors.serviceId && (
+                <p className="text-sm text-red-600 mt-1">{errors.serviceId}</p>
+              )}
             </div>
           </div>
         </div>

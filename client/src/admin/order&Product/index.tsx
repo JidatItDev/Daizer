@@ -30,6 +30,9 @@ const ProductsManagement = () => {
     useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [updatingProductId, setUpdatingProductId] = useState<string | null>(
+    null
+  );
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -125,11 +128,22 @@ const ProductsManagement = () => {
     );
   };
 
-  const handleToggleStatus = (product: Product) => {
-    updateProductMutation.mutate({
-      id: product.id,
-      isActive: !product.isActive,
-    });
+  const handleToggleStatus = async (product: Product) => {
+    setUpdatingProductId(product.id);
+
+    try {
+      await updateProductMutation.mutateAsync({
+        id: product.id,
+        isActive: !product.isActive,
+      });
+
+      toast.success("Product Status updated");
+      refetch(); // 🔴 IMPORTANT (explained below)
+    } catch (error) {
+      toast.error("Failed to update status");
+    } finally {
+      setUpdatingProductId(null);
+    }
   };
 
   const productColumns: TableColumn<Product>[] = [
@@ -149,8 +163,16 @@ const ProductsManagement = () => {
               <Package size={20} className="text-gray-400" />
             </div>
           )}
-          <div>
-            <div className="font-medium text-gray-900">{record.name}</div>
+
+          <div className="min-w-0">
+            {/* Product name */}
+            <div
+              className="font-medium text-gray-900 truncate max-w-[220px]"
+              title={record.name} // 👈 native tooltip
+            >
+              {record.name}
+            </div>
+
             {record.description && (
               <div className="text-sm text-gray-500 truncate max-w-xs">
                 {record.description}
@@ -160,6 +182,7 @@ const ProductsManagement = () => {
         </div>
       ),
     },
+
     {
       key: "category",
       title: "Category",
@@ -186,31 +209,77 @@ const ProductsManagement = () => {
       ),
     },
     {
-      key: "isActive",
+      key: "status",
       title: "Status",
+      align: "center",
       render: (_, record) => (
-        <span className="text-sm font-medium text-gray-900">
-          {getStatus(record)}
-        </span>
-      ),
-    },
-    {
-      key: "isActive",
-      title: "Status",
-      render: (_, record) => (
-        <button
-          type="button"
-          onClick={() => handleToggleStatus(record)}
-          className={`w-12 h-6 flex items-center rounded-full p-1 transition ${
-            record.isActive ? "bg-green-500" : "bg-gray-300"
-          }`}
-        >
-          <div
-            className={`bg-white w-4 h-4 rounded-full shadow-md transform transition ${
-              record.isActive ? "translate-x-6" : "translate-x-0"
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg">
+          {/* Toggle Switch */}
+          <button
+            type="button"
+            disabled={updatingProductId === record.id}
+            onClick={() => handleToggleStatus(record)}
+            className={`
+          relative inline-flex h-6 w-11 items-center rounded-full
+          transition-colors duration-200 ease-in-out
+          focus:outline-none focus:ring-2 focus:ring-offset-2
+          ${
+            record.isActive
+              ? "bg-green-500 focus:ring-green-500"
+              : "bg-gray-300 focus:ring-gray-400"
+          }
+          ${
+            updatingProductId === record.id
+              ? "opacity-50 cursor-not-allowed"
+              : "cursor-pointer"
+          }
+        `}
+            title={record.isActive ? "Disable product" : "Activate product"}
+          >
+            <span
+              className={`
+            inline-block h-4 w-4 transform rounded-full bg-white shadow-lg
+            transition-transform duration-200 ease-in-out
+            ${record.isActive ? "translate-x-6" : "translate-x-1"}
+          `}
+            >
+              {updatingProductId === record.id && (
+                <svg
+                  className="h-4 w-4 animate-spin text-gray-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              )}
+            </span>
+          </button>
+
+          {/* Status Text */}
+          <span
+            className={`text-xs font-medium whitespace-nowrap ${
+              record.isActive ? "text-green-700" : "text-gray-600"
             }`}
-          />
-        </button>
+          >
+            {updatingProductId === record.id
+              ? "Updating..."
+              : record.isActive
+              ? "Active"
+              : "Inactive"}
+          </span>
+        </div>
       ),
     },
     {
@@ -337,7 +406,10 @@ const ProductsManagement = () => {
       {/* Create Product Modal */}
       <CreateProductModal
         isOpen={isCreateProductModalOpen}
-        onClose={() => setIsCreateProductModalOpen(false)}
+        onClose={() => {
+          setIsCreateProductModalOpen(false);
+        }}
+        onSuccess={() => refetch()}
       />
 
       {/* Edit Product Modal */}
@@ -346,6 +418,9 @@ const ProductsManagement = () => {
         onClose={() => {
           setIsEditProductModalOpen(false);
           setSelectedProduct(null);
+        }}
+        onSuccess={() => {
+          refetch(); // ✅ only after success
         }}
         product={selectedProduct}
       />

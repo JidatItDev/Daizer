@@ -3,6 +3,7 @@ import { ZohoService } from "../zoho.service";
 import { ZohoAccountIdsFetchingService } from "./zohoAccountIdsFetching.service";
 import { ZohoWalletService } from "./zohoWallet.service";
 import { ZOHO_ENV } from "../../config/Zoho";
+import zohoHttpClient from "../../utils/zohoHttpClient";
 
 interface ProductPurchaseParams {
   userId: string;
@@ -32,6 +33,7 @@ interface ZohoPurchaseResult {
     creditNoteNumber: string;
     amountApplied: number;
   }>;
+  invoice?: any; // ← ADD THIS: Full invoice object with links
 }
 
 export class ZohoProductPurchaseService {
@@ -132,7 +134,7 @@ export class ZohoProductPurchaseService {
       ],
     };
 
-    await axios.post(
+    await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       journalPayload,
       {
@@ -156,6 +158,7 @@ export class ZohoProductPurchaseService {
       salesOrderNumber: salesOrder.salesorder_number,
       invoiceId: invoice.invoice_id,
       invoiceNumber: invoice.invoice_number,
+      invoice, // ← ADD THIS LINE: Include full invoice object
       priceListName,
       finalPrice,
       creditNotesApplied,
@@ -201,7 +204,7 @@ export class ZohoProductPurchaseService {
     );
 
     try {
-      const { data: salesOrderData } = await axios.post(
+      const { data: salesOrderData } = await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/salesorders?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         salesOrderPayload,
         {
@@ -225,7 +228,9 @@ export class ZohoProductPurchaseService {
         JSON.stringify(salesOrderPayload, null, 2)
       );
       throw new Error(
-        `Failed to create sales order: ${error.response?.data?.message || error.message}`
+        `Failed to create sales order: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -237,7 +242,7 @@ export class ZohoProductPurchaseService {
     console.log(`🔄 Confirming Sales Order ${salesOrderId}...`);
 
     try {
-      await axios.post(
+      await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/salesorders/${salesOrderId}/status/confirmed?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {},
         {
@@ -257,7 +262,9 @@ export class ZohoProductPurchaseService {
         JSON.stringify(error.response?.data, null, 2)
       );
       throw new Error(
-        `Failed to confirm sales order: ${error.response?.data?.message || error.message}`
+        `Failed to confirm sales order: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -273,7 +280,7 @@ export class ZohoProductPurchaseService {
 
     try {
       // Fetch Sales Order details
-      const { data: soData } = await axios.get(
+      const { data: soData } = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/salesorders/${salesOrderId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           headers: {
@@ -312,7 +319,7 @@ export class ZohoProductPurchaseService {
         JSON.stringify(invoicePayload, null, 2)
       );
 
-      const { data: invoiceData } = await axios.post(
+      const { data: invoiceData } = await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         invoicePayload,
         {
@@ -340,7 +347,9 @@ export class ZohoProductPurchaseService {
       );
 
       throw new Error(
-        `Failed to create invoice from sales order: ${error.response?.data?.message || error.message}`
+        `Failed to create invoice from sales order: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -353,7 +362,7 @@ export class ZohoProductPurchaseService {
     salesOrderId: string
   ) {
     try {
-      await axios.post(
+      await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/salesorders/${salesOrderId}/status/invoiced?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {},
         {
@@ -367,7 +376,9 @@ export class ZohoProductPurchaseService {
     } catch (error: any) {
       // Don't throw error here - invoice is created, this is just status update
       console.warn(
-        `⚠️ Could not mark SO as invoiced: ${error.response?.data?.message || error.message}`
+        `⚠️ Could not mark SO as invoiced: ${
+          error.response?.data?.message || error.message
+        }`
       );
     }
   }
@@ -406,7 +417,7 @@ export class ZohoProductPurchaseService {
       invoicePayload.pricebook_id = priceBookId;
     }
 
-    const { data: invoiceData } = await axios.post(
+    const { data: invoiceData } = await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       invoicePayload,
       {
@@ -430,7 +441,7 @@ export class ZohoProductPurchaseService {
     invoiceAmount: number
   ): Promise<Array<{ creditNoteNumber: string; amountApplied: number }>> {
     // Get customer's available credit notes
-    const { data: creditNotesData } = await axios.get(
+    const { data: creditNotesData } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/creditnotes?customer_id=${zohoContactId}&status=open&organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: {
@@ -465,7 +476,7 @@ export class ZohoProductPurchaseService {
 
       const amountToApply = Math.min(creditNote.balance, remainingAmount);
 
-      await axios.post(
+      await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/creditnotes/${creditNote.creditnote_id}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           invoices: [
@@ -517,7 +528,7 @@ export class ZohoProductPurchaseService {
     // 1️⃣ Fetch customer details to get their assigned pricing group
     console.log(`🔍 Fetching customer details: ${zohoContactId}`);
 
-    const { data: customerData } = await axios.get(
+    const { data: customerData } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/contacts/${zohoContactId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: {
@@ -541,7 +552,7 @@ export class ZohoProductPurchaseService {
     // 2️⃣ Fetch item standard details first
     console.log(`🔍 Fetching item standard details...`);
 
-    const { data: itemData } = await axios.get(
+    const { data: itemData } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/items/${productZohoItemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: {
@@ -565,7 +576,7 @@ export class ZohoProductPurchaseService {
       try {
         console.log(`🔍 Fetching pricebook: ${matchingPriceListId}`);
 
-        const { data: priceBookData } = await axios.get(
+        const { data: priceBookData } = await zohoHttpClient.get(
           `https://www.zohoapis.com/inventory/v1/pricebooks/${matchingPriceListId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           {
             headers: {
@@ -596,7 +607,9 @@ export class ZohoProductPurchaseService {
         }
       } catch (error: any) {
         console.error(
-          `❌ Error fetching pricebook: ${error.response?.data?.message || error.message}`
+          `❌ Error fetching pricebook: ${
+            error.response?.data?.message || error.message
+          }`
         );
         console.log(`⚠️ Falling back to standard rate: ${finalPrice}`);
       }
@@ -648,7 +661,7 @@ export class ZohoProductPurchaseService {
       ],
     };
 
-    await axios.post(
+    await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       journalPayload,
       {

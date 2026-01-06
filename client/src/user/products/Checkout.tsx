@@ -95,7 +95,7 @@ const Checkout = () => {
           variant="outline"
           size="sm"
           className="px-5 py-1 rounded-full border"
-          onClick={() => navigate("/orders")}
+          onClick={() => navigate("/myOrders")}
         >
           My Orders
         </Button>
@@ -122,14 +122,16 @@ const Checkout = () => {
                   </div>
                 )}
               </div>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium font-poppins">
+              <div className="flex flex-wrap justify-between items-start mb-4 gap-2">
+                <h3 className="text-lg font-medium font-poppins max-w-[75%] break-words">
                   {productData?.data?.name || "N/A"}
                 </h3>
-                <span className="text-lg text-black/70">
+
+                <span className="text-lg text-black/70 whitespace-nowrap">
                   {productData?.data?.quantity || "N/A"}
                 </span>
               </div>
+
               <div className="bg-[#f9f6f6] p-4 rounded-lg text-base space-y-4">
                 <div className="flex justify-between">
                   <span>Subtotal (1 items)</span>

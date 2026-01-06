@@ -30,11 +30,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useApiProviders } from "../../../api/useExternalProvider";
+import { queryClient } from "../../../main";
 
 interface EditProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
+  onSuccess: () => void; // ✅ new
 }
 
 interface FormData {
@@ -57,6 +59,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   isOpen,
   onClose,
   product,
+  onSuccess, // ✅ new
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -77,7 +80,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     useApiProviders();
   const providers = apiProviders ?? [];
   // const { data: services = [] } = useProductServices();
-  const { data: servicesData } = useProductServices(selectedProviderId);
+  const { data: servicesData, isLoading: isLoadingServices } =
+    useProductServices(selectedProviderId);
   const services = (servicesData as ServiceResponse)?.services || [];
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -232,6 +236,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
       toast.success("Product updated successfully");
       handleClose();
+      onSuccess();
     } catch (error) {
       console.error("Failed to update product:", error);
       const errorMessage = handleFileUploadError(error);
@@ -382,6 +387,9 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             </div>
             {/* Select Service */}
             <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2 mt-2">
+                External API Provider <span className="text-red-500">*</span>
+              </label>
               <Popover>
                 <PopoverTrigger asChild>
                   <PopButton
@@ -402,8 +410,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     <CommandList>
                       <CommandGroup>
                         {providers
-                          .filter((p) => p.active)
-                          .map((provider) => (
+                          .filter((p: any) => p.active)
+                          .map((provider: any) => (
                             <CommandItem
                               key={provider.id}
                               onSelect={() => {
@@ -429,7 +437,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 </PopoverContent>
               </Popover>
 
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2 mt-2">
                 Select Service
               </label>
 
@@ -439,24 +447,23 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     variant="outline"
                     role="combobox"
                     className="w-full justify-between"
+                    disabled={!selectedProviderId || isLoadingServices}
                   >
-                    {/* {formData.serviceId
-                      ? services?.find(
-                          (s: any) =>
-                            s.ServiceApiID.toString() === formData.serviceId
-                        )?.ServiceName
-                      : "Select service..."} */}
-                    {formData.serviceId
-                      ? (() => {
-                          const selectedService = services?.find(
-                            (s: ExternalService) =>
-                              s.ServiceApiID.toString() === formData.serviceId
-                          );
-                          return selectedService
-                            ? `${selectedService.ServiceName} - $${selectedService.Price}`
-                            : "Select service...";
-                        })()
-                      : "Select service..."}
+                    <span className="truncate">
+                      {isLoadingServices
+                        ? "Loading services..."
+                        : formData.serviceId
+                        ? (() => {
+                            const selectedService = services?.find(
+                              (s: ExternalService) =>
+                                s.ServiceApiID.toString() === formData.serviceId
+                            );
+                            return selectedService
+                              ? `${selectedService.ServiceName} - $${selectedService.Price}`
+                              : "Select service...";
+                          })()
+                        : "Select service..."}
+                    </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </PopButton>
                 </PopoverTrigger>
@@ -467,32 +474,40 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   <Command>
                     <CommandInput placeholder="Search services..." />
                     <CommandList>
-                      <CommandEmpty>No services found.</CommandEmpty>
-                      <CommandGroup>
-                        {services?.map((service: ExternalService) => (
-                          <CommandItem
-                            key={service.ServiceApiID}
-                            value={service.ServiceName}
-                            onSelect={() => {
-                              handleInputChange(
-                                "serviceId",
-                                service.ServiceApiID.toString()
-                              );
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.serviceId ===
-                                  service.ServiceApiID.toString()
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {service.ServiceName} - {service.Price}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
+                      {isLoadingServices ? (
+                        <div className="p-4 text-center text-sm text-gray-500">
+                          Loading services...
+                        </div>
+                      ) : (
+                        <>
+                          <CommandEmpty>No services found.</CommandEmpty>
+                          <CommandGroup>
+                            {services?.map((service: ExternalService) => (
+                              <CommandItem
+                                key={service.ServiceApiID}
+                                value={service.ServiceName}
+                                onSelect={() => {
+                                  handleInputChange(
+                                    "serviceId",
+                                    service.ServiceApiID.toString()
+                                  );
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.serviceId ===
+                                      service.ServiceApiID.toString()
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {service.ServiceName} - ${service.Price}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </>
+                      )}
                     </CommandList>
                   </Command>
                 </PopoverContent>

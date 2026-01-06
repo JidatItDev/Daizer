@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ZohoService } from "../zoho.service";
 import { ZOHO_ENV } from "../../config/Zoho";
+import zohoHttpClient from "../../utils/zohoHttpClient";
 
 export class ZohoCategoryService {
   private zohoService: ZohoService;
@@ -29,7 +30,7 @@ export class ZohoCategoryService {
       let hasMorePages = true;
 
       while (hasMorePages) {
-        const { data: itemsData } = await axios.get(
+        const { data: itemsData } = await zohoHttpClient.get(
           `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&page=${page}&per_page=200`,
           {
             headers: {
@@ -69,7 +70,7 @@ export class ZohoCategoryService {
               ],
             };
 
-            await axios.put(
+            await zohoHttpClient.put(
               `${ZOHO_ENV.BOOKS_API}/items/${item.item_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               updatePayload,
               {
@@ -80,7 +81,7 @@ export class ZohoCategoryService {
               }
             );
 
-            console.log(`      ✅ Updated: ${item.name}`);
+            console.log(`✅ Updated: ${item.name}`);
             updatedCount++;
           } catch (updateError: any) {
             console.error(
@@ -121,7 +122,7 @@ export class ZohoCategoryService {
       let hasMorePages = true;
 
       while (hasMorePages) {
-        const { data: itemsData } = await axios.get(
+        const { data: itemsData } = await zohoHttpClient.get(
           `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&page=${page}&per_page=200`,
           {
             headers: {
@@ -159,7 +160,7 @@ export class ZohoCategoryService {
           );
 
           // Get full item details (includes custom_fields in proper format)
-          const { data: itemDetailsData } = await axios.get(
+          const { data: itemDetailsData } = await zohoHttpClient.get(
             `${ZOHO_ENV.BOOKS_API}/items/${item.item_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
             {
               headers: {
@@ -188,7 +189,7 @@ export class ZohoCategoryService {
           }
 
           // Update the item
-          await axios.put(
+          await zohoHttpClient.put(
             `${ZOHO_ENV.BOOKS_API}/items/${item.item_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
             {
               custom_fields: updatedCustomFields,
@@ -201,7 +202,7 @@ export class ZohoCategoryService {
             }
           );
 
-          console.log(`      ✅ Updated: ${item.name}`);
+          console.log(`✅ Updated: ${item.name}`);
           updatedCount++;
         } catch (updateError: any) {
           console.error(
@@ -233,7 +234,7 @@ export class ZohoCategoryService {
       let hasMorePages = true;
 
       while (hasMorePages) {
-        const { data: itemsData } = await axios.get(
+        const { data: itemsData } = await zohoHttpClient.get(
           `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&page=${page}&per_page=200`,
           {
             headers: {
@@ -279,7 +280,7 @@ export class ZohoCategoryService {
       let hasMorePages = true;
 
       while (hasMorePages) {
-        const { data: itemsData } = await axios.get(
+        const { data: itemsData } = await zohoHttpClient.get(
           `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&page=${page}&per_page=200`,
           {
             headers: {
@@ -339,7 +340,7 @@ export class ZohoCategoryService {
               ],
             };
 
-            await axios.put(
+            await zohoHttpClient.put(
               `${ZOHO_ENV.BOOKS_API}/items/${item.item_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
               updatePayload,
               {

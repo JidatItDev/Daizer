@@ -9,11 +9,13 @@ import {
   useApproveRefund,
   useGetActiveAccounts,
   useRefundRequests,
+  useInvalidateAll,
 } from "../../api/Wallets";
 import { CreditDebitModal } from "../../components/admin/Wallet/CreditDebitModal";
 import { AdjustmentTypeModal } from "../../components/admin/Wallet/AdjustmentTypeModal";
 import { RefundActionDropdown } from "../../components/admin/Wallet/RefundActionDropdown";
 import { RefundApproveModal } from "../../components/admin/Wallet/RefundApproveModal";
+import toast from "react-hot-toast";
 
 interface Wallet {
   id: string;
@@ -94,7 +96,8 @@ const WalletManagement = () => {
   const [isRefundApproveModalOpen, setIsRefundApproveModalOpen] =
     useState(false);
   const [selectedRefund, setSelectedRefund] = useState<any>(null);
-
+  const invalidateAll = useInvalidateAll();
+  const [isRefundProcessing, setIsRefundProcessing] = useState(false);
   // Wallets state
   const [walletsPagination, setWalletsPagination] = useState({
     current: 1,
@@ -139,21 +142,31 @@ const WalletManagement = () => {
     setSelectedItem(null);
   };
 
-  const { data: walletsData, isLoading: isLoadingWallets } = useAllWallets({
+  const {
+    data: walletsData,
+    isLoading: isLoadingWallets,
+    isFetching: isFetchingWallets,
+  } = useAllWallets({
     page: walletsPagination.current,
     limit: walletsPagination.pageSize,
   });
 
-  // Transactions query
-  const { data: transactionsData, isLoading: isLoadingTransactions } =
-    useAllTransactions({
-      page: transactionsPagination.current,
-      limit: transactionsPagination.pageSize,
-      type: "all",
-    });
+  const {
+    data: transactionsData,
+    isLoading: isLoadingTransactions,
+    isFetching: isFetchingTransactions,
+  } = useAllTransactions({
+    page: transactionsPagination.current,
+    limit: transactionsPagination.pageSize,
+    type: "all",
+  });
 
   // Refunds query
-  const { data: refundsData, isLoading: isLoadingRefunds } = useRefundRequests({
+  const {
+    data: refundsData,
+    isLoading: isLoadingRefunds,
+    isFetching: isFetchingRefunds,
+  } = useRefundRequests({
     page: refundsPagination.current,
     limit: refundsPagination.pageSize,
     status: "all",
@@ -219,6 +232,13 @@ const WalletManagement = () => {
       }));
     }
   }, [refundsData?.pagination?.total]);
+  // Clear processing state when data finishes fetching
+  useEffect(() => {
+    // Clear processing state when ALL fetching is complete
+    if (isRefundProcessing && !isFetchingRefunds && !isFetchingTransactions) {
+      setIsRefundProcessing(false);
+    }
+  }, [isRefundProcessing, isFetchingRefunds, isFetchingTransactions]);
 
   const handleWalletsPageChange = (page: number, pageSize: number) => {
     setWalletsPagination((prev) => ({
@@ -250,25 +270,42 @@ const WalletManagement = () => {
   };
 
   const approveRefund = useApproveRefund();
-  // Add this function to handle refund approval submission
+
   const handleApproveRefundSubmit = async (
     destination: string,
     sentBy: string
   ) => {
     if (!selectedRefund) return;
 
+    // Set processing state to show loader immediately
+    setIsRefundProcessing(true);
+
     try {
+      // Wait for the mutation AND all refetches to complete
       await approveRefund.mutateAsync({
         refundId: selectedRefund.id,
         destination,
         sentBy,
       });
+
+      // Now everything is done - show success
+      toast.success("Refund approved successfully");
+
+      // Close modal and reset
       setIsRefundApproveModalOpen(false);
       setSelectedRefund(null);
+
+      // The useEffect will clear isRefundProcessing when isFetching becomes false
     } catch (error) {
       console.error("Error approving refund:", error);
+      toast.error("Failed to approve refund");
+      setIsRefundProcessing(false); // Clear immediately on error
     }
   };
+
+  // The rest of your WalletManagement component stays the same...
+  // Just make sure you have this useEffect:
+
   const getAccountName = (value?: string) => {
     if (!value) return "N/A";
 
@@ -635,7 +672,7 @@ const WalletManagement = () => {
           <Table
             columns={walletColumns}
             data={wallets}
-            loading={isLoadingWallets}
+            loading={isLoadingWallets || isFetchingWallets}
             pagination={{
               ...walletsPagination,
               onChange: handleWalletsPageChange,
@@ -647,7 +684,11 @@ const WalletManagement = () => {
           <Table
             columns={transactionColumns}
             data={transactions}
-            loading={isLoadingTransactions}
+            loading={
+              isLoadingTransactions ||
+              isFetchingTransactions ||
+              isRefundProcessing
+            }
             pagination={{
               ...transactionsPagination,
               onChange: handleTransactionsPageChange,
@@ -659,7 +700,9 @@ const WalletManagement = () => {
           <Table
             columns={refundColumns}
             data={refundRequests}
-            loading={isLoadingRefunds}
+            loading={
+              isLoadingRefunds || isFetchingRefunds || isRefundProcessing
+            }
             pagination={{
               ...refundsPagination,
               onChange: handleRefundsPageChange,

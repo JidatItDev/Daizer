@@ -11,7 +11,7 @@ import {
   useDeletePricingGroup,
 } from "../../api/pricingGroup";
 import Modal from "../../components/common/Modal";
-import ConfirmationModal from "../../components/common/ConfirmationModal"; // Assuming you have a confirmation modal
+import ConfirmationModal from "../../components/common/ConfirmationModal";
 import toast from "react-hot-toast";
 
 interface PricingGroupType {
@@ -25,6 +25,17 @@ interface FormErrors {
   name?: string;
 }
 
+interface DefaultChangeAction {
+  type: "toggle" | "create" | "edit";
+  groupId?: string;
+  groupName: string;
+  newDefaultState: boolean;
+  formData?: {
+    name: string;
+    isDefault: boolean;
+  };
+}
+
 const PricingGroup = () => {
   const [pagination, setPagination] = useState({
     current: 1,
@@ -34,6 +45,12 @@ const PricingGroup = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDefaultChangeModalOpen, setIsDefaultChangeModalOpen] =
+    useState(false);
+  const [isCannotRemoveDefaultModalOpen, setIsCannotRemoveDefaultModalOpen] =
+    useState(false);
+  const [pendingDefaultChange, setPendingDefaultChange] =
+    useState<DefaultChangeAction | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<PricingGroupType | null>(
     null
   );
@@ -45,6 +62,8 @@ const PricingGroup = () => {
   const [touched, setTouched] = useState({ name: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingGroups, setUpdatingGroups] = useState<Set<string>>(new Set());
+  const [deletingGroups, setDeletingGroups] = useState<Set<string>>(new Set());
+  const [isUpdatingDefault, setIsUpdatingDefault] = useState(false);
 
   const { data, isLoading, refetch } = usePricingGroups({
     page: pagination.current,
@@ -57,15 +76,18 @@ const PricingGroup = () => {
 
   const pricingGroups: PricingGroupType[] = data?.pricingGroups ?? [];
   const totalPricingGroups = data?.pagination?.totalPricingGroups ?? 0;
+  const isDeleteLoading =
+    !!selectedGroup && deletingGroups.has(selectedGroup.id);
 
-  // Update total when API data changes
+  // Get current default pricing group
+  const currentDefaultGroup = pricingGroups.find((group) => group.isDefault);
+
   useEffect(() => {
     if (pagination.total !== totalPricingGroups) {
       setPagination((prev) => ({ ...prev, total: totalPricingGroups }));
     }
   }, [totalPricingGroups]);
 
-  // Validation function
   const validateName = (name: string): string | undefined => {
     if (!name.trim()) {
       return "Group name is required";
@@ -79,14 +101,12 @@ const PricingGroup = () => {
     return undefined;
   };
 
-  // Handle input changes
   const handleInputChange = (
     field: keyof typeof formData,
     value: string | boolean
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
-    // Real-time validation
     if (touched.name && field === "name") {
       const newErrors = { ...errors };
       const nameError = validateName(value as string);
@@ -99,7 +119,6 @@ const PricingGroup = () => {
     }
   };
 
-  // Handle field blur
   const handleBlur = (field: keyof typeof formData) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
 
@@ -139,26 +158,41 @@ const PricingGroup = () => {
     setIsDeleteModalOpen(true);
   };
 
-  // const handleToggleDefault = async (group: PricingGroupType) => {
-  //   try {
-  //     await updatePricingGroup.mutateAsync({
-  //       id: group.id,
-  //       isDefault: !group.isDefault,
-  //     });
-  //     toast.success(
-  //       `Pricing group ${
-  //         !group.isDefault ? "set as default" : "removed as default"
-  //       }`
-  //     );
-  //   } catch (error: any) {
-  //     console.error("Failed to update pricing group:", error);
-  //     toast.error("Failed to update pricing group");
-  //   }
-  // };
-
   const handleToggleDefault = async (group: PricingGroupType) => {
-    // Add to updating set
-    setUpdatingGroups((prev) => new Set(prev).add(group.id));
+    const newDefaultState = !group.isDefault;
+
+    // Prevent removing default if it's the only default group
+    if (!newDefaultState && group.isDefault) {
+      setIsCannotRemoveDefaultModalOpen(true);
+      return;
+    }
+
+    // If trying to set as default and there's already a default group
+    if (
+      newDefaultState &&
+      currentDefaultGroup &&
+      currentDefaultGroup.id !== group.id
+    ) {
+      setPendingDefaultChange({
+        type: "toggle",
+        groupId: group.id,
+        groupName: group.name,
+        newDefaultState: true,
+      });
+      setIsDefaultChangeModalOpen(true);
+      return;
+    }
+
+    // Otherwise proceed normally
+    await executeToggleDefault(group.id, newDefaultState);
+  };
+
+  const executeToggleDefault = async (
+    groupId: string,
+    newDefaultState: boolean
+  ) => {
+    setUpdatingGroups((prev) => new Set(prev).add(groupId));
+    setIsUpdatingDefault(true);
 
     const toastId = toast.loading(
       <div className="flex items-center gap-2">Updating pricing group...</div>
@@ -166,26 +200,27 @@ const PricingGroup = () => {
 
     try {
       await updatePricingGroup.mutateAsync({
-        id: group.id,
-        isDefault: !group.isDefault,
+        id: groupId,
+        isDefault: newDefaultState,
       });
 
       toast.success(
         `Pricing group ${
-          !group.isDefault ? "set as default" : "removed as default"
+          newDefaultState ? "set as default" : "removed as default"
         }`,
         { id: toastId }
       );
+      refetch();
     } catch (error: any) {
       console.error("Failed to update pricing group:", error);
       toast.error("Failed to update pricing group", { id: toastId });
     } finally {
-      // Remove from updating set
       setUpdatingGroups((prev) => {
         const newSet = new Set(prev);
-        newSet.delete(group.id);
+        newSet.delete(groupId);
         return newSet;
       });
+      setIsUpdatingDefault(false);
     }
   };
 
@@ -193,7 +228,6 @@ const PricingGroup = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Validate all fields
     const nameError = validateName(formData.name);
     const newErrors: FormErrors = {};
     if (nameError) newErrors.name = nameError;
@@ -201,24 +235,43 @@ const PricingGroup = () => {
     setErrors(newErrors);
     setTouched({ name: true });
 
-    // If no errors, proceed with creation
     if (Object.keys(newErrors).length === 0) {
-      try {
-        await createPricingGroup.mutateAsync({
-          name: formData.name.trim(),
-          isDefault: formData.isDefault,
+      // If trying to set as default and there's already a default group
+      if (formData.isDefault && currentDefaultGroup) {
+        setPendingDefaultChange({
+          type: "create",
+          groupName: formData.name.trim(),
+          newDefaultState: true,
+          formData: { ...formData },
         });
-
-        resetForm();
-        setIsCreateModalOpen(false);
-
-        toast.success("Pricing group created successfully");
-      } catch (error: any) {
-        handleApiError(error, "create");
+        setIsDefaultChangeModalOpen(true);
+        setIsSubmitting(false);
+        return;
       }
+
+      await executeCreateGroup();
     }
 
     setIsSubmitting(false);
+  };
+
+  const executeCreateGroup = async () => {
+    setIsUpdatingDefault(true);
+    try {
+      await createPricingGroup.mutateAsync({
+        name: formData.name.trim(),
+        isDefault: formData.isDefault,
+      });
+
+      resetForm();
+      setIsCreateModalOpen(false);
+      toast.success("Pricing group created successfully");
+      refetch();
+    } catch (error: any) {
+      handleApiError(error, "create");
+    } finally {
+      setIsUpdatingDefault(false);
+    }
   };
 
   const handleUpdateGroup = async (e: React.FormEvent) => {
@@ -227,7 +280,6 @@ const PricingGroup = () => {
 
     setIsSubmitting(true);
 
-    // Validate all fields
     const nameError = validateName(formData.name);
     const newErrors: FormErrors = {};
     if (nameError) newErrors.name = nameError;
@@ -235,31 +287,91 @@ const PricingGroup = () => {
     setErrors(newErrors);
     setTouched({ name: true });
 
-    // If no errors, proceed with update
     if (Object.keys(newErrors).length === 0) {
-      try {
-        await updatePricingGroup.mutateAsync({
-          id: selectedGroup.id,
-          name: formData.name.trim(),
-          isDefault: formData.isDefault,
-        });
-
-        // Reset form and close modal on success
-        resetForm();
-        setIsEditModalOpen(false);
-        refetch();
-
-        toast.success("Pricing group updated successfully");
-      } catch (error: any) {
-        handleApiError(error, "update");
+      // Prevent removing default if it's the only default group
+      if (!formData.isDefault && selectedGroup.isDefault) {
+        setIsCannotRemoveDefaultModalOpen(true);
+        setIsSubmitting(false);
+        return;
       }
+
+      // If trying to set as default and there's already a different default group
+      if (
+        formData.isDefault &&
+        currentDefaultGroup &&
+        currentDefaultGroup.id !== selectedGroup.id
+      ) {
+        setPendingDefaultChange({
+          type: "edit",
+          groupId: selectedGroup.id,
+          groupName: formData.name.trim(),
+          newDefaultState: true,
+          formData: { ...formData },
+        });
+        setIsDefaultChangeModalOpen(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      await executeUpdateGroup();
     }
 
     setIsSubmitting(false);
   };
 
+  const executeUpdateGroup = async () => {
+    if (!selectedGroup) return;
+
+    setIsUpdatingDefault(true);
+    try {
+      await updatePricingGroup.mutateAsync({
+        id: selectedGroup.id,
+        name: formData.name.trim(),
+        isDefault: formData.isDefault,
+      });
+
+      resetForm();
+      setIsEditModalOpen(false);
+      toast.success("Pricing group updated successfully");
+      refetch();
+    } catch (error: any) {
+      handleApiError(error, "update");
+    } finally {
+      setIsUpdatingDefault(false);
+    }
+  };
+
+  const handleConfirmDefaultChange = async () => {
+    if (!pendingDefaultChange) return;
+
+    setIsDefaultChangeModalOpen(false);
+
+    const { type, groupId } = pendingDefaultChange;
+
+    if (type === "toggle" && groupId) {
+      await executeToggleDefault(groupId, true);
+    } else if (type === "create") {
+      setIsSubmitting(true);
+      await executeCreateGroup();
+      setIsSubmitting(false);
+    } else if (type === "edit" && groupId) {
+      setIsSubmitting(true);
+      await executeUpdateGroup();
+      setIsSubmitting(false);
+    }
+
+    setPendingDefaultChange(null);
+  };
+
+  const handleCancelDefaultChange = () => {
+    setIsDefaultChangeModalOpen(false);
+    setPendingDefaultChange(null);
+  };
+
   const handleConfirmDelete = async () => {
     if (!selectedGroup || !selectedGroup?.id) return;
+
+    setDeletingGroups((prev) => new Set(prev).add(selectedGroup.id));
 
     try {
       await deletePricingGroup.mutateAsync(selectedGroup?.id);
@@ -270,6 +382,12 @@ const PricingGroup = () => {
     } catch (error: any) {
       console.error("Failed to delete pricing group:", error);
       toast.error("Failed to delete pricing group");
+    } finally {
+      setDeletingGroups((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedGroup.id);
+        return newSet;
+      });
     }
   };
 
@@ -297,6 +415,23 @@ const PricingGroup = () => {
 
   const isFormValid = Object.keys(errors).length === 0 && formData.name.trim();
 
+  const getDefaultChangeMessage = () => {
+    if (!pendingDefaultChange || !currentDefaultGroup) return "";
+
+    const { groupName, type } = pendingDefaultChange;
+
+    let actionText = "";
+    if (type === "toggle") {
+      actionText = `set "${groupName}" as the default pricing group`;
+    } else if (type === "create") {
+      actionText = `create "${groupName}" as the default pricing group`;
+    } else if (type === "edit") {
+      actionText = `update "${groupName}" and set it as the default pricing group`;
+    }
+
+    return `Are you sure you want to ${actionText}? The current default pricing group "${currentDefaultGroup.name}" will be automatically removed as default.`;
+  };
+
   const columns: TableColumn<PricingGroupType>[] = [
     {
       key: "name",
@@ -305,7 +440,6 @@ const PricingGroup = () => {
     {
       key: "users",
       title: "Users Assigned",
-      // render: (_, record) => "0", // Placeholder
     },
     {
       key: "createdAt",
@@ -321,12 +455,16 @@ const PricingGroup = () => {
         return (
           <div className="flex justify-center">
             <button
-              onClick={() => !isUpdating && handleToggleDefault(record)}
-              disabled={isUpdating}
+              onClick={() =>
+                !isUpdating && !isUpdatingDefault && handleToggleDefault(record)
+              }
+              disabled={isUpdating || isUpdatingDefault}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 record.isDefault ? "bg-success" : "bg-[#C60504]"
               } ${
-                isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                isUpdating || isUpdatingDefault
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
               }`}
             >
               <span
@@ -364,9 +502,18 @@ const PricingGroup = () => {
           </Button>
           <button
             onClick={() => handleDelete(record)}
-            className="text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center"
+            disabled={deletingGroups.has(record.id)}
+            className={`text-primary-dark hover:text-black h-8 w-8 border border-primary-dark rounded-full flex items-center justify-center ${
+              deletingGroups.has(record.id)
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }`}
           >
-            <Trash2 size={16} />
+            {deletingGroups.has(record.id) ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 size={16} />
+            )}
           </button>
         </div>
       ),
@@ -375,8 +522,7 @@ const PricingGroup = () => {
 
   return (
     <div className="bg-white">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 ">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <Heading>Pricing Groups</Heading>
         </div>
@@ -392,7 +538,6 @@ const PricingGroup = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white border-t-2 border-black/50">
         <Table
           columns={columns}
@@ -405,7 +550,6 @@ const PricingGroup = () => {
         />
       </div>
 
-      {/* Create Group Modal */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => {
@@ -459,7 +603,6 @@ const PricingGroup = () => {
         </form>
       </Modal>
 
-      {/* Edit Group Modal */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -513,18 +656,52 @@ const PricingGroup = () => {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => {
+          if (isDeleteLoading) return;
           setIsDeleteModalOpen(false);
           setSelectedGroup(null);
         }}
         onConfirm={handleConfirmDelete}
         title="Delete Pricing Group"
         message={`Are you sure you want to delete the pricing group "${selectedGroup?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
+        confirmText={
+          isDeleteLoading ? (
+            <div className="flex items-center gap-2">
+              <Loader className="h-4 w-4 animate-spin" />
+              Deleting...
+            </div>
+          ) : (
+            "Delete"
+          )
+        }
         cancelText="Cancel"
+        variant="danger"
+        confirmDisabled={isDeleteLoading}
+        cancelDisabled={isDeleteLoading}
+      />
+
+      <ConfirmationModal
+        isOpen={isDefaultChangeModalOpen}
+        onClose={handleCancelDefaultChange}
+        onConfirm={handleConfirmDefaultChange}
+        title="Change Default Pricing Group"
+        message={getDefaultChangeMessage()}
+        confirmText="Confirm"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={isCannotRemoveDefaultModalOpen}
+        onClose={() => setIsCannotRemoveDefaultModalOpen(false)}
+        onConfirm={() => setIsCannotRemoveDefaultModalOpen(false)}
+        title="Cannot Remove Default Pricing Group"
+        message="At least one pricing group must be set as default. To change the default pricing group, please set another group as default first."
+        confirmText="Understood"
+        cancelDisabled
+        cancelText={"cancel"}
         variant="danger"
       />
     </div>

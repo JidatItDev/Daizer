@@ -70,6 +70,8 @@ interface FilterSectionProps {
   options: { id: string; label: string; checked: boolean }[];
   onSelect: (id: string) => void;
   isLoading?: boolean;
+  onReset?: () => void; // ← ADD THIS
+  showReset?: boolean; // ← ADD THIS
 }
 
 const FilterSection = ({
@@ -77,6 +79,8 @@ const FilterSection = ({
   options,
   onSelect,
   isLoading = false,
+  onReset, // ← ADD THIS
+  showReset = false, // ← ADD THIS
 }: FilterSectionProps) => {
   if (isLoading) {
     return (
@@ -96,7 +100,18 @@ const FilterSection = ({
 
   return (
     <div className="mb-6">
-      <h4 className="font-medium mb-3">{title}</h4>
+      {/* ← UPDATE THIS DIV */}
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="font-medium">{title}</h4>
+        {showReset && onReset && (
+          <button
+            className="text-xs text-error hover:underline"
+            onClick={onReset}
+          >
+            Reset
+          </button>
+        )}
+      </div>
       <div className="space-y-2">
         {options.map((option) => (
           <label key={option.id} className="flex items-center">
@@ -113,17 +128,34 @@ const FilterSection = ({
     </div>
   );
 };
-
 interface SortSectionProps {
   options: { key: string; label: string }[];
   currentSort: SortState;
   onSelect: (key: string) => void;
+  onReset?: () => void; // ← ADD THIS
+  showReset?: boolean; // ← ADD THIS
 }
-
-const SortSection = ({ options, currentSort, onSelect }: SortSectionProps) => {
+const SortSection = ({
+  options,
+  currentSort,
+  onSelect,
+  onReset, // ← ADD THIS
+  showReset = false, // ← ADD THIS
+}: SortSectionProps) => {
   return (
     <div className="mb-6">
-      <h4 className="font-medium mb-3">Sort by</h4>
+      {/* ← UPDATE THIS DIV */}
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="font-medium">Sort by</h4>
+        {showReset && onReset && (
+          <button
+            className="text-xs text-error hover:underline"
+            onClick={onReset}
+          >
+            Reset
+          </button>
+        )}
+      </div>
       <div className="space-y-2">
         {options.map((option) => (
           <button
@@ -154,6 +186,11 @@ interface FilterDropdownProps {
   onSortChange: (field: string) => void;
   pricingGroups: PricingGroup[];
   isLoadingPricingGroups: boolean;
+  onResetAll: () => void; // ← ADD THIS
+  onResetSort: () => void; // ← ADD THIS
+  onResetStatus: () => void; // ← ADD THIS
+  onResetPricingGroups: () => void; // ← ADD THIS
+  hasActiveFilters: boolean; // ← ADD THIS
 }
 
 const FilterDropdown = ({
@@ -165,6 +202,11 @@ const FilterDropdown = ({
   onSortChange,
   pricingGroups,
   isLoadingPricingGroups,
+  onResetAll, // ← ADD THIS
+  onResetSort, // ← ADD THIS
+  onResetStatus, // ← ADD THIS
+  onResetPricingGroups, // ← ADD THIS
+  hasActiveFilters, // ← ADD THIS
 }: FilterDropdownProps) => {
   if (!isOpen) return null;
 
@@ -181,8 +223,15 @@ const FilterDropdown = ({
 
   const sortOptions = [{ key: "name", label: "Name" }];
 
+  // ← ADD THESE CHECKS
+  const hasStatusFilter = filters.status.active || filters.status.disable;
+  const hasPricingGroupFilter = Object.values(filters.pricingGroups).some(
+    (v) => v
+  );
+  const hasSortChange = sort.field !== "name" || sort.direction !== "asc";
+
   return (
-    <div className="absolute top-7  right-0 md:top-full  mt-2 w-full md:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+    <div className="absolute top-7 right-0 md:top-full mt-2 w-full md:w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
       <div className="p-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold">Filters & Sort</h3>
@@ -194,16 +243,33 @@ const FilterDropdown = ({
           </button>
         </div>
 
+        {/* ← ADD THIS BUTTON */}
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mb-4 text-error border-error hover:bg-error/10"
+            onClick={onResetAll}
+          >
+            Reset All Filters
+          </Button>
+        )}
+
+        {/* ← UPDATE THESE COMPONENTS */}
         <SortSection
           options={sortOptions}
           currentSort={sort}
           onSelect={onSortChange}
+          onReset={onResetSort}
+          showReset={hasSortChange}
         />
 
         <FilterSection
           title="Status"
           options={statusOptions}
           onSelect={(key) => onFilterChange("status", key)}
+          onReset={onResetStatus}
+          showReset={hasStatusFilter}
         />
 
         <FilterSection
@@ -211,12 +277,13 @@ const FilterDropdown = ({
           options={pricingGroupOptions}
           onSelect={(id) => onFilterChange("pricingGroups", id)}
           isLoading={isLoadingPricingGroups}
+          onReset={onResetPricingGroups}
+          showReset={hasPricingGroupFilter}
         />
       </div>
     </div>
   );
 };
-
 const UserManagement = () => {
   const navigate = useNavigate();
   const user = useAuth();
@@ -319,7 +386,56 @@ const UserManagement = () => {
   if (pagination.total !== totalUsers) {
     setPagination((prev) => ({ ...prev, total: totalUsers }));
   }
+  // Add these after the sort state declaration
+  const handleResetSort = () => {
+    setSort({
+      field: "name",
+      direction: "asc",
+    });
+  };
 
+  const handleResetStatus = () => {
+    setFilters((prev) => ({
+      ...prev,
+      status: {
+        active: false,
+        disable: false,
+      },
+    }));
+  };
+
+  const handleResetPricingGroups = () => {
+    setFilters((prev) => ({
+      ...prev,
+      pricingGroups: {},
+    }));
+  };
+
+  const handleResetAllFilters = () => {
+    setSort({
+      field: "name",
+      direction: "asc",
+    });
+    setFilters({
+      status: {
+        active: false,
+        disable: false,
+      },
+      pricingGroups: {},
+    });
+    setPagination((prev) => ({
+      ...prev,
+      current: 1,
+    }));
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters =
+    sort.field !== "name" ||
+    sort.direction !== "asc" ||
+    filters.status.active ||
+    filters.status.disable ||
+    Object.values(filters.pricingGroups).some((v) => v);
   const handlePageChange = (page: number, pageSize: number) => {
     setPagination((prev) => ({
       ...prev,
@@ -716,6 +832,11 @@ const UserManagement = () => {
               onSortChange={handleSortChange}
               pricingGroups={pricingGroups}
               isLoadingPricingGroups={isLoadingPricingGroups}
+              onResetAll={handleResetAllFilters} // ← ADD THIS
+              onResetSort={handleResetSort} // ← ADD THIS
+              onResetStatus={handleResetStatus} // ← ADD THIS
+              onResetPricingGroups={handleResetPricingGroups} // ← ADD THIS
+              hasActiveFilters={hasActiveFilters} // ← ADD THIS
             />
           </div>
         </div>

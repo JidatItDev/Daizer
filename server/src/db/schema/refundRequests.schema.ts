@@ -5,6 +5,7 @@ import {
   varchar,
   timestamp,
   index,
+  numeric,
 } from "drizzle-orm/pg-core";
 
 export const refundRequests = pgTable(
@@ -13,7 +14,7 @@ export const refundRequests = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     transactionId: uuid("transaction_id"),
     userId: uuid("user_id").notNull(),
-    amount: integer("amount").notNull(),
+    amount: numeric("amount").notNull(),
     reason: varchar("reason", { length: 255 }),
     status: varchar("status", { length: 50 }).default("pending"), // pending, approved, rejected
     adminId: uuid("admin_id"), // who approved/rejected

@@ -41,12 +41,19 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
   );
 
   // Fallback to first price if user's pricing group not found
-  const displayPrice =
-    userPrice?.price || product.pricingGroupPrices[0]?.price || 0;
-  const pricingGroupName = userPrice?.name || "Standard";
+  // const displayPrice =
+  //   userPrice?.price || product.pricingGroupPrices[0]?.price || 0;
+  // const pricingGroupName = userPrice?.name || "Standard";
+  const isPriceAvailable = Boolean(userPrice);
+  const displayPrice = userPrice?.price;
+  const pricingGroupName = userPrice?.name;
 
   return (
-    <div className="bg-white rounded-[20px] border border-gray-200 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div
+      className={`bg-white rounded-[20px] border border-gray-200 relative overflow-hidden shadow-sm transition-shadow duration-200
+    ${!isPriceAvailable ? "opacity-70" : "hover:shadow-md"}
+  `}
+    >
       <div
         className="
             absolute top-[16px] left-[16px] 
@@ -71,22 +78,45 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between">
-          <p>{product.name}</p>
-          <p className="font-semibold text-primary-dark text-lg  mt-1 flex items-center gap-1">
+          <p className="max-w-[80%] truncate font-medium" title={product.name}>
+            {product.name}
+          </p>
+        </div>
+        <div className="flex items-center justify-between mt-4">
+          <p className="font-poppins text-sm ">{product.quantity}</p>
+          <p className="font-semibold text-primary-dark text-lg flex items-center gap-1">
             <span className="h-2 w-2 bg-success rounded-full"></span>
             <span>{pricingGroupName}</span>
           </p>
         </div>
-        <div>
-          <p className="font-poppins text-sm ">{product.quantity}</p>
-        </div>
-        <button
+        {!isPriceAvailable && (
+          <p className="text-xs text-red-500 mt-3 text-center">
+            Price not set for this product
+          </p>
+        )}
+
+        {/* <button
           onClick={() => {
             navigate(`/checkout/${product.id}`);
           }}
           className="font-poppins w-full text-lg mb-1 truncate flex items-center justify-center bg-primary-dark text-white rounded-full px-3 py-1.5 mt-4"
         >
           ${displayPrice?.toFixed(2) || 0}
+        </button> */}
+        <button
+          disabled={!isPriceAvailable}
+          onClick={() => {
+            if (!isPriceAvailable) return;
+            navigate(`/checkout/${product.id}`);
+          }}
+          className={`font-poppins w-full text-lg mb-1 truncate flex items-center justify-center rounded-full px-3 py-1.5 mt-4
+    ${
+      isPriceAvailable
+        ? "bg-primary-dark text-white hover:opacity-90"
+        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+    }`}
+        >
+          {isPriceAvailable ? `$${displayPrice!.toFixed(2)}` : "Unavailable"}
         </button>
       </div>
     </div>
@@ -125,6 +155,7 @@ const Products = () => {
             variant="outline"
             size="md"
             className="border-2 border-primary-dark px-6 !py-2"
+            onClick={() => navigate("/myOrders")}
           >
             My orders
           </Button>

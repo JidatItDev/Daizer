@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ZOHO_ENV } from "../config/Zoho";
 import { ZohoTokensService } from "./zohoTokens.service";
+import zohoHttpClient from "../utils/zohoHttpClient";
 
 export class ZohoService {
   private tokensService: ZohoTokensService;
@@ -34,8 +35,8 @@ export class ZohoService {
       grant_type: "authorization_code",
     });
 
-    const { data } = await axios.post(url, params);
-    console.log("Zoho token response:", data); // 👈 Add this
+    const { data } = await zohoHttpClient.post(url, params);
+
     const expiresAt = new Date(Date.now() + data.expires_in * 1000);
 
     await this.tokensService.saveTokens({
@@ -60,12 +61,6 @@ export class ZohoService {
       tokens.expiresAt instanceof Date
         ? tokens.expiresAt.getTime()
         : tokens.expiresAt;
-    console.log(
-      "Token expires at:",
-      new Date(expiresAtTime),
-      "Current time:",
-      new Date(now)
-    );
     // Return existing token if valid for at least 2 minutes
     if (expiresAtTime - now > 2 * 60 * 1000) {
       console.log("✅ Access token is still valid");
@@ -73,14 +68,18 @@ export class ZohoService {
     }
 
     // Refresh token
-    const res = await axios.post(`${ZOHO_ENV.ZOHO_BASE_URL}/token`, null, {
-      params: {
-        refresh_token: tokens.refreshToken!,
-        client_id: ZOHO_ENV.ZOHO_CLIENT_ID,
-        client_secret: ZOHO_ENV.ZOHO_CLIENT_SECRET,
-        grant_type: "refresh_token",
-      },
-    });
+    const res = await zohoHttpClient.post(
+      `${ZOHO_ENV.ZOHO_BASE_URL}/token`,
+      null,
+      {
+        params: {
+          refresh_token: tokens.refreshToken!,
+          client_id: ZOHO_ENV.ZOHO_CLIENT_ID,
+          client_secret: ZOHO_ENV.ZOHO_CLIENT_SECRET,
+          grant_type: "refresh_token",
+        },
+      }
+    );
 
     const newAccessToken = res.data.access_token;
     const newExpiresAt = Date.now() + res.data.expires_in * 1000;
@@ -101,7 +100,7 @@ export class ZohoService {
   async getCustomers() {
     const accessToken = await this.getValidAccessToken();
 
-    const { data } = await axios.get(
+    const { data } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/contacts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: {
@@ -182,7 +181,7 @@ export class ZohoService {
     const url = `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
     // Get parent account details
-    const { data: parentData } = await axios.get(url, {
+    const { data: parentData } = await zohoHttpClient.get(url, {
       headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
     });
 
@@ -202,7 +201,7 @@ export class ZohoService {
     };
 
     try {
-      const { data } = await axios.post(url, payload, {
+      const { data } = await zohoHttpClient.post(url, payload, {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
           "Content-Type": "application/json",
@@ -227,7 +226,7 @@ export class ZohoService {
   async getCurrencies() {
     const accessToken = await this.getValidAccessToken();
 
-    const resp = await axios.get(
+    const resp = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/settings/currencies?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },

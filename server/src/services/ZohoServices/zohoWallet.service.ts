@@ -2,6 +2,7 @@ import axios from "axios";
 import { ZOHO_ENV } from "../../config/Zoho";
 import { ZohoService } from "../zoho.service";
 import { ZohoTokensService } from "../zohoTokens.service";
+import zohoHttpClient from "../../utils/zohoHttpClient";
 
 export class ZohoWalletService {
   private tokensService: ZohoTokensService;
@@ -19,7 +20,7 @@ export class ZohoWalletService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     // 1️⃣ Get current wallet balance from Zoho
-    const contactRes = await axios.get(
+    const contactRes = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/contacts/${customer_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
     );
@@ -40,11 +41,11 @@ export class ZohoWalletService {
       : currentBalance - amount;
 
     // 3️⃣ Update Zoho contact
-    await axios.put(
+    await zohoHttpClient.put(
       `${ZOHO_ENV.BOOKS_API}/contacts/${customer_id}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         custom_fields: [
-          { label: "Wallet Balance", value: parseFloat(newBalance.toFixed(2)) },
+          { label: "Wallet Balance", value: parseFloat(newBalance.toFixed(3)) },
         ],
       },
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
@@ -82,7 +83,9 @@ export class ZohoWalletService {
       customer_id: entry.customer_id,
       date: today,
       reference_number: refNumber,
-      notes: `${entry.reason} | Wallet Refund #${entry.refundId} | Order: ${entry.original_order_id || "N/A"}`,
+      notes: `${entry.reason} | Wallet Refund #${entry.refundId} | Order: ${
+        entry.original_order_id || "N/A"
+      }`,
       line_items: [
         {
           name: "Wallet Refund Credit",
@@ -94,7 +97,7 @@ export class ZohoWalletService {
       ],
     };
 
-    const creditNoteRes = await axios.post(
+    const creditNoteRes = await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/creditnotes?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       creditNotePayload,
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
@@ -126,7 +129,7 @@ export class ZohoWalletService {
       ],
     };
 
-    await axios.post(
+    await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       journalPayload,
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
@@ -193,7 +196,7 @@ export class ZohoWalletService {
         ],
       };
 
-      await axios.post(
+      await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         journalPayload,
         { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
@@ -216,7 +219,7 @@ export class ZohoWalletService {
         ],
       };
 
-      const creditNoteRes = await axios.post(
+      const creditNoteRes = await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/creditnotes?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         creditNotePayload,
         { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
@@ -231,7 +234,7 @@ export class ZohoWalletService {
     // =================================================================
     if (entry.type === "debit") {
       // Step 1: Get customer's credit notes to verify balance
-      const creditNotesRes = await axios.get(
+      const creditNotesRes = await zohoHttpClient.get(
         `${ZOHO_ENV.BOOKS_API}/creditnotes?customer_id=${entry.customer_id}&status=open&organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
       );
@@ -249,7 +252,7 @@ export class ZohoWalletService {
       }
 
       // Step 2: Create the invoice — ADD account_id for revenue!
-      const invRes = await axios.post(
+      const invRes = await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           customer_id: entry.customer_id,
@@ -278,7 +281,7 @@ export class ZohoWalletService {
 
         const amountToApply = Math.min(creditNote.balance, remainingAmount);
 
-        await axios.post(
+        await zohoHttpClient.post(
           `${ZOHO_ENV.BOOKS_API}/creditnotes/${creditNote.creditnote_id}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           {
             invoices: [
@@ -302,7 +305,7 @@ export class ZohoWalletService {
       }
 
       // THEN create the journal — with explicit account_id
-      await axios.post(
+      await zohoHttpClient.post(
         `${ZOHO_ENV.BOOKS_API}/journals?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         {
           journal_date: today,
@@ -352,7 +355,7 @@ export class ZohoWalletService {
     const today = new Date().toISOString().split("T")[0];
 
     // Step 1: Invoice → recognize revenue
-    const invoiceRes = await axios.post(
+    const invoiceRes = await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/invoices?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         customer_id: entry.customer_id,
@@ -375,7 +378,7 @@ export class ZohoWalletService {
     const invoice = invoiceRes.data.invoice;
 
     // Step 2: Record payment
-    await axios.post(
+    await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/customerpayments?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         customer_id: entry.customer_id,
@@ -390,7 +393,7 @@ export class ZohoWalletService {
     );
 
     // Step 3: Credit Note → THIS automatically increases Wallet Liability!
-    const creditNoteRes = await axios.post(
+    const creditNoteRes = await zohoHttpClient.post(
       `${ZOHO_ENV.BOOKS_API}/creditnotes?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         customer_id: entry.customer_id,

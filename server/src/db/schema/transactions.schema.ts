@@ -22,6 +22,11 @@ export const transactions = pgTable(
     metadata: varchar("metadata", { length: 1000 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    // ✅ Zoho references
+    invoiceId: varchar("invoice_id", { length: 50 }), // only for debit / purchases
+    invoiceNumber: varchar("invoice_number", { length: 50 }),
+    creditNoteId: varchar("credit_note_id", { length: 50 }), // only for credits / refunds
+    creditNoteNumber: varchar("credit_note_number", { length: 50 }),
   },
   (trx) => ({
     userIdx: index("transactions_user_idx").on(trx.userId),

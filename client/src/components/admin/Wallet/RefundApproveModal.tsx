@@ -1,16 +1,17 @@
-// components/admin/Wallet/RefundApproveModal.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../../common/Input";
 import { Button } from "../../common/Button";
 import Modal from "../../common/Modal";
 import { useGetActiveAccounts } from "../../../api/Wallets";
+import toast from "react-hot-toast";
 
 interface RefundApproveModalProps {
   isOpen: boolean;
   onClose: () => void;
   refund: any;
-  onSubmit: (destination: string, sentBy: string) => void;
+  onSubmit: (destination: string, sentBy: string) => Promise<void>;
 }
+
 interface ChartOfAccount {
   id: string;
   name: string;
@@ -23,7 +24,9 @@ interface AccountsData {
   success: boolean;
   accounts: ChartOfAccount[];
 }
+
 const ACCOUNTS_STORAGE_KEY = "cached_active_accounts_refund";
+
 const CustomDropdown = ({
   value,
   onChange,
@@ -59,15 +62,21 @@ const CustomDropdown = ({
     <div className="relative" ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full py-2.5  border-b-[2px] p-2 border-gray-300  bg-transparent text-sm cursor-pointer transition-all flex items-center justify-between lg:text-lg md:text-base lg:placeholder:text-lg md:placeholder:text-base  placeholder:text-sm placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0"
+        className="w-full py-2.5 border-b-[2px] p-2 border-gray-300 bg-transparent text-sm cursor-pointer transition-all flex items-center justify-between lg:text-lg md:text-base lg:placeholder:text-lg md:placeholder:text-base placeholder:text-sm placeholder:font-poppins placeholder:font-light placeholder:text-black placeholder:p-0"
       >
         <span className={value ? "text-black -ml-2" : "text-black"}>
           {selectedAccount
-            ? `${selectedAccount.name} ${selectedAccount.accountCode ? `(${selectedAccount.accountCode})` : ""} - ${selectedAccount.type}`
+            ? `${selectedAccount.name} ${
+                selectedAccount.accountCode
+                  ? `(${selectedAccount.accountCode})`
+                  : ""
+              } - ${selectedAccount.type}`
             : placeholder}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-gray-500 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -104,6 +113,7 @@ const CustomDropdown = ({
     </div>
   );
 };
+
 export const RefundApproveModal = ({
   isOpen,
   onClose,
@@ -117,13 +127,14 @@ export const RefundApproveModal = ({
     null
   );
   const [shouldFetch, setShouldFetch] = useState(true);
+
   useEffect(() => {
     const stored = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as AccountsData;
         setCachedAccounts(parsed);
-        setShouldFetch(false); // Don't fetch if we have cached data
+        setShouldFetch(false);
       } catch (error) {
         console.error("Error parsing cached accounts:", error);
         localStorage.removeItem(ACCOUNTS_STORAGE_KEY);
@@ -132,10 +143,8 @@ export const RefundApproveModal = ({
     }
   }, []);
 
-  // Fetch accounts from API
   const { data: accountsData } = useGetActiveAccounts();
 
-  // Store in localStorage when fetched
   useEffect(() => {
     if (accountsData && shouldFetch) {
       localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accountsData));
@@ -144,43 +153,53 @@ export const RefundApproveModal = ({
     }
   }, [accountsData, shouldFetch]);
 
-  // Use cached data if available, otherwise use fetched data
   const accounts = cachedAccounts || accountsData;
 
-  // Filter accounts for Destination dropdown
   const destinationAccounts = useMemo(() => {
     if (!accounts?.accounts) return [];
     return accounts.accounts;
   }, [accounts]);
 
-  // Filter accounts for Sent By / Received Into dropdown
   const sentReceivedAccounts = useMemo(() => {
     if (!accounts?.accounts) return [];
     return accounts.accounts;
   }, [accounts]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!destination || !sentBy) return;
+
+    if (!destination || !sentBy) {
+      toast.error("Please select a destination and sent by account");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      // Call onSubmit and WAIT for everything to complete
       await onSubmit(destination, sentBy);
+
+      // Don't show success here - parent will show it
+      // Just reset and close
       resetForm();
+      onClose();
     } catch (error) {
       console.error("Error submitting refund approval:", error);
-    } finally {
-      setIsSubmitting(false);
+      toast.error("Failed to approve refund");
+      setIsSubmitting(false); // Only reset on error
     }
   };
 
   const resetForm = () => {
     setDestination("");
     setSentBy("");
+    setIsSubmitting(false);
   };
 
   const handleClose = () => {
-    resetForm();
-    onClose();
+    if (!isSubmitting) {
+      resetForm();
+      onClose();
+    }
   };
 
   return (
@@ -200,7 +219,6 @@ export const RefundApproveModal = ({
             <p>$ {refund?.user?.wallet?.balance}</p>
           </div>
         </div>
-        {/* Refund Details */}
 
         <div className="flex w-full justify-between gap-8 items-center">
           <div className="w-full">
@@ -223,12 +241,8 @@ export const RefundApproveModal = ({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Amount Input (disabled) */}
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2.5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Amount
-            </label>
             <Input
               type="text"
               value={`$ ${refund.amount}`}
@@ -256,11 +270,12 @@ export const RefundApproveModal = ({
             }
             required
           />
-          {/* Buttons */}
+
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
+              disabled={isSubmitting}
               onClick={handleClose}
               className="flex-1"
             >

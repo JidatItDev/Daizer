@@ -2,19 +2,37 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import axiosPrivate from "../AxiosInstances/PrivateAxiosInstance";
 import { queryClient } from "../main";
 
-const useInvalidateAll = () => {
+export const useInvalidateAll = () => {
   return async () => {
+    // Invalidate and refetch all wallet-related queries
     await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "transactions"],
-      }),
+      // Admin queries
       queryClient.invalidateQueries({
         queryKey: ["admin", "refundRequests"],
       }),
       queryClient.invalidateQueries({
+        queryKey: ["admin", "transactions"],
+      }),
+      queryClient.invalidateQueries({
         queryKey: ["admin", "wallets"],
       }),
+
+      // User wallet queries
+      queryClient.invalidateQueries({
+        queryKey: ["wallet", "refundRequests"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["wallet", "balance"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["wallet", "transactions"],
+      }),
     ]);
+
+    // Force refetch of all active queries
+    await queryClient.refetchQueries({
+      type: "active",
+    });
   };
 };
 
@@ -35,6 +53,7 @@ export const useWalletBalance = () => {
 /**
  * User Transactions with filters + pagination
  */
+// User Wallet Transactions with proper refetch settings
 export const useWalletTransactions = (
   filters: {
     page?: number;
@@ -61,10 +80,11 @@ export const useWalletTransactions = (
       );
       return res.data;
     },
-    // keepPreviousData: true,
+    staleTime: 0, // Data is always considered stale
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // ← CHANGE THIS
   });
 };
-
 /**
  * User Refund Requests
  */
@@ -100,7 +120,9 @@ export const useUserRefundRequests = (
       );
       return res.data;
     },
-    // keepPreviousData: true,
+    staleTime: 0, // Data is always considered stale
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // ← CHANGE THIS
   });
 };
 export interface ChartOfAccount {
@@ -119,17 +141,6 @@ export const useGetActiveAccounts = () => {
       return data;
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-};
-
-export const useRequestRefund = () => {
-  const invalidateAll = useInvalidateAll();
-  return useMutation({
-    mutationFn: async (payload: { amount: number }) => {
-      const res = await axiosPrivate.post("/wallet/refund-request", payload);
-      return res.data;
-    },
-    onSuccess: () => invalidateAll(),
   });
 };
 
@@ -223,10 +234,11 @@ export const useAllTransactions = (
       );
       return res.data;
     },
-    // keepPreviousData: true,
+    staleTime: 0, // Data is always considered stale
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // ← CHANGE THIS
   });
 };
-
 export const useRefundRequests = (
   filters: {
     page?: number;
@@ -259,13 +271,42 @@ export const useRefundRequests = (
       );
       return res.data;
     },
-    // keepPreviousData: true,
+    staleTime: 0, // Data is always considered stale
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // ← CHANGE THIS
+  });
+};
+
+export const useRequestRefund = () => {
+  return useMutation({
+    mutationFn: async (payload: { amount: number }) => {
+      const res = await axiosPrivate.post("/wallet/refund-request", payload);
+      return res.data;
+    },
+    onSuccess: async (data) => {
+      // Wait a bit to ensure DB transaction is complete
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Invalidate queries
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["wallet", "refundRequests"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "refundRequests"],
+        }),
+      ]);
+
+      // Force immediate refetch
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["wallet", "refundRequests"] }),
+        queryClient.refetchQueries({ queryKey: ["admin", "refundRequests"] }),
+      ]);
+    },
   });
 };
 
 export const useApproveRefund = () => {
-  const invalidateAll = useInvalidateAll();
-
   return useMutation({
     mutationFn: async (payload: {
       refundId: string;
@@ -281,24 +322,35 @@ export const useApproveRefund = () => {
       );
       return res.data;
     },
-    onSuccess: async () => {
-      await invalidateAll();
-      // Force refetch all active queries
-      await queryClient.refetchQueries({
-        queryKey: ["admin", "refundRequests"],
-        type: "active",
-      });
-      await queryClient.refetchQueries({
-        queryKey: ["admin", "transactions"],
-        type: "active",
-      });
+    onSuccess: async (data) => {
+      // Wait for DB transaction to complete
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Invalidate with proper query key matching
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "refundRequests"],
+          exact: false,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "transactions"],
+          exact: false,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "wallets"],
+          exact: false,
+        }),
+      ]);
+
+      // ❌ REMOVE THIS - it's causing the double refetch
+      // await queryClient.refetchQueries({
+      //   type: "active",
+      // });
     },
   });
 };
 
 export const useRejectRefund = () => {
-  const invalidateAll = useInvalidateAll();
-
   return useMutation({
     mutationFn: async (refundId: string) => {
       const res = await axiosPrivate.post(
@@ -306,22 +358,23 @@ export const useRejectRefund = () => {
       );
       return res.data;
     },
-    onSuccess: async () => {
-      await invalidateAll();
-      // Force refetch all active queries
-      await queryClient.refetchQueries({
-        queryKey: ["admin", "refundRequests"],
-        type: "active",
-      });
-      await queryClient.refetchQueries({
-        queryKey: ["admin", "transactions"],
-        type: "active",
-      });
+    onSuccess: async (data) => {
+      // Wait for DB transaction to complete
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "refundRequests"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["wallet", "refundRequests"],
+        }),
+      ]);
     },
   });
 };
+
 export const useAdjustWallet = () => {
-  const invalidateAll = useInvalidateAll();
   return useMutation({
     mutationFn: async (payload: {
       userId: string;
@@ -333,6 +386,16 @@ export const useAdjustWallet = () => {
       const res = await axiosPrivate.post("/wallet/admin/adjust", payload);
       return res.data;
     },
-    onSuccess: () => invalidateAll(),
+    onSuccess: async (data) => {
+      // Wait for DB transaction to complete
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "wallets"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["wallet", "balance"] }),
+        queryClient.invalidateQueries({ queryKey: ["wallet", "transactions"] }),
+      ]);
+    },
   });
 };

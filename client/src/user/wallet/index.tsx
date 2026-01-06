@@ -598,7 +598,7 @@ const Wallet = () => {
   >({});
   const [hasMore, setHasMore] = useState(true);
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
-
+  const [isRefundProcessing, setIsRefundProcessing] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const limit = 5;
@@ -622,12 +622,15 @@ const Wallet = () => {
   const { data: balanceData } = useWalletBalance();
 
   // Refund requests (for refund tab)
-  const { data: refundRequestsData, isLoading: isLoadingRefunds } =
-    useUserRefundRequests({
-      page: 1,
-      limit: 50,
-      status: "all",
-    });
+  const {
+    data: refundRequestsData,
+    isLoading: isLoadingRefunds,
+    isFetching: isFetchingRefunds,
+  } = useUserRefundRequests({
+    page: 1,
+    limit: 50,
+    status: "all",
+  });
 
   const refundRequests = refundRequestsData?.refundRequests || [];
 
@@ -700,9 +703,11 @@ const Wallet = () => {
   const handlePartialRefundClick = () => {
     setIsRefundModalOpen(true);
   };
-
+  const handleRefundSuccess = () => {
+    setIsRefundProcessing(true);
+  };
   return (
-    <div className="bg-white relative min-h-screen">
+    <div className="bg-white relative ">
       {/* Header */}
       <div className="flex justify-between items-center mb-8 flex-col md:flex-row gap-4">
         <div className="flex items-center gap-4">
@@ -714,10 +719,17 @@ const Wallet = () => {
       <div className="shadow-custom-secondary rounded-lg p-6 mb-6 flex justify-center items-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <h3 className="font-poppins text-base">Current Balance</h3>
-          <div className="flex items-center gap-2 py-2 px-16 shadow-inner-box rounded-lg">
-            <p>
-              {balanceData?.balance || "0.00"} {balanceData?.currency || "USD"}
-            </p>
+          <div className="flex items-center gap-2 py-2 px-16 shadow-inner-box rounded-lg min-w-[120px] justify-center">
+            {balanceData ? (
+              <p>
+                {balanceData.balance} {balanceData.currency || "USD"}
+              </p>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Loader className="h-5 w-5 animate-spin text-primary-dark" />
+                <span className="text-gray-400">Loading...</span>
+              </div>
+            )}
           </div>
           <div className="flex gap-4">
             <Button
@@ -750,74 +762,82 @@ const Wallet = () => {
           </button>
         ))}
       </div>
-
-      {/* Topup, Purchase */}
-      {(activeTab === "topup" || activeTab === "purchase") && (
-        <>
-          <div className="overflow-hidden divide-y">
-            {allTransactions.map((transaction) => (
-              <TransactionRow key={transaction.id} transaction={transaction} />
-            ))}
-          </div>
-
-          {/* Loading & End States */}
-          <div ref={loadingRef} className="mt-8 flex justify-center">
-            {isFetchingTransactions && allTransactions.length > 0 ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader className="h-6 w-6 animate-spin text-primary-dark mr-2" />
-                <span>Loading more transactions...</span>
-              </div>
-            ) : !hasMore && allTransactions.length > 0 ? (
-              <div className="text-gray-500 py-4">
-                No more transactions to load
-              </div>
-            ) : allTransactions.length === 0 && !isLoadingTransactions ? (
-              <div className="text-gray-500 py-4">No transactions found</div>
-            ) : null}
-          </div>
-
-          {/* Initial loading */}
-          {isLoadingTransactions && allTransactions.length === 0 && (
-            <div className="grid grid-cols-1">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <SkeletonCard key={index} />
+      <div className="h-[40vh]">
+        {/* Topup, Purchase */}
+        {(activeTab === "topup" || activeTab === "purchase") && (
+          <div className="h-full">
+            <div className="overflow-y-auto overflow-x-hidden divide-y  ">
+              {allTransactions.map((transaction) => (
+                <TransactionRow
+                  key={transaction.id}
+                  transaction={transaction}
+                />
               ))}
             </div>
-          )}
-        </>
-      )}
 
-      {/* Refund Tab */}
-      {activeTab === "refund" && (
-        <div className="bg-white border-t-2 border-black/50">
-          <Table
-            columns={refundRequestColumns}
-            data={refundRequests}
-            loading={isLoadingRefunds}
-          />
-          {refundRequests.length === 0 && !isLoadingRefunds && (
-            <div className="text-center py-8 text-gray-500">
-              No refund requests found
+            {/* Loading & End States */}
+            <div ref={loadingRef} className="mt-8 flex justify-center">
+              {isFetchingTransactions && allTransactions.length > 0 ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader className="h-6 w-6 animate-spin text-primary-dark mr-2" />
+                  <span>Loading more transactions...</span>
+                </div>
+              ) : !hasMore && allTransactions.length > 0 ? (
+                <div className="text-gray-500 py-4">
+                  No more transactions to load
+                </div>
+              ) : allTransactions.length === 0 && !isLoadingTransactions ? (
+                <div className="text-gray-500 py-4">No transactions found</div>
+              ) : null}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Credit/Debit Tab */}
-      {activeTab === "credit-debit" && (
-        <div className="bg-white border-t-2 border-black/50">
-          <Table
-            columns={adjustmentColumns}
-            data={allTransactions}
-            loading={isLoadingTransactions}
-          />
-          {allTransactions.length === 0 && !isLoadingTransactions && (
-            <div className="text-center py-8 text-gray-500">
-              No credit/debit adjustments found
-            </div>
-          )}
-        </div>
-      )}
+            {/* Initial loading */}
+            {isLoadingTransactions && allTransactions.length === 0 && (
+              <div className="grid grid-cols-1">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <SkeletonCard key={index} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Refund Tab */}
+        {activeTab === "refund" && (
+          <div className="bg-white border-t-2 border-black/50 h-full overflow-y-auto overflow-x-hidden">
+            <Table
+              columns={refundRequestColumns}
+              data={refundRequests}
+              loading={
+                isLoadingRefunds || isFetchingRefunds || isRefundProcessing
+              }
+            />
+            {refundRequests.length === 0 &&
+              !isLoadingRefunds &&
+              !isRefundProcessing && (
+                <div className="text-center py-8 text-gray-500">
+                  No refund requests found
+                </div>
+              )}
+          </div>
+        )}
+
+        {/* Credit/Debit Tab */}
+        {activeTab === "credit-debit" && (
+          <div className="bg-white border-t-2 border-black/50 h-full overflow-y-auto overflow-x-hidden">
+            <Table
+              columns={adjustmentColumns}
+              data={allTransactions}
+              loading={isLoadingTransactions}
+            />
+            {allTransactions.length === 0 && !isLoadingTransactions && (
+              <div className="text-center py-8 text-gray-500">
+                No credit/debit adjustments found
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <PartialRefundModal
         isOpen={isRefundModalOpen}

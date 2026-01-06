@@ -38,6 +38,13 @@ const invalidateTransactionCaches = async () => {
     console.error("Error invalidating transaction caches:", error);
   }
 };
+async function invalidateRefundRequestCaches() {
+  const keys = await redisClient.keys("refund-requests:*");
+
+  if (keys.length > 0) {
+    await redisClient.del(keys);
+  }
+}
 
 class WalletController {
   // User APIs
@@ -636,16 +643,16 @@ class WalletController {
           })
           .where(eq(refundRequests.id, refundId))
           .returning();
-
-        // 6. Insert transaction log
+        const referenceId = `REFUND-${refund.id}-${Date.now()}`;
+        // // 6. Insert transaction log
         await tx.insert(transactions).values({
           walletId: wallet.id,
           userId: refund.userId,
           type: "refund",
           amount: refund.amount.toString(),
           currency: wallet.currency,
-          status: "completed",
-          referenceId: `REFUND-${refund.id}-${Date.now()}`,
+          status: "pending", // 👈 important
+          referenceId,
           metadata: JSON.stringify({
             destination,
             sentBy,
@@ -654,8 +661,6 @@ class WalletController {
             originalBalance: wallet.balance,
             newBalance: newBalance.toString(),
             refundReason: refund.reason || "No reason provided",
-            approvedBy: adminId,
-            approvedAt: new Date().toISOString(),
           }),
         });
 
@@ -675,40 +680,31 @@ class WalletController {
           customer_id: user.zohoContactId,
           amount: refund.amount,
           reason: refund.reason || "Refund approved by admin",
-          reference: `DAIZER-REFUND-${refund.id}`,
+          reference: referenceId,
           original_order_id: refund.transactionId || "N/A",
           account_id,
           walletIncomeAccountID,
           walletClearingAccountId,
         });
-
-        await db.insert(transactions).values({
-          walletId: wallet.id,
-          userId: refund.userId,
-          type: "refund",
-          amount: refund.amount.toString(),
-          currency: wallet.currency,
-          status: "completed",
-          referenceId: `REFUND-${refund.id}-${Date.now()}`,
-          metadata: JSON.stringify({
-            destination,
-            sentBy,
-            refundId: refund.id,
-            adminId,
-            originalBalance: wallet.balance,
-            newBalance: newBalance.toString(),
-            refundReason: refund.reason || "No reason provided",
-            approvedBy: adminId,
-            approvedAt: new Date().toISOString(),
-          }),
-        });
+        console.log("refundData", refundData);
+        if (refundData?.creditNote?.creditnote_id) {
+          await tx
+            .update(transactions)
+            .set({
+              status: "completed",
+              creditNoteId: refundData.creditNote.creditnote_id,
+              creditNoteNumber: refundData.creditNote.creditnote_number,
+              updatedAt: new Date(),
+            })
+            .where(eq(transactions.referenceId, referenceId));
+        }
 
         // Invalidate all relevant caches
         await Promise.all([
           invalidateTransactionCaches(),
           invalidateUserTransactionsCache(refund.userId),
-          // invalidateRefundRequestCaches(),
-          // invalidateWalletCaches(refund.userId)a,
+          invalidateRefundRequestCaches(),
+          // invalidateWalletCaches(refund.userId),
         ]);
 
         if (user) {
@@ -791,7 +787,10 @@ class WalletController {
           }
         );
       }
-
+      await Promise.all([
+        invalidateRefundRequestCaches(),
+        // invalidateWalletCaches(refund.userId),
+      ]);
       return res.json({
         success: true,
         refund: rejectedRefund,
@@ -853,6 +852,7 @@ class WalletController {
           .set({ balance: newBalance.toString() })
           .where(eq(wallets.userId, userId))
           .returning();
+        const referenceId = `ADJ-${type.toUpperCase()}-${Date.now()}`;
 
         await tx.insert(transactions).values({
           walletId: wallet.id,
@@ -861,7 +861,7 @@ class WalletController {
           amount: type === "credit" ? amount.toString() : `-${amount}`,
           currency: wallet.currency,
           status: "completed",
-          referenceId: `${type.toUpperCase()}-ADJ-${Date.now()}`,
+          referenceId: referenceId,
           metadata: JSON.stringify({
             destination,
             [type === "credit" ? "receivedInto" : "sentBy"]: sentReceived,
@@ -885,7 +885,7 @@ class WalletController {
           await zohoAccountIdsFetchingService.getWalletClearingAccountId(); // ← Good variable name
         const expenseAccountId =
           await zohoAccountIdsFetchingService.getWalletExpenseAccountId();
-        await zohoWalletService.adjustWalletAndSyncZoho({
+        const zohoResult = await zohoWalletService.adjustWalletAndSyncZoho({
           customer_id: user.zohoContactId,
           amount: amount,
           type: type,
@@ -897,6 +897,30 @@ class WalletController {
           expenseAccountId: expenseAccountId,
           incomeAccountId: incomeAccountId,
         });
+        console.log("zohoResult", zohoResult);
+        const zohoTxn = zohoResult.zohoTransaction;
+
+        if (type === "credit" && zohoTxn?.creditnote_id) {
+          await tx
+            .update(transactions)
+            .set({
+              creditNoteId: zohoTxn.creditnote_id,
+              creditNoteNumber: zohoTxn.creditnote_number,
+              updatedAt: new Date(),
+            })
+            .where(eq(transactions.referenceId, referenceId));
+        }
+
+        if (type === "debit" && zohoTxn?.invoice_id) {
+          await tx
+            .update(transactions)
+            .set({
+              invoiceId: zohoTxn.invoice_id,
+              invoiceNumber: zohoTxn.invoice_number,
+              updatedAt: new Date(),
+            })
+            .where(eq(transactions.referenceId, referenceId));
+        }
 
         await invalidateTransactionCaches();
 
@@ -1022,10 +1046,10 @@ class WalletController {
         const userId = transaction.userId;
 
         // 3. Update transaction status
-        await tx
-          .update(transactions)
-          .set({ status: "completed", updatedAt: new Date() })
-          .where(eq(transactions.id, transaction.id));
+        // await tx
+        //   .update(transactions)
+        //   .set({ status: "completed", updatedAt: new Date() })
+        //   .where(eq(transactions.id, transaction.id));
 
         // 4. Update wallet balance (atomic!)
         const [updatedWallet] = await tx
@@ -1076,6 +1100,17 @@ class WalletController {
           walletClearingAccountId: walletClearingAccountId,
           description: `Wallet Top-up via PayPal - Ref: ${captureId}`,
         });
+        console.log("zohoResult", zohoResult);
+        // 3. Update transaction status + save Zoho invoice info
+        await tx
+          .update(transactions)
+          .set({
+            status: "completed",
+            invoiceId: zohoResult.invoice.invoice_id, // <- Save Zoho invoice ID
+            invoiceNumber: zohoResult.invoice.invoice_number, // <- Save Zoho invoice number
+            updatedAt: new Date(),
+          })
+          .where(eq(transactions.id, transaction.id));
 
         // 7. Invalidate cache (non-critical)
         await invalidateUserTransactionsCache(userId);

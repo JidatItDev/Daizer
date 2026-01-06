@@ -1,0 +1,1 @@
+ALTER TABLE "refund_requests" ALTER COLUMN "amount" SET DATA TYPE numeric;

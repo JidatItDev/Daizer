@@ -32,8 +32,8 @@ export function Table<T extends Record<string, any>>({
     <>
       <div className={`overflow-x-auto ${className}`}>
         {loading ? (
-          <div className="flex items-center justify-center h-full w-full py-2">
-            <Loader size="xl" />
+          <div className="flex items-center justify-center h-20 w-full py-2">
+            <Loader size="xl" /> <span className="ml-3">Loading...</span>
           </div>
         ) : (
           <table className="w-full border-collapse font-poppins ">

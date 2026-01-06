@@ -2,6 +2,7 @@ import axios from "axios";
 import { ZOHO_ENV } from "../../config/Zoho";
 import { ZohoService } from "../zoho.service";
 import { ZohoTokensService } from "../zohoTokens.service";
+import zohoHttpClient from "../../utils/zohoHttpClient";
 
 export class ZohoAccountIdsFetchingService {
   private tokensService: ZohoTokensService;
@@ -14,7 +15,7 @@ export class ZohoAccountIdsFetchingService {
   async getWalletAccountId(): Promise<string> {
     const accessToken = await this.zohoService.getValidAccessToken();
     const url = `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-    const { data } = await axios.get(url, {
+    const { data } = await zohoHttpClient.get(url, {
       headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
     });
 
@@ -27,7 +28,7 @@ export class ZohoAccountIdsFetchingService {
   }
   async getWalletClearingAccountId(): Promise<string> {
     const accessToken = await this.zohoService.getValidAccessToken();
-    const { data } = await axios.get(
+    const { data } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
     );
@@ -62,7 +63,7 @@ export class ZohoAccountIdsFetchingService {
   // In your ZohoService or config
   async getWalletIncomeAccountId(): Promise<string> {
     const accessToken = await this.zohoService.getValidAccessToken();
-    const { data } = await axios.get(
+    const { data } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
     );
@@ -80,7 +81,7 @@ export class ZohoAccountIdsFetchingService {
   async getBankAccountId(): Promise<string> {
     const accessToken = await this.zohoService.getValidAccessToken();
     const url = `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
-    const { data } = await axios.get(url, {
+    const { data } = await zohoHttpClient.get(url, {
       headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
     });
 
@@ -94,7 +95,7 @@ export class ZohoAccountIdsFetchingService {
   async getWalletExpenseAccountId(): Promise<string> {
     const accessToken = await this.zohoService.getValidAccessToken();
 
-    const { data } = await axios.get(
+    const { data } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },
@@ -151,7 +152,7 @@ export class ZohoAccountIdsFetchingService {
   async getWalletIncomesAccountId(): Promise<string> {
     const accessToken = await this.zohoService.getValidAccessToken();
 
-    const { data } = await axios.get(
+    const { data } = await zohoHttpClient.get(
       `${ZOHO_ENV.BOOKS_API}/chartofaccounts?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
       {
         headers: { Authorization: `Zoho-oauthtoken ${accessToken}` },

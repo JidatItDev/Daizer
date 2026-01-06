@@ -166,6 +166,7 @@ const Subcategory = () => {
             variant="outline"
             size="md"
             className="border-2 border-primary-dark px-6 !py-2"
+            onClick={() => navigate("/myOrders")}
           >
             My orders
           </Button>
