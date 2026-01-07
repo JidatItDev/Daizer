@@ -16,6 +16,7 @@ import { AdjustmentTypeModal } from "../../components/admin/Wallet/AdjustmentTyp
 import { RefundActionDropdown } from "../../components/admin/Wallet/RefundActionDropdown";
 import { RefundApproveModal } from "../../components/admin/Wallet/RefundApproveModal";
 import toast from "react-hot-toast";
+import { RefreshCw } from "lucide-react";
 
 interface Wallet {
   id: string;
@@ -146,6 +147,7 @@ const WalletManagement = () => {
     data: walletsData,
     isLoading: isLoadingWallets,
     isFetching: isFetchingWallets,
+    refetch: refetchWallets,
   } = useAllWallets({
     page: walletsPagination.current,
     limit: walletsPagination.pageSize,
@@ -155,17 +157,18 @@ const WalletManagement = () => {
     data: transactionsData,
     isLoading: isLoadingTransactions,
     isFetching: isFetchingTransactions,
+    refetch: refetchTransactions,
   } = useAllTransactions({
     page: transactionsPagination.current,
     limit: transactionsPagination.pageSize,
     type: "all",
   });
 
-  // Refunds query
   const {
     data: refundsData,
     isLoading: isLoadingRefunds,
     isFetching: isFetchingRefunds,
+    refetch: refetchRefunds,
   } = useRefundRequests({
     page: refundsPagination.current,
     limit: refundsPagination.pageSize,
@@ -175,6 +178,19 @@ const WalletManagement = () => {
   const wallets = walletsData?.wallets || walletsData || [];
   const transactions = transactionsData?.transactions || transactionsData || [];
   const refundRequests = refundsData?.refundRequests || refundsData || [];
+  const handleRefetch = () => {
+    if (activeTab === "wallets") {
+      refetchWallets();
+    }
+
+    if (activeTab === "transactions") {
+      refetchTransactions();
+    }
+
+    if (activeTab === "refunds") {
+      refetchRefunds();
+    }
+  };
 
   // Update pagination totals
   // if (
@@ -287,7 +303,7 @@ const WalletManagement = () => {
         destination,
         sentBy,
       });
-
+      await Promise.all([refetchRefunds()]);
       // Now everything is done - show success
       toast.success("Refund approved successfully");
 
@@ -632,36 +648,58 @@ const WalletManagement = () => {
     <div className="bg-white relative">
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
-        <div className="flex space-x-8">
+        <div className="flex items-center justify-between">
+          {/* Tabs */}
+          <div className="flex space-x-8">
+            <button
+              className={`py-2 px-1 font-medium text-sm ${
+                activeTab === "wallets"
+                  ? "text-primary-dark border-b-2 border-primary-dark"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("wallets")}
+            >
+              Wallets
+            </button>
+
+            <button
+              className={`py-2 px-1 font-medium text-sm ${
+                activeTab === "transactions"
+                  ? "text-primary-dark border-b-2 border-primary-dark"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("transactions")}
+            >
+              Transactions
+            </button>
+
+            <button
+              className={`py-2 px-1 font-medium text-sm ${
+                activeTab === "refunds"
+                  ? "text-primary-dark border-b-2 border-primary-dark"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("refunds")}
+            >
+              Partial Refunds
+            </button>
+          </div>
+
+          {/* Refetch Button */}
           <button
-            className={`py-2 px-1 font-medium text-sm ${
-              activeTab === "wallets"
-                ? "text-primary-dark border-b-2 border-primary-dark"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("wallets")}
+            onClick={handleRefetch}
+            title="Refresh"
+            className="flex items-center gap-2 text-primary-dark border border-primary-dark rounded-full px-3 py-1.5 hover:bg-gray-50"
           >
-            Wallets
-          </button>
-          <button
-            className={`py-2 px-1 font-medium text-sm ${
-              activeTab === "transactions"
-                ? "text-primary-dark border-b-2 border-primary-dark"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("transactions")}
-          >
-            Transactions
-          </button>
-          <button
-            className={`py-2 px-1 font-medium text-sm ${
-              activeTab === "refunds"
-                ? "text-primary-dark border-b-2 border-primary-dark"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("refunds")}
-          >
-            Partial Refunds
+            <RefreshCw
+              size={16}
+              className={
+                isFetchingWallets || isFetchingTransactions || isFetchingRefunds
+                  ? "animate-spin"
+                  : ""
+              }
+            />
+            <span className="text-sm">Refresh</span>
           </button>
         </div>
       </div>

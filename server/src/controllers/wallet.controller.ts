@@ -12,6 +12,7 @@ import axios from "axios";
 import { ZohoAccountIdsFetchingService } from "../services/ZohoServices/zohoAccountIdsFetching.service";
 import { ZohoWalletService } from "../services/ZohoServices/zohoWallet.service";
 import { getActiveChartOfAccounts } from "../utils/getChartOfAccounts";
+import { validateAmount } from "../utils/amountValidator";
 
 async function invalidateUserTransactionsCache(userId: string) {
   const pattern = `transactions:${userId}:*`;
@@ -209,7 +210,8 @@ class WalletController {
   static async requestRefund(req: Request, res: Response) {
     try {
       const userId = req.user!.id;
-      const { amount } = req.body;
+      let { amount } = req.body;
+      amount = validateAmount(req.body.amount);
 
       // fetch requesting user
       const [user] = await db
@@ -263,7 +265,10 @@ class WalletController {
       }
 
       return res.status(201).json({ success: true, refundRequest: rr });
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === "AmountValidationError") {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
       console.error("requestRefund error:", err);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -802,9 +807,9 @@ class WalletController {
   }
 
   static async adjustWallet(req: Request, res: Response) {
-    const { userId, amount, type, destination, sentReceived } = req.body;
+    const { userId, type, destination, sentReceived } = req.body;
     const adminId = req.user!.id;
-
+    let amount = validateAmount(req.body.amount);
     if (type !== "credit" && type !== "debit") {
       return res
         .status(400)
@@ -948,8 +953,8 @@ class WalletController {
   static async createPayPalOrder(req: Request, res: Response) {
     try {
       const userId = req.user!.id;
-      const { amount, currency = "USD" } = req.body;
-
+      const { currency = "USD" } = req.body;
+      let amount = validateAmount(req.body.amount);
       // Ensure wallet exists
       let [wallet] = await db
         .select()
@@ -1024,9 +1029,10 @@ class WalletController {
         const status = capture.result.status;
         const captureId =
           capture.result.purchase_units[0].payments.captures[0].id;
-        const amount = parseFloat(
+        let amount = parseFloat(
           capture.result.purchase_units[0].payments.captures[0].amount.value
         );
+
         const currency =
           capture.result.purchase_units[0].payments.captures[0].amount
             .currency_code;

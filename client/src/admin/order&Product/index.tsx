@@ -33,6 +33,7 @@ const ProductsManagement = () => {
   const [updatingProductId, setUpdatingProductId] = useState<string | null>(
     null
   );
+  const [isAnyStatusUpdating, setIsAnyStatusUpdating] = useState(false);
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -130,6 +131,7 @@ const ProductsManagement = () => {
 
   const handleToggleStatus = async (product: Product) => {
     setUpdatingProductId(product.id);
+    setIsAnyStatusUpdating(true); // 🔒 lock all switches
 
     try {
       await updateProductMutation.mutateAsync({
@@ -138,11 +140,12 @@ const ProductsManagement = () => {
       });
 
       toast.success("Product Status updated");
-      refetch(); // 🔴 IMPORTANT (explained below)
+      refetch();
     } catch (error) {
       toast.error("Failed to update status");
     } finally {
       setUpdatingProductId(null);
+      setIsAnyStatusUpdating(false); // 🔓 unlock
     }
   };
 
@@ -217,23 +220,19 @@ const ProductsManagement = () => {
           {/* Toggle Switch */}
           <button
             type="button"
-            disabled={updatingProductId === record.id}
+            disabled={isAnyStatusUpdating}
             onClick={() => handleToggleStatus(record)}
             className={`
-          relative inline-flex h-6 w-11 items-center rounded-full
-          transition-colors duration-200 ease-in-out
-          focus:outline-none focus:ring-2 focus:ring-offset-2
-          ${
-            record.isActive
-              ? "bg-green-500 focus:ring-green-500"
-              : "bg-gray-300 focus:ring-gray-400"
-          }
-          ${
-            updatingProductId === record.id
-              ? "opacity-50 cursor-not-allowed"
-              : "cursor-pointer"
-          }
-        `}
+  relative inline-flex h-6 w-11 items-center rounded-full
+  transition-colors duration-200 ease-in-out
+  focus:outline-none focus:ring-2 focus:ring-offset-2
+  ${
+    record.isActive
+      ? "bg-green-500 focus:ring-green-500"
+      : "bg-gray-300 focus:ring-gray-400"
+  }
+  ${isAnyStatusUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+`}
             title={record.isActive ? "Disable product" : "Activate product"}
           >
             <span

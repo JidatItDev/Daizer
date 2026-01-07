@@ -34,13 +34,13 @@ export const PartialRefundModal = ({
 
     try {
       // Call onSuccess immediately to show loading state
-      onSuccess?.();
 
       await requestRefund.mutateAsync({
         amount: parseFloat(amount),
       });
 
       resetForm();
+      onSuccess?.();
       onClose();
       toast.success("Refund request sent successfully");
     } catch (error) {

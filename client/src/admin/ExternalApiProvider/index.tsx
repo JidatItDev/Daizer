@@ -224,7 +224,7 @@ const ExternalProviderSettings = () => {
       setTestingId(provider.id);
 
       const result = await testMutation.mutateAsync(provider.id);
-
+      console.log("result", result);
       if (result?.working) {
         toast.success(`${provider.providerName} is working`);
       } else {

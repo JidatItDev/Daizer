@@ -744,51 +744,54 @@ class AuthController {
   }
 
   static async deleteUser(req: Request, res: Response) {
+    const { id } = req.params;
+
+    const zohoCustomerService = new ZohoContactService();
+
     try {
-      const { id } = req.params;
+      const result = await db.transaction(async (tx) => {
+        // 1️⃣ Fetch user inside transaction
+        const [user] = await tx
+          .select({
+            id: users.id,
+            email: users.email,
+            zohoContactId: users.zohoContactId,
+          })
+          .from(users)
+          .where(eq(users.id, id))
+          .limit(1);
 
-      const [user] = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          zohoContactId: users.zohoContactId,
-        })
-        .from(users)
-        .where(eq(users.id, id))
-        .limit(1);
-
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      // ✅ Delete/deactivate from Zoho first
-      let zohoResult = null;
-      if (user.zohoContactId) {
-        const zohoCustomerService = new ZohoContactService();
-
-        try {
-          zohoResult = await zohoCustomerService.smartDeleteCustomer(
-            user.zohoContactId
-          );
-          console.log(
-            `✅ Zoho action: ${zohoResult.action}`,
-            zohoResult.message
-          );
-        } catch (error: any) {
-          console.error("❌ Failed to delete from Zoho:", error.message);
-          // Continue with local deletion even if Zoho fails
-          // Or you can choose to return error here:
-          // return res.status(500).json({
-          //   success: false,
-          //   message: "Failed to sync with Zoho Books"
-          // });
+        if (!user) {
+          throw new Error("User not found"); // will rollback automatically
         }
-      }
 
-      await db.delete(users).where(eq(users.id, id));
+        // 2️⃣ Delete/deactivate from Zoho first
+        if (user.zohoContactId) {
+          try {
+            const zohoResult = await zohoCustomerService.smartDeleteCustomer(
+              user.zohoContactId
+            );
+            console.log(
+              `✅ Zoho action: ${zohoResult.action}`,
+              zohoResult.message
+            );
+          } catch (error: any) {
+            console.error("❌ Failed to delete from Zoho:", error.message);
+            throw new Error("Failed to delete user from Zoho"); // rollback
+          }
+        }
 
+        // 3️⃣ Delete user from DB
+        await tx.delete(users).where(eq(users.id, id));
+
+        // Return user info for after-transaction actions
+        return user;
+      });
+
+      // 4️⃣ Clear Redis cache AFTER transaction is committed
       await Promise.all([
         redisClient.del("users:page:*"),
-        redisClient.del(`user:${user.email}`),
+        redisClient.del(`user:${result.email}`),
       ]);
 
       return res.status(200).json({
@@ -797,7 +800,10 @@ class AuthController {
       });
     } catch (error) {
       console.error("Delete user error:", error);
-      return res.status(500).json({ message: "Internal server error" });
+      return res.status(500).json({
+        message:
+          error instanceof Error ? error.message : "Internal server error",
+      });
     }
   }
 

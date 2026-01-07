@@ -151,8 +151,6 @@ export class ZohoProductPurchaseService {
       false // decrease
     );
 
-    console.log("✅ Zoho Books purchase processing completed");
-
     return {
       salesOrderId: salesOrder.salesorder_id,
       salesOrderNumber: salesOrder.salesorder_number,
@@ -197,11 +195,6 @@ export class ZohoProductPurchaseService {
     if (priceBookId && priceBookId.trim() !== "") {
       salesOrderPayload.pricebook_id = priceBookId;
     }
-
-    console.log(
-      "📦 Creating Sales Order with payload:",
-      JSON.stringify(salesOrderPayload, null, 2)
-    );
 
     try {
       const { data: salesOrderData } = await zohoHttpClient.post(

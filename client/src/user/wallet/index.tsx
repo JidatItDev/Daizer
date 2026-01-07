@@ -608,6 +608,7 @@ const Wallet = () => {
     data: transactionsData,
     isLoading: isLoadingTransactions,
     isFetching: isFetchingTransactions,
+    refetch: refetchTransactions,
   } = useWalletTransactions({
     page,
     limit,
@@ -619,13 +620,14 @@ const Wallet = () => {
         : activeTab,
   });
 
-  const { data: balanceData } = useWalletBalance();
+  const { data: balanceData, refetch: refetchBalance } = useWalletBalance();
 
   // Refund requests (for refund tab)
   const {
     data: refundRequestsData,
     isLoading: isLoadingRefunds,
     isFetching: isFetchingRefunds,
+    refetch: refetchRefundRequests,
   } = useUserRefundRequests({
     page: 1,
     limit: 50,
@@ -842,6 +844,17 @@ const Wallet = () => {
       <PartialRefundModal
         isOpen={isRefundModalOpen}
         onClose={() => setIsRefundModalOpen(false)}
+        onSuccess={async () => {
+          setIsRefundProcessing(true);
+
+          await Promise.all([
+            refetchRefundRequests(),
+            refetchBalance(),
+            refetchTransactions(),
+          ]);
+
+          setIsRefundProcessing(false);
+        }}
         currentBalance={parseFloat(balanceData?.balance || "0")}
         currency={balanceData?.currency || "USD"}
       />

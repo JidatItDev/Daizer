@@ -237,102 +237,90 @@ class CategoryController {
       const zohoCategoryService = new ZohoCategoryService();
       let itemsUpdated = 0;
       // ✅ Use transaction
-      const result = await db.transaction(async (tx) => {
-        // Update in Zoho if name changed
-        if (name && name !== existingCategory.name) {
-          try {
-            itemsUpdated = await zohoCategoryService.updateCategoryInZohoItems(
-              oldCategoryName, // ✅ Use actual old name from DB
-              name // ✅ New name
+      const updatedCategory = await db.transaction(async (tx) => {
+        // 🔹 Step 1: Update category in Zoho if name changed
+        if (name && name !== oldCategoryName) {
+          const itemsUpdated =
+            await zohoCategoryService.updateCategoryInZohoItems(
+              oldCategoryName,
+              name
             );
-          } catch (zohoError) {
-            console.warn(
-              "⚠️ Could not update category in Zoho (continuing with local update):",
-              zohoError
-            );
-            // Continue with local update even if Zoho fails
+          if (itemsUpdated === null) {
+            throw new Error("Failed to update category in Zoho");
           }
         }
 
-        // Update in local database
+        // 🔹 Step 2: Update local category
         const [updated] = await tx
           .update(categories)
           .set(updateData)
           .where(eq(categories.id, id))
           .returning();
-        // After updating category
-        if (name && name !== existingCategory.name) {
+
+        if (!updated) {
+          throw new Error("Failed to update category in database");
+        }
+
+        // 🔹 Step 3: Update all related products' subcategoryName if name changed
+        if (name && name !== oldCategoryName) {
           await tx
             .update(products)
-            .set({
-              subcategoryName: name,
-            })
+            .set({ subcategoryName: name })
             .where(eq(products.subcategoryId, id));
         }
 
         return updated;
       });
 
-      if (!result) {
-        return res.status(404).json({
-          success: false,
-          message: "Category not found",
-        });
-      }
-
+      // ✅ Step 4: Clear caches after successful commit
       await Promise.all([
         invalidateCategoryCaches(parentCategoryId ?? undefined),
         invalidateCategoryCaches(id),
-        invalidateProductsCache(), // ✅ ADD THIS LINE
+        invalidateProductsCache(),
       ]);
 
       return res.status(200).json({
         success: true,
-        message: "Category updated",
-        category: result,
+        message: "Category updated successfully",
+        category: updatedCategory,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("updateCategory error:", error);
       return res.status(500).json({
         success: false,
-        message: "Internal server error",
+        message:
+          error instanceof Error ? error.message : "Internal server error",
       });
     }
   }
-
   // ========================================
   // 3. UPDATED CONTROLLER: deleteCategory
   // ========================================
 
   static async deleteCategory(req: Request, res: Response) {
+    const { id } = req.params;
+
     try {
-      const { id } = req.params;
+      // ✅ Start transaction
+      const result = await db.transaction(async (tx) => {
+        // 1️⃣ Get existing category
+        const [existingCategory] = await tx
+          .select({
+            id: categories.id,
+            name: categories.name,
+            zohoGroupId: categories.zohoGroupId,
+          })
+          .from(categories)
+          .where(eq(categories.id, id))
+          .limit(1);
 
-      // ✅ Get category details before deleting
-      const [existingCategory] = await db
-        .select({
-          id: categories.id,
-          name: categories.name,
-          zohoGroupId: categories.zohoGroupId,
-        })
-        .from(categories)
-        .where(eq(categories.id, id))
-        .limit(1);
+        if (!existingCategory) {
+          throw new Error("Category not found"); // triggers rollback
+        }
 
-      if (!existingCategory) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Category not found" });
-      }
+        const categoryName = existingCategory.name;
 
-      const categoryName = existingCategory.name;
-      console.log(`🗑️ Deleting category: "${categoryName}"`);
-
-      let itemsUpdatedInZoho = 0;
-
-      // ✅ Use transaction
-      await db.transaction(async (tx) => {
-        // ✅ Step 1: Get all child categories BEFORE deleting
+        // 2️⃣ Get child categories
         const childCategories = await tx
           .select({
             id: categories.id,
@@ -343,118 +331,101 @@ class CategoryController {
           .where(eq(categories.parentCategoryId, id));
 
         const childIds = childCategories.map((c) => c.id);
-
-        // ✅ Step 2: Collect all category names (parent + children) to remove from Zoho
         const allCategoriesToRemove = [
           categoryName,
           ...childCategories.map((c) => c.name),
         ];
-
-        console.log(
-          `📋 Categories to remove from Zoho:`,
-          allCategoriesToRemove
-        );
-
-        // ✅ Step 3: Remove parent category from products in DB
-        await tx
-          .update(products)
-          .set({
-            subcategoryId: null,
-            subcategoryName: null,
-          })
-          .where(eq(products.subcategoryId, id));
-
-        // ✅ Step 4: Remove child categories from products in DB
-        if (childIds.length > 0) {
-          await tx
-            .update(products)
-            .set({
-              subcategoryId: null,
-              subcategoryName: null,
-            })
-            .where(inArray(products.subcategoryId, childIds));
-        }
-
-        // ✅ Step 5: Remove ALL categories (parent + children) from Zoho items
-        try {
-          const zohoCategoryService = new ZohoCategoryService();
-
-          // Remove each category from Zoho
-          for (const catName of allCategoriesToRemove) {
-            const updated =
-              await zohoCategoryService.removeCategoryFromZohoItems(catName);
-            itemsUpdatedInZoho += updated;
-            console.log(
-              `✅ Removed "${catName}" from ${updated} items in Zoho`
-            );
-          }
-
-          console.log(`✅ Total items updated in Zoho: ${itemsUpdatedInZoho}`);
-        } catch (zohoError: any) {
-          console.warn(
-            "⚠️ Could not remove categories from Zoho items:",
-            zohoError.message
-          );
-        }
-
-        // ✅ Step 6: Delete Zoho item groups (parent + children)
         const allZohoGroupIds = [
           existingCategory.zohoGroupId,
           ...childCategories.map((c) => c.zohoGroupId),
         ].filter(Boolean);
 
+        // 3️⃣ Remove parent + child categories from products in DB
+        await tx
+          .update(products)
+          .set({ subcategoryId: null, subcategoryName: null })
+          .where(eq(products.subcategoryId, id));
+
+        if (childIds.length > 0) {
+          await tx
+            .update(products)
+            .set({ subcategoryId: null, subcategoryName: null })
+            .where(inArray(products.subcategoryId, childIds));
+        }
+
+        // 4️⃣ Zoho operations - if any fail, throw to rollback DB
+        const zohoCategoryService = new ZohoCategoryService();
+        let itemsUpdatedInZoho = 0;
+
+        for (const catName of allCategoriesToRemove) {
+          try {
+            const updated =
+              await zohoCategoryService.removeCategoryFromZohoItems(catName);
+            itemsUpdatedInZoho += updated;
+          } catch (error) {
+            if (error instanceof Error) {
+              throw new Error(
+                `Failed to remove category "${catName}" from Zoho items: ${error.message}`
+              );
+            }
+            throw error;
+          }
+        }
+
+        // Delete Zoho item groups
+        const zohoService = new ZohoService();
         for (const zohoGroupId of allZohoGroupIds) {
           try {
-            const accessToken = await new ZohoService().getValidAccessToken();
+            const accessToken = await zohoService.getValidAccessToken();
             await axios.delete(
               `${ZOHO_ENV.BOOKS_API}/itemgroups/${zohoGroupId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
-              {
-                headers: {
-                  Authorization: `Zoho-oauthtoken ${accessToken}`,
-                },
-              }
+              { headers: { Authorization: `Zoho-oauthtoken ${accessToken}` } }
             );
-            console.log(`✅ Deleted Zoho item group: ${zohoGroupId}`);
-          } catch (groupError: any) {
-            console.warn(
-              "⚠️ Could not delete Zoho item group:",
-              groupError.response?.data?.message || groupError.message
+          } catch (error: any) {
+            throw new Error(
+              `Failed to delete Zoho group "${zohoGroupId}": ${
+                error.response?.data?.message || error.message
+              }`
             );
           }
         }
 
-        // ✅ Step 7: Delete child categories from database
+        // 5️⃣ Delete child categories from DB
         if (childIds.length > 0) {
           await tx.delete(categories).where(inArray(categories.id, childIds));
-          console.log(`✅ Deleted ${childIds.length} child categories from DB`);
         }
 
-        // ✅ Step 8: Delete parent category from database
+        // 6️⃣ Delete parent category
         await tx.delete(categories).where(eq(categories.id, id));
-        console.log(`✅ Deleted parent category from DB`);
+
+        return { categoryName, itemsUpdatedInZoho };
       });
 
-      // ✅ Clear BOTH category AND product caches
-      await Promise.all([
-        invalidateCategoryCaches(id),
-        invalidateProductsCache(), // ✅ ADD THIS LINE
-      ]);
-
-      console.log("✅ Cleared all caches");
+      // ✅ Cache clearing after successful transaction
+      try {
+        await Promise.all([
+          invalidateCategoryCaches(id),
+          invalidateProductsCache(),
+        ]);
+      } catch (cacheError) {
+        console.warn("Cache clearing failed", cacheError);
+      }
 
       return res.status(200).json({
         success: true,
-        message: `Category "${categoryName}" and its subcategories deleted successfully`,
-        itemsUpdatedInZoho,
+        message: `Category "${result.categoryName}" and its subcategories deleted successfully`,
+        itemsUpdatedInZoho: result.itemsUpdatedInZoho,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("deleteCategory error:", error);
       return res.status(500).json({
         success: false,
-        message: error.message || "Internal server error",
+        message:
+          error instanceof Error ? error.message : "Internal server error",
       });
     }
   }
+
   static async getAllCategories(req: Request, res: Response) {
     try {
       const page = Number(req.query.page ?? 1);

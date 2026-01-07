@@ -77,12 +77,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     Image Details
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">File Name:</span>
-                      <span className="text-gray-900">
+                    <div className="flex justify-between items-center gap-4">
+                      <span className="text-gray-500 shrink-0">File Name:</span>
+
+                      <span
+                        className="text-gray-900 max-w-[220px] truncate text-right"
+                        title={product.image.name} // 👈 shows full name on hover
+                      >
                         {product.image.name}
                       </span>
                     </div>
+
                     <div className="flex justify-between">
                       <span className="text-gray-500">File Size:</span>
                       <span className="text-gray-900">
@@ -104,9 +109,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="space-y-6">
               {/* Basic Information */}
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  {product.name}
-                </h3>
+                <div>
+                  <h3
+                    className="
+      text-xl font-semibold text-gray-900 mb-4
+      w-full
+      break-words
+      whitespace-normal
+    "
+                  >
+                    {product.name}
+                  </h3>
+                </div>
+
                 {product.description && (
                   <p className="text-gray-600 text-base leading-relaxed">
                     {product.description}

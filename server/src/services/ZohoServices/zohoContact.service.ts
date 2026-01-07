@@ -92,7 +92,7 @@ export class ZohoContactService {
       custom_fields: [
         {
           label: "Wallet Balance",
-          value: 0,
+          value: 0.0,
         },
         ...(user.pricingGroupName
           ? [

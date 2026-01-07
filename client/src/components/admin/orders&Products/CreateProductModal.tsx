@@ -306,7 +306,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       heading="Create Product"
       subheading=""
       widthClass="max-w-[920px] max-h-[90vh] overflow-y-auto "

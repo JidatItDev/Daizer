@@ -72,15 +72,21 @@ class PricingGroupController {
       }
 
       const zohoPriceBookService = new ZohoPriceBookService();
-      // const currencies = await zohoService.getCurrencies();
-      // console.log("currencies", currencies);
-      // Use transaction
-      const result = await db.transaction(async (tx) => {
-        // Create price book in Zoho
-        const zohoPriceBook = await zohoPriceBookService.createPriceBookInZoho(
-          name
-        );
 
+      // ✅ Step 1: Create Zoho price book first
+      let zohoPriceBook;
+      try {
+        zohoPriceBook = await zohoPriceBookService.createPriceBookInZoho(name);
+      } catch (zohoError: any) {
+        console.error("Zoho price book creation failed:", zohoError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to create price book in Zoho",
+        });
+      }
+
+      // ✅ Step 2: DB transaction
+      const result = await db.transaction(async (tx) => {
         // If this is set as default, remove default from others
         if (isDefault) {
           await tx
@@ -99,6 +105,8 @@ class PricingGroupController {
           })
           .returning();
 
+        if (!newGroup) throw new Error("Failed to insert pricing group in DB");
+
         return { group: newGroup, zohoPriceBook };
       });
 
@@ -107,7 +115,7 @@ class PricingGroupController {
         message: "Pricing group created successfully",
         pricingGroup: result.group,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Create pricing group error:", error);
       return res.status(500).json({
         success: false,
@@ -116,6 +124,7 @@ class PricingGroupController {
       });
     }
   }
+
   static async updatePricingGroup(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -136,19 +145,24 @@ class PricingGroupController {
 
       const zohoPriceBookService = new ZohoPriceBookService();
 
-      // Use transaction
-      const result = await db.transaction(async (tx) => {
-        // Update in Zoho if name or description changed
-        if ((name || description) && existingGroup.zohoPriceBookId) {
+      // ✅ Step 1: Update Zoho first if needed
+      if ((name || description) && existingGroup.zohoPriceBookId) {
+        try {
           await zohoPriceBookService.updatePriceBookInZoho(
             existingGroup.zohoPriceBookId,
-            {
-              name,
-              description,
-            }
+            { name, description }
           );
+        } catch (zohoError: any) {
+          console.error("Zoho update failed:", zohoError);
+          return res.status(500).json({
+            success: false,
+            message: "Failed to update Zoho price book",
+          });
         }
+      }
 
+      // ✅ Step 2: DB transaction
+      const updatedGroup = await db.transaction(async (tx) => {
         // If setting as default, remove default from others
         if (isDefault === true) {
           await tx
@@ -158,7 +172,7 @@ class PricingGroupController {
         }
 
         // Update pricing group in DB
-        const [updatedGroup] = await tx
+        const [updated] = await tx
           .update(pricingGroups)
           .set({
             ...(name && { name }),
@@ -171,15 +185,17 @@ class PricingGroupController {
           .where(eq(pricingGroups.id, id))
           .returning();
 
-        return updatedGroup;
+        if (!updated) throw new Error("Failed to update pricing group in DB");
+
+        return updated;
       });
 
       return res.status(200).json({
         success: true,
         message: "Pricing group updated successfully",
-        pricingGroup: result,
+        pricingGroup: updatedGroup,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Update pricing group error:", error);
       return res.status(500).json({
         success: false,

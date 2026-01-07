@@ -116,8 +116,6 @@ export class ZohoItemService {
     // If image exists, create item with image using multipart/form-data
     if (product.imageUrl) {
       try {
-        console.log(`📸 Downloading image from S3: ${product.imageUrl}`);
-
         const imageResponse = await zohoHttpClient.get(product.imageUrl, {
           responseType: "arraybuffer",
         });
@@ -150,8 +148,6 @@ export class ZohoItemService {
           contentType: contentType,
         });
 
-        console.log(`📤 Creating item with image in Zoho: ${filename}`);
-
         const { data } = await zohoHttpClient.post(
           `${ZOHO_ENV.BOOKS_API}/items?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
           formData,
@@ -166,7 +162,6 @@ export class ZohoItemService {
         );
 
         const item = data.item;
-        console.log(`✅ Item created with image: ${item.item_id}`);
 
         // Associate with price books if provided
         if (product.pricingGroupPrices?.length) {
@@ -178,11 +173,7 @@ export class ZohoItemService {
 
         return item;
       } catch (error: any) {
-        console.error(
-          "❌ Failed to create item with image:",
-          error.response?.data || error.message
-        );
-        console.log("⚠️ Falling back to create item without image...");
+        throw new Error(error.message);
       }
     }
 
@@ -210,7 +201,6 @@ export class ZohoItemService {
     );
 
     const item = data.item;
-    console.log(`✅ Item created without image: ${item.item_id}`);
 
     // Associate with price books if provided
     if (product.pricingGroupPrices?.length) {
@@ -300,21 +290,11 @@ export class ZohoItemService {
         label: "Max Price",
         value: Number(maxRate.toFixed(2)), // ✅ Convert back to number: 34.43
       });
-
-      // ❌ REMOVED: Dynamic pricing group fields
-      // updates.pricingGroupPrices.forEach((pg) => {
-      //   customFields.push({
-      //     label: `${pg.name} Price`,
-      //     value: pg.price.toString(),
-      //   });
-      // });
     }
 
     // If image is provided, use multipart/form-data
     if (updates.imageUrl) {
       try {
-        console.log(`📸 Downloading image from S3: ${updates.imageUrl}`);
-
         const imageResponse = await zohoHttpClient.get(updates.imageUrl, {
           responseType: "arraybuffer",
         });
@@ -352,8 +332,6 @@ export class ZohoItemService {
           contentType: contentType,
         });
 
-        console.log(`📤 Updating item ${itemId} with image: ${filename}`);
-
         const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
         const { data } = await zohoHttpClient.put(url, formData, {
@@ -364,8 +342,6 @@ export class ZohoItemService {
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
         });
-
-        console.log(`✅ Item ${itemId} updated with image`);
 
         if (updates.pricingGroupPrices?.length) {
           await this.associateItemWithPriceBooks(
@@ -380,11 +356,7 @@ export class ZohoItemService {
 
         return data.item;
       } catch (error: any) {
-        console.error(
-          "❌ Failed to update item with image:",
-          error.response?.data || error.message
-        );
-        console.log("⚠️ Falling back to update without image...");
+        throw new Error("Failed to update item in Zoho Books");
       }
     }
 
@@ -426,10 +398,6 @@ export class ZohoItemService {
 
       return data.item;
     } catch (error: any) {
-      console.error(
-        "❌ Failed to update Zoho item:",
-        error.response?.data || error.message
-      );
       throw new Error("Failed to update item in Zoho Books");
     }
   }
@@ -438,8 +406,6 @@ export class ZohoItemService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      console.log(`📸 Downloading image from S3: ${imageUrl}`);
-
       const imageResponse = await zohoHttpClient.get(imageUrl, {
         responseType: "arraybuffer",
       });
@@ -464,8 +430,6 @@ export class ZohoItemService {
         contentType: contentType,
       });
 
-      console.log(`📤 Updating item ${itemId} with image`);
-
       const { data } = await zohoHttpClient.put(
         `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
         formData,
@@ -479,13 +443,8 @@ export class ZohoItemService {
         }
       );
 
-      console.log(`✅ Item ${itemId} updated with image`);
       return data.item;
     } catch (error: any) {
-      console.error(
-        "❌ Failed to update item with image:",
-        error.response?.data || error.message
-      );
       throw error;
     }
   }
@@ -495,8 +454,6 @@ export class ZohoItemService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      console.log(`📸 Downloading image from S3: ${imageUrl}`);
-
       // Step 1: Download the image from S3
       const imageResponse = await zohoHttpClient.get(imageUrl, {
         responseType: "arraybuffer",
@@ -511,8 +468,6 @@ export class ZohoItemService {
       if (!filename.match(/\.(jpg|jpeg|png|gif)$/i)) {
         filename += ".jpg";
       }
-
-      console.log(`📤 Uploading image to Zoho: ${filename}`);
 
       // Step 2: Upload to Zoho Books documents
       const FormData = require("form-data");
@@ -538,7 +493,6 @@ export class ZohoItemService {
       );
 
       const imageDocumentId = docData.document?.document_id;
-      console.log(`✅ Image uploaded. Document ID: ${imageDocumentId}`);
 
       if (!imageDocumentId) {
         throw new Error("No document ID returned");
@@ -560,13 +514,8 @@ export class ZohoItemService {
         }
       );
 
-      console.log(`✅ Item ${itemId} linked with image document`);
       return itemData.item;
     } catch (error: any) {
-      console.error(
-        "❌ Failed to attach image to item:",
-        error.response?.data || error.message
-      );
       throw error;
     }
   }
@@ -747,8 +696,6 @@ export class ZohoItemService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      console.log(`📸 Downloading image from S3: ${imageUrl}`);
-
       const imageResponse = await zohoHttpClient.get(imageUrl, {
         responseType: "arraybuffer",
       });
@@ -776,8 +723,6 @@ export class ZohoItemService {
       const timestamp = Date.now();
       const filename = `item-${itemId}-${timestamp}${extension}`;
 
-      console.log(`📝 Generated short filename: ${filename}`);
-
       const FormData = require("form-data");
       const formData = new FormData();
 
@@ -786,8 +731,6 @@ export class ZohoItemService {
         filename: filename,
         contentType: contentType,
       });
-
-      console.log(`📤 Updating item ${itemId} image only: ${filename}`);
 
       const url = `${ZOHO_ENV.BOOKS_API}/items/${itemId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`;
 
@@ -800,13 +743,8 @@ export class ZohoItemService {
         maxBodyLength: Infinity,
       });
 
-      console.log(`✅ Item ${itemId} image updated successfully`);
       return data.item;
     } catch (error: any) {
-      console.error(
-        "❌ Failed to update item image:",
-        error.response?.data || error.message
-      );
       throw error;
     }
   }
@@ -821,16 +759,8 @@ export class ZohoItemService {
   ) {
     const accessToken = await this.zohoService.getValidAccessToken();
 
-    console.log(
-      `🔄 Associating item ${itemId} with ${pricingGroupPrices.length} pricebooks`
-    );
-
     for (const pg of pricingGroupPrices) {
       try {
-        console.log(
-          `   → Adding to pricebook ${pg.zohoPriceBookId} at rate ${pg.rate}`
-        );
-
         // Step 1: Get current pricebook to fetch existing items
         const { data: priceBookData } = await zohoHttpClient.get(
           `${ZOHO_ENV.BOOKS_API}/pricebooks/${pg.zohoPriceBookId}?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}`,
@@ -840,8 +770,7 @@ export class ZohoItemService {
             },
           }
         );
-        console.log("priceGroup", pg);
-        console.log("priceBookData", priceBookData);
+
         const currentPriceBook = priceBookData.pricebook;
         const existingItems = currentPriceBook.pricebook_items || [];
 
@@ -855,7 +784,6 @@ export class ZohoItemService {
           // Update existing item rate
           updatedItems = [...existingItems];
           updatedItems[existingItemIndex].pricebook_rate = pg.rate;
-          console.log(`   📝 Updating existing item rate to ${pg.rate}`);
         } else {
           // Add new item
           updatedItems = [
@@ -865,7 +793,6 @@ export class ZohoItemService {
               pricebook_rate: pg.rate,
             },
           ];
-          console.log(`   ➕ Adding new item at rate ${pg.rate}`);
         }
 
         // Step 2: Update pricebook with all items (existing + new)
@@ -892,23 +819,8 @@ export class ZohoItemService {
             },
           }
         );
-
-        console.log(
-          `✅ Item ${itemId} associated with pricebook ${pg.zohoPriceBookId} at rate ${pg.rate}`
-        );
       } catch (err: any) {
-        console.error(
-          `❌ Failed to associate item with pricebook ${pg.zohoPriceBookId}:`,
-          err.response?.data || err.message
-        );
-
-        // Log full error for debugging
-        if (err.response?.data) {
-          console.error(
-            "Full error:",
-            JSON.stringify(err.response.data, null, 2)
-          );
-        }
+        throw new Error("Failed to associate item with price books");
       }
     }
   }
@@ -1054,19 +966,9 @@ export class ZohoItemService {
       const item = data.item;
 
       // Zoho returns pricebook_items array with associated price books
-      console.log("Item with price lists:", {
-        item_id: item.item_id,
-        name: item.name,
-        rate: item.rate,
-        pricebook_items: item.pricebook_items || [],
-      });
 
       return item;
     } catch (error: any) {
-      console.error(
-        "❌ Failed to fetch item:",
-        error.response?.data || error.message
-      );
       throw new Error("Failed to fetch item details");
     }
   }
@@ -1089,20 +991,12 @@ export class ZohoItemService {
       // Only items in pricebook_items are associated
       const associatedProducts = priceList.pricebook_items || [];
 
-      console.log(
-        `Price list ${priceListId} has ${associatedProducts.length} associated products`
-      );
-
       return associatedProducts.map((item: any) => ({
         itemId: item.item_id,
         itemName: item.item_name,
         rate: item.pricebook_rate,
       }));
     } catch (error: any) {
-      console.error(
-        "❌ Failed to fetch price list:",
-        error.response?.data || error.message
-      );
       throw new Error("Failed to fetch price list details");
     }
   }
@@ -1118,31 +1012,21 @@ export class ZohoItemService {
     const accessToken = await this.zohoService.getValidAccessToken();
 
     try {
-      console.log(
-        `🔍 Checking if item ${itemId} is associated with transactions...`
-      );
-
       // Check if item is used in any invoices or credit notes
       const isUsed = await this.isItemUsedInTransactions(itemId, accessToken);
 
       if (isUsed) {
         // Item is associated with invoices/credit notes - mark as inactive
-        console.log(
-          `⚠️ Item ${itemId} is used in transactions. Marking as inactive...`
-        );
+
         await this.markItemAsInactive(itemId, accessToken);
         return { action: "inactivated", itemId };
       } else {
         // Item is not used - safe to delete
-        console.log(`🗑️ Item ${itemId} is not used. Deleting...`);
+
         await this.deleteItem(itemId, accessToken);
         return { action: "deleted", itemId };
       }
     } catch (error: any) {
-      console.error(
-        "❌ Failed to delete/inactivate item:",
-        error.response?.data || error.message
-      );
       throw new Error("Failed to process item deletion/inactivation");
     }
   }
@@ -1159,7 +1043,6 @@ export class ZohoItemService {
       });
 
       if (invoiceResponse.data?.invoices?.length > 0) {
-        console.log(`📄 Item ${itemId} found in invoices`);
         return true;
       }
 
@@ -1170,7 +1053,6 @@ export class ZohoItemService {
       });
 
       if (creditNoteResponse.data?.creditnotes?.length > 0) {
-        console.log(`💳 Item ${itemId} found in credit notes`);
         return true;
       }
 
@@ -1178,7 +1060,6 @@ export class ZohoItemService {
       // const billUrl = `${ZOHO_ENV.BOOKS_API}/bills?organization_id=${ZOHO_ENV.ZOHO_ORG_ID}&item_id=${itemId}&per_page=1`;
       // ...
 
-      console.log(`✅ Item ${itemId} is not used in any transactions`);
       return false;
     } catch (error: any) {
       console.error(
@@ -1203,8 +1084,6 @@ export class ZohoItemService {
         "Content-Type": "application/json",
       },
     });
-
-    console.log(`✅ Item ${itemId} marked as inactive in Zoho`);
   }
 
   private async deleteItem(itemId: string, accessToken: string) {
@@ -1215,8 +1094,6 @@ export class ZohoItemService {
         Authorization: `Zoho-oauthtoken ${accessToken}`,
       },
     });
-
-    console.log(`✅ Item ${itemId} deleted from Zoho`);
   }
   // ==========================================
   // SERVICE: Force Delete (Use with Caution)
