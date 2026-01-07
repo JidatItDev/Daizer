@@ -71,11 +71,21 @@ productRouter.get(
 );
 
 // getPricingGroups
-productRouter.get("/getPricingGroups", ProductController.getPricingGroups);
+productRouter.get(
+  "/getPricingGroups",
+  authenticate,
+  authorize("admin"),
+  ProductController.getPricingGroups
+);
 
 // getProductById/:id
 productRouter.get("/getProductById/:id", ProductController.getProductById);
 
-productRouter.post("/getProductServices", ProductController.getProductServices);
+productRouter.post(
+  "/getProductServices",
+  authenticate,
+  authorize("admin"),
+  ProductController.getProductServices
+);
 
 export default productRouter;

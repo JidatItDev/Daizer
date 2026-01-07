@@ -44,6 +44,9 @@ const PricingGroup = () => {
   });
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDefaultModalOpen, setIsDeleteDefaultModalOpen] =
+    useState(false);
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDefaultChangeModalOpen, setIsDefaultChangeModalOpen] =
     useState(false);
@@ -155,7 +158,24 @@ const PricingGroup = () => {
 
   const handleDelete = (group: PricingGroupType) => {
     setSelectedGroup(group);
+
+    if (group.isDefault && pricingGroups.length > 1) {
+      setIsDeleteDefaultModalOpen(true);
+      return;
+    }
+
     setIsDeleteModalOpen(true);
+  };
+  const getDeleteDefaultMessage = () => {
+    if (!selectedGroup) return "";
+
+    const nextDefault = pricingGroups.find((g) => g.id !== selectedGroup.id);
+
+    return `
+"${selectedGroup.name}" is currently the default pricing group.
+If you delete it, "${nextDefault?.name}" will automatically be set as the new default pricing group.
+This action cannot be undone.
+`;
   };
 
   const handleToggleDefault = async (group: PricingGroupType) => {
@@ -369,24 +389,30 @@ const PricingGroup = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedGroup || !selectedGroup?.id) return;
+    if (!selectedGroup) return;
 
     setDeletingGroups((prev) => new Set(prev).add(selectedGroup.id));
 
     try {
-      await deletePricingGroup.mutateAsync(selectedGroup?.id);
+      await deletePricingGroup.mutateAsync(selectedGroup.id);
+
+      toast.success(
+        selectedGroup.isDefault
+          ? "Default pricing group deleted. Another group was set as default."
+          : "Pricing group deleted successfully"
+      );
+
       setIsDeleteModalOpen(false);
+      setIsDeleteDefaultModalOpen(false);
       setSelectedGroup(null);
-      toast.success("Pricing group deleted successfully");
       refetch();
-    } catch (error: any) {
-      console.error("Failed to delete pricing group:", error);
+    } catch (error) {
       toast.error("Failed to delete pricing group");
     } finally {
       setDeletingGroups((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(selectedGroup.id);
-        return newSet;
+        const s = new Set(prev);
+        s.delete(selectedGroup.id);
+        return s;
       });
     }
   };
@@ -680,6 +706,29 @@ const PricingGroup = () => {
         variant="danger"
         confirmDisabled={isDeleteLoading}
         cancelDisabled={isDeleteLoading}
+      />
+      <ConfirmationModal
+        isOpen={isDeleteDefaultModalOpen}
+        onClose={() => {
+          if (isDeleteLoading) return;
+          setIsDeleteDefaultModalOpen(false);
+          setSelectedGroup(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Default Pricing Group"
+        message={getDeleteDefaultMessage()}
+        confirmText={
+          isDeleteLoading ? (
+            <div className="flex items-center gap-2">
+              <Loader className="h-4 w-4 animate-spin" />
+              Deleting...
+            </div>
+          ) : (
+            "Delete & Reassign Default"
+          )
+        }
+        cancelText="Cancel"
+        variant="danger"
       />
 
       <ConfirmationModal

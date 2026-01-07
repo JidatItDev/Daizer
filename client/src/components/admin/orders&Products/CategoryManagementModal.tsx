@@ -41,7 +41,13 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
   }>({ isOpen: false, category: null });
 
   // API hooks
-  const { data: treeData, isLoading, error, refetch } = useCategoriesTree();
+  const {
+    data: treeData,
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
+  } = useCategoriesTree();
   const createParentMutation = useCreateParentCategory();
   const createSubMutation = useCreateSubcategory();
   const updateMutation = useUpdateCategory();
@@ -106,7 +112,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
           image: newCategoryImage || undefined,
         })) as CreateParentCategoryPayload;
       }
-
+      await refetch();
       setNewCategoryName("");
       setNewCategoryImage(null);
       setNewImagePreview("");
@@ -130,6 +136,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         image,
         removeImage,
       })) as UpdateCategoryPayload;
+      await refetch();
     } catch (error) {
       console.error("Error updating category:", error);
     }
@@ -146,6 +153,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
         parentCategoryId: parentId,
         image,
       })) as CreateSubcategoryPayload;
+      await refetch();
     } catch (error) {
       console.error("Error creating subcategory:", error);
     }
@@ -157,6 +165,7 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
     try {
       await deleteMutation.mutateAsync(deleteConfirmation.category.id);
       setDeleteConfirmation({ isOpen: false, category: null });
+      await refetch();
     } catch (error) {
       console.error("Error deleting category:", error);
     }
@@ -206,6 +215,16 @@ const CategoryManagementModal: React.FC<CategoryManagementModalProps> = ({
               Create Category
             </Button>
           </div>
+          {isRefetching && (
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+              <div className="bg-white p-4 rounded-lg shadow flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary-dark" />
+                <span className="text-sm text-gray-700">
+                  Refreshing categories…
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Create Category Form */}
           {showCreateForm && (

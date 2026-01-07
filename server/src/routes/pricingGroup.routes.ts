@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate } from "../middlewares/auth.middleware";
+import { authenticate, authorize } from "../middlewares/auth.middleware";
 import PricingGroupController from "../controllers/pricingGroup.controller";
 import { validateSchema } from "../middlewares/zod.middleware";
 import {
@@ -12,6 +12,7 @@ const pricingGroupRouter = Router();
 pricingGroupRouter.post(
   "/",
   authenticate,
+  authorize("admin"),
   validateSchema(createPricingGroupSchema),
   PricingGroupController.createPricingGroup
 );
@@ -43,7 +44,18 @@ pricingGroupRouter.post(
 pricingGroupRouter.get(
   "/",
   authenticate,
+  authorize("admin"),
   PricingGroupController.getAllPricingGroups
+);
+pricingGroupRouter.get(
+  "/default",
+  authenticate,
+  PricingGroupController.getDefaultPricingGroup
+);
+pricingGroupRouter.get(
+  "/me",
+  authenticate,
+  PricingGroupController.getMyPricingGroup
 );
 
 /**
@@ -64,6 +76,7 @@ pricingGroupRouter.get(
 pricingGroupRouter.put(
   "/:id",
   authenticate,
+  authorize("admin"),
   validateSchema(updatePricingGroupSchema),
   PricingGroupController.updatePricingGroup
 );
@@ -101,6 +114,7 @@ pricingGroupRouter.put(
 pricingGroupRouter.delete(
   "/:id",
   authenticate,
+  authorize("admin"),
   PricingGroupController.deletePricingGroup
 );
 

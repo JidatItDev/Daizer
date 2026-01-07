@@ -6,7 +6,7 @@ import {
   refreshSchema,
   registerSchema,
 } from "../validators/auth.schema";
-import { authenticate } from "../middlewares/auth.middleware";
+import { authenticate, authorize } from "../middlewares/auth.middleware";
 
 const authRouter = Router();
 
@@ -84,6 +84,7 @@ authRouter.post(
  */
 
 authRouter.post("/login", validateSchema(loginSchema), AuthController.login);
+
 /**
  * @swagger
  * /auth/login:
@@ -532,7 +533,12 @@ authRouter.get("/users", authenticate, AuthController.getAllUsers);
  *         description: Internal server error
  */
 
-authRouter.put("/users/:id", authenticate, AuthController.updateUser);
+authRouter.put(
+  "/users/:id",
+  authenticate,
+  authorize("admin"),
+  AuthController.updateUser
+);
 
 /**
  * @swagger

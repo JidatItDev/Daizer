@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../db/dbConnection";
 import { pricingGroups, users } from "../db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, ne, sql } from "drizzle-orm";
 import redisClient from "../config/redis";
 import { ZohoService } from "../services/zoho.service";
 import { ZohoPriceBookService } from "../services/ZohoServices/zohoPriceBook.service";
@@ -124,7 +124,64 @@ class PricingGroupController {
       });
     }
   }
+  static async getMyPricingGroup(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id; // coming from authenticate middleware
 
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      // 1️⃣ Get user's pricingGroupId
+      const [user] = await db
+        .select({
+          pricingGroupId: users.pricingGroupId,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user || !user.pricingGroupId) {
+        return res.status(200).json({
+          success: true,
+          pricingGroup: null,
+        });
+      }
+
+      // 2️⃣ Fetch pricing group details
+      const [pricingGroup] = await db
+        .select({
+          id: pricingGroups.id,
+          name: pricingGroups.name,
+          isDefault: pricingGroups.isDefault,
+          createdAt: pricingGroups.createdAt,
+        })
+        .from(pricingGroups)
+        .where(eq(pricingGroups.id, user.pricingGroupId))
+        .limit(1);
+
+      if (!pricingGroup) {
+        return res.status(200).json({
+          success: true,
+          pricingGroup: null,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        pricingGroup,
+      });
+    } catch (error) {
+      console.error("Get my pricing group error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
   static async updatePricingGroup(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -260,6 +317,45 @@ class PricingGroupController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+  static async getDefaultPricingGroup(req: Request, res: Response) {
+    try {
+      const [defaultGroup] = await db
+        .select({
+          id: pricingGroups.id,
+          name: pricingGroups.name,
+          isDefault: pricingGroups.isDefault,
+          zohoPriceBookId: pricingGroups.zohoPriceBookId,
+          createdAt: pricingGroups.createdAt,
+          totalUsers: sql<number>`COUNT(${users.id})`,
+        })
+        .from(pricingGroups)
+        .leftJoin(users, eq(users.pricingGroupId, pricingGroups.id))
+        .where(eq(pricingGroups.isDefault, true))
+        .groupBy(pricingGroups.id)
+        .limit(1);
+
+      if (!defaultGroup) {
+        return res.status(404).json({
+          success: false,
+          message: "Default pricing group not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        pricingGroup: {
+          ...defaultGroup,
+          users: Number(defaultGroup.totalUsers),
+        },
+      });
+    } catch (error) {
+      console.error("Get default pricing group error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  }
 
   static async getPricingGroupById(req: Request, res: Response) {
     try {
@@ -290,59 +386,82 @@ class PricingGroupController {
     try {
       const { id } = req.params;
 
-      // Get pricing group details
-      const [pricingGroup] = await db
-        .select({
-          id: pricingGroups.id,
-          name: pricingGroups.name,
-          zohoPriceBookId: pricingGroups.zohoPriceBookId,
-        })
-        .from(pricingGroups)
-        .where(eq(pricingGroups.id, id))
-        .limit(1);
+      await db.transaction(async (tx) => {
+        // 1️⃣ Fetch pricing group
+        const [pricingGroup] = await tx
+          .select({
+            id: pricingGroups.id,
+            name: pricingGroups.name,
+            isDefault: pricingGroups.isDefault,
+            zohoPriceBookId: pricingGroups.zohoPriceBookId,
+          })
+          .from(pricingGroups)
+          .where(eq(pricingGroups.id, id))
+          .limit(1);
 
-      if (!pricingGroup) {
-        return res.status(404).json({
-          success: false,
-          message: "Pricing group not found",
-        });
-      }
+        if (!pricingGroup) {
+          throw { status: 404, message: "Pricing group not found" };
+        }
 
-      // ✅ Delete from Zoho first (includes custom field cleanup)
-      let zohoResult = null;
-      if (pricingGroup.zohoPriceBookId) {
-        const zohoItemService = new ZohoPriceBookService();
+        // 2️⃣ Default reassignment
+        if (pricingGroup.isDefault) {
+          const [nextDefault] = await tx
+            .select({ id: pricingGroups.id })
+            .from(pricingGroups)
+            .where(ne(pricingGroups.id, pricingGroup.id))
+            .limit(1);
 
-        try {
+          if (!nextDefault) {
+            throw {
+              status: 400,
+              message: "Cannot delete the only pricing group",
+            };
+          }
+
+          await tx
+            .update(pricingGroups)
+            .set({ isDefault: true })
+            .where(eq(pricingGroups.id, nextDefault.id));
+        }
+
+        // 3️⃣ REMOVE pricing group prices from ALL products
+        await tx.execute(sql`
+        UPDATE products
+        SET pricing_group_prices = (
+          SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+          FROM jsonb_array_elements(pricing_group_prices) elem
+          WHERE elem->>'id' <> ${pricingGroup.id}
+        )
+        WHERE pricing_group_prices @> jsonb_build_array(
+          jsonb_build_object('id', ${pricingGroup.id})
+        )
+      `);
+
+        // 4️⃣ Delete from Zoho
+        let zohoResult = null;
+        if (pricingGroup.zohoPriceBookId) {
+          const zohoItemService = new ZohoPriceBookService();
           zohoResult = await zohoItemService.deletePriceBookInZoho(
             pricingGroup.zohoPriceBookId
           );
-          console.log(`✅ Deleted price book from Zoho:`, zohoResult);
-        } catch (error: any) {
-          console.error("❌ Failed to delete from Zoho:", error.message);
-          return res.status(500).json({
-            success: false,
-            message: `Failed to delete price book from Zoho: ${error.message}`,
-          });
         }
-      }
 
-      // ✅ Delete from local database
-      await db.delete(pricingGroups).where(eq(pricingGroups.id, id));
+        // 5️⃣ Delete pricing group
+        await tx.delete(pricingGroups).where(eq(pricingGroups.id, id));
 
-      // Clear cache if you're using Redis
-      // await redisClient.del("pricing-groups:*");
-
-      return res.status(200).json({
-        success: true,
-        message: `Pricing group "${pricingGroup.name}" deleted successfully`,
-        zoho: zohoResult,
+        return res.status(200).json({
+          success: true,
+          message: pricingGroup.isDefault
+            ? `Default pricing group "${pricingGroup.name}" deleted and removed from all products.`
+            : `Pricing group "${pricingGroup.name}" deleted and removed from all products.`,
+          zoho: zohoResult,
+        });
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Delete pricing group error:", error);
-      return res.status(500).json({
+      return res.status(error?.status || 500).json({
         success: false,
-        message: "Internal server error",
+        message: error?.message || "Internal server error",
       });
     }
   }

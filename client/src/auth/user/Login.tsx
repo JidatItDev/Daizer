@@ -149,10 +149,10 @@ export default function Login() {
         toast.success("login successfull");
 
         if (data.user.role === "user") {
-          navigate("/");
+          navigate("/dashboard");
         }
         if (data.user.role === "admin") {
-          navigate("/admin");
+          navigate("/admin/dashboard");
         }
       } catch (error: any) {
         console.error("Login failed:", error);

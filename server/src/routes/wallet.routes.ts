@@ -23,6 +23,7 @@ walletRouter.post(
 walletRouter.get(
   "/refunds",
   authenticate,
+
   WalletController.getUserRefundRequests
 );
 

@@ -35,7 +35,7 @@ interface EditProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
-  onSuccess: () => void; // ✅ new
+  onSuccess: () => void;
 }
 
 interface FormData {
@@ -48,6 +48,8 @@ interface FormData {
   apiProviderId?: string;
   serviceId?: string;
   isActive: boolean;
+  hasExistingImage: boolean;
+  imageStatus: "existing" | "removed" | "new";
 }
 
 interface ServiceResponse {
@@ -58,7 +60,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   isOpen,
   onClose,
   product,
-  onSuccess, // ✅ new
+  onSuccess,
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -70,6 +72,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     apiProviderId: undefined,
     serviceId: "",
     isActive: true,
+    hasExistingImage: false,
+    imageStatus: "removed",
   });
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
     null
@@ -78,7 +82,6 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const { data: apiProviders, isLoading: isLoadingProviders } =
     useApiProviders();
   const providers = apiProviders ?? [];
-  // const { data: services = [] } = useProductServices();
   const { data: servicesData, isLoading: isLoadingServices } =
     useProductServices(selectedProviderId);
   const services = (servicesData as ServiceResponse)?.services || [];
@@ -99,13 +102,10 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     if (product && isOpen) {
       const pricingGroupPrices: Record<string, string> = {};
 
-      if (Array.isArray(product.pricingGroupPrices)) {
-        // ✅ Convert array to Record<string, string>
-        product.pricingGroupPrices.forEach((pg) => {
-          pricingGroupPrices[pg.id] = pg.price.toString();
-        });
-      }
-      console.log(product);
+      product.pricingGroupPrices?.forEach((pg) => {
+        pricingGroupPrices[pg.id] = pg.price.toString();
+      });
+
       setFormData({
         name: product.name,
         quantity: product.quantity || "",
@@ -116,7 +116,10 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         apiProviderId: product.apiProviderId,
         serviceId: product.serviceId?.toString() || "",
         isActive: product.isActive ?? true,
+        hasExistingImage: !!product.image?.url,
+        imageStatus: product.image?.url ? "existing" : "removed",
       });
+
       setSelectedProviderId(product.apiProviderId || null);
     }
   }, [product, isOpen]);
@@ -148,22 +151,37 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       newErrors.name = "Product name is required";
     }
 
-    if (!formData.apiProviderId)
-      newErrors.apiProviderId = "API Provider is required";
+    if (!formData.quantity.trim()) {
+      newErrors.quantity = "Quantity is required";
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
+    }
 
     if (!formData.subcategoryId) {
-      newErrors.subcategoryId = "Please select a category";
+      newErrors.subcategoryId = "Category is required";
     }
 
-    if (!formData.quantity) {
-      newErrors.quantity = "Quantity must be a valid number";
+    if (!formData.apiProviderId) {
+      newErrors.apiProviderId = "API Provider is required";
     }
-    // Validate that at least one pricing group has a price
-    const hasValidPrice = Object.values(formData.pricingGroupPrices).some(
-      (price) => price && parseFloat(price) > 0
+
+    if (!formData.serviceId) {
+      newErrors.serviceId = "Service selection is required";
+    }
+
+    // 🔥 IMAGE RULE (THIS FIXES YOUR BUG)
+    if (formData.imageStatus === "removed") {
+      newErrors.image = "Product image is required. Please upload an image.";
+    }
+
+    // Pricing group validation
+    const validPrices = Object.values(formData.pricingGroupPrices).filter(
+      (price) => price && !isNaN(Number(price)) && Number(price) > 0
     );
 
-    if (!hasValidPrice) {
+    if (validPrices.length === 0) {
       newErrors.pricingGroupPrices =
         "At least one pricing group must have a valid price";
     }
@@ -223,13 +241,13 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       await updateProductMutation.mutateAsync({
         id: product.id,
         name: formData.name,
-        quantity: formData.quantity || undefined,
+        quantity: formData.quantity,
         description: formData.description,
         subcategoryId: formData.subcategoryId,
         image: formData.image || undefined,
         pricingGroupPrices,
         apiProviderId: formData.apiProviderId!,
-        serviceId: formData.serviceId?.toString() || "",
+        serviceId: formData.serviceId!,
         isActive: formData.isActive,
       });
 
@@ -254,6 +272,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       apiProviderId: undefined,
       serviceId: "",
       isActive: true,
+      hasExistingImage: false,
+      imageStatus: "removed",
     });
     setErrors({});
     onClose();
@@ -298,7 +318,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             <div className="flex gap-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Name
+                  Name <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="text"
@@ -311,7 +331,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity
+                  Quantity <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="text"
@@ -319,8 +339,9 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   onChange={(e) =>
                     handleInputChange("quantity", e.target.value)
                   }
-                  placeholder="Optional quantity"
+                  placeholder=""
                   error={errors.quantity}
+                  required
                 />
               </div>
             </div>
@@ -328,7 +349,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             {/* Select Category */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Category
+                Select Category <span className="text-red-500">*</span>
               </label>
               <TreeSelect
                 data={categories}
@@ -342,7 +363,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             {/* Pricing Groups */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-4">
-                Pricing Groups
+                Pricing Groups <span className="text-red-500">*</span>
               </label>
               {errors.pricingGroupPrices && (
                 <p className="text-sm text-red-600 mb-3">
@@ -376,13 +397,35 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             {/* Upload Image */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Image
+                Upload Image <span className="text-red-500">*</span>
               </label>
               <ImageUploader
-                onImageChange={(file) => handleInputChange("image", file)}
-                currentImage={product.image?.url}
-                error={errors.image}
+                onImageChange={(file) => {
+                  if (file) {
+                    handleInputChange("image", file);
+                    setFormData((prev) => ({
+                      ...prev,
+                      imageStatus: "new",
+                    }));
+                  } else {
+                    // ❌ user removed image
+                    handleInputChange("image", null);
+                    setFormData((prev) => ({
+                      ...prev,
+                      imageStatus: "removed",
+                    }));
+                  }
+                }}
+                currentImage={
+                  formData.imageStatus === "existing"
+                    ? product?.image?.url
+                    : undefined
+                }
               />
+
+              {errors.image && (
+                <p className="text-sm text-red-600 mt-1">{errors.image}</p>
+              )}
             </div>
             {/* Select Service */}
             <div className="w-full">
@@ -435,9 +478,14 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   </Command>
                 </PopoverContent>
               </Popover>
+              {errors.apiProviderId && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.apiProviderId}
+                </p>
+              )}
 
-              <label className="block text-sm font-medium text-gray-700 mb-2 mt-2">
-                Select Service
+              <label className="block text-sm font-medium text-gray-700 mb-2 mt-4">
+                Select Service <span className="text-red-500">*</span>
               </label>
 
               <Popover>
@@ -511,6 +559,9 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   </Command>
                 </PopoverContent>
               </Popover>
+              {errors.serviceId && (
+                <p className="text-sm text-red-600 mt-1">{errors.serviceId}</p>
+              )}
             </div>
           </div>
         </div>
@@ -518,13 +569,15 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         {/* Description - Full width below columns */}
         <div>
           <label className="text-sm font-medium text-gray-700 mb-2">
-            Description
+            Description <span className="text-red-500">*</span>
           </label>
           <Input
             value={formData.description}
             onChange={(e) => handleInputChange("description", e.target.value)}
             placeholder=""
-            className="w-full py-3 px-4 "
+            className="w-full py-3 px-4"
+            error={errors.description}
+            required
           />
         </div>
 

@@ -76,3 +76,35 @@ export const useDeletePricingGroup = () => {
     onSuccess: () => invalidateAll(),
   });
 };
+export interface newPricingGroup {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  zohoPriceBookId?: string;
+  createdAt: string;
+  users?: number;
+}
+export const useDefaultPricingGroup = () => {
+  return useQuery({
+    queryKey: ["pricing-groups", "default"],
+    queryFn: async (): Promise<{
+      success: boolean;
+      pricingGroup: newPricingGroup;
+      message?: string;
+    }> => {
+      const response = await axiosPrivate.get("/pricing-groups/default");
+      return response.data;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes (default rarely changes)
+  });
+};
+export const useMyPricingGroup = () => {
+  return useQuery({
+    queryKey: ["my-pricing-group"],
+    queryFn: async () => {
+      const response = await axiosPrivate.get("/pricing-groups/me");
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  });
+};

@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { IoCaretBackOutline } from "react-icons/io5";
 import { useProductsByCategory } from "../../api/UseProducts";
 import { useAuth } from "../../context/AuthContext";
+import {
+  useDefaultPricingGroup,
+  useMyPricingGroup,
+} from "../../api/pricingGroup";
 
 interface Product {
   id: string;
@@ -31,9 +35,16 @@ interface Product {
 interface ProductCardProps {
   product: Product;
   userPricingGroupId: string;
+  defaultPricingGroupId?: string;
+  defaultPricingGroupName?: string;
 }
 
-const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
+const ProductCard = ({
+  product,
+  userPricingGroupId,
+  defaultPricingGroupId,
+  defaultPricingGroupName,
+}: ProductCardProps) => {
   const navigate = useNavigate();
   // Find the price for the user's pricing group
   const userPrice = product.pricingGroupPrices.find(
@@ -44,10 +55,24 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
   // const displayPrice =
   //   userPrice?.price || product.pricingGroupPrices[0]?.price || 0;
   // const pricingGroupName = userPrice?.name || "Standard";
-  const isPriceAvailable = Boolean(userPrice);
-  const displayPrice = userPrice?.price;
-  const pricingGroupName = userPrice?.name;
+  // const isPriceAvailable = Boolean(userPrice);
+  // const displayPrice = userPrice?.price;
+  // const pricingGroupName = userPrice?.name;
+  // 1️⃣ Try user pricing group
 
+  // 2️⃣ Try default pricing group (fallback)
+  const defaultPrice = product.pricingGroupPrices.find(
+    (price) => price.id === defaultPricingGroupId
+  );
+
+  // 3️⃣ Decide which one to use
+  const activePrice = userPrice || defaultPrice;
+  const isPriceAvailable = Boolean(activePrice);
+
+  const displayPrice = activePrice?.price;
+  const pricingGroupName = userPrice?.name || defaultPricingGroupName;
+
+  console.log("product", userPricingGroupId);
   return (
     <div
       className={`bg-white rounded-[20px] border border-gray-200 relative overflow-hidden shadow-sm transition-shadow duration-200
@@ -90,7 +115,7 @@ const ProductCard = ({ product, userPricingGroupId }: ProductCardProps) => {
           </p>
         </div>
         {!isPriceAvailable && (
-          <p className="text-xs text-red-500 mt-3 text-center">
+          <p className="text-xs text-red-800 mt-3 text-center">
             Price not set for this product
           </p>
         )}
@@ -128,14 +153,27 @@ const Products = () => {
   const location = useLocation();
   const categoryName = location.state?.name;
   const navigate = useNavigate();
+
   const { user } = useAuth();
 
-  const { data: productsData, isLoading } = useProductsByCategory(id || "");
+  // Fetch products
+  const { data: productsData, isLoading: productsLoading } =
+    useProductsByCategory(id || "");
 
-  // Handle back navigation
-  const handleBack = () => {
-    navigate(-1);
-  };
+  // Fetch default pricing group
+  const { data: defaultPGData, isLoading: defaultLoading } =
+    useDefaultPricingGroup();
+
+  // Fetch current user pricing group
+  const { data: userPGData, isLoading: userPGLoading } = useMyPricingGroup();
+
+  const userPricingGroupId = userPGData?.pricingGroup?.id;
+  const defaultPricingGroupId = defaultPGData?.pricingGroup?.id;
+  const defaultPricingGroupName = defaultPGData?.pricingGroup?.name;
+
+  const isLoading = productsLoading || userPGLoading || defaultLoading;
+
+  const handleBack = () => navigate(-1);
 
   return (
     <div className="bg-white relative min-h-screen p-6">
@@ -163,35 +201,39 @@ const Products = () => {
       </div>
 
       {/* Products Grid */}
-      {productsData?.products && productsData.products.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 border-t-2 border-black/50 pt-6">
-          {productsData.products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              userPricingGroupId={user?.pricingGroupId || ""}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Loading and empty states */}
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
           {Array.from({ length: 10 }).map((_, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm"
+              className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm animate-pulse"
             >
-              <div className="h-40 bg-gray-200 animate-pulse"></div>
+              <div className="h-40 bg-gray-200"></div>
               <div className="p-4">
-                <div className="h-6 bg-gray-200 rounded animate-pulse mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+                <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-8 bg-gray-200 rounded mt-4"></div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {!isLoading &&
+        productsData?.products &&
+        productsData.products.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 border-t-2 border-black/50 pt-6">
+            {productsData.products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                userPricingGroupId={userPricingGroupId || ""}
+                defaultPricingGroupId={defaultPricingGroupId}
+                defaultPricingGroupName={defaultPricingGroupName}
+              />
+            ))}
+          </div>
+        )}
 
       {!isLoading &&
         (!productsData?.products || productsData.products.length === 0) && (
