@@ -92,11 +92,8 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     useCategoriesTree();
   const createProductMutation = useCreateProduct();
 
-  const {
-    data: apiProviders,
-    isLoading: isLoadingApiProviders,
-    refetch,
-  } = useApiProviders();
+  const { data: apiProviders, isLoading: isLoadingApiProviders } =
+    useApiProviders();
 
   const providers: ApiProvider[] = apiProviders ?? [];
 

@@ -1097,7 +1097,7 @@ class WalletController {
 
         const zohoResult = await zohoWalletService.topUpWalletWithRetainer({
           customer_id: user.zohoContactId,
-          amount,
+          amount: amount.toString(),
           payment_mode: "PayPal",
           reference_number: captureId,
           walletIncomeAccountId: walletIncomeAccountID,
@@ -1123,7 +1123,7 @@ class WalletController {
         if (user) {
           await EmailService.sendTemplateEmail("topup", user.email, {
             name: user.name,
-            amount,
+            amount: amount.toString(),
             currency,
             newBalance: updatedWallet.balance.toString(),
             referenceId: captureId,

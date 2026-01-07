@@ -9,7 +9,6 @@ import {
   useApproveRefund,
   useGetActiveAccounts,
   useRefundRequests,
-  useInvalidateAll,
 } from "../../api/Wallets";
 import { CreditDebitModal } from "../../components/admin/Wallet/CreditDebitModal";
 import { AdjustmentTypeModal } from "../../components/admin/Wallet/AdjustmentTypeModal";
@@ -97,7 +96,7 @@ const WalletManagement = () => {
   const [isRefundApproveModalOpen, setIsRefundApproveModalOpen] =
     useState(false);
   const [selectedRefund, setSelectedRefund] = useState<any>(null);
-  const invalidateAll = useInvalidateAll();
+  // const invalidateAll = useInvalidateAll();
   const [isRefundProcessing, setIsRefundProcessing] = useState(false);
   // Wallets state
   const [walletsPagination, setWalletsPagination] = useState({

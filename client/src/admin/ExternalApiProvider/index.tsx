@@ -75,13 +75,13 @@ const ExternalProviderSettings = () => {
   );
   const [testingId, setTestingId] = useState<string | null>(null);
 
-  const buildGeneratedUrl = (provider: ApiProvider) => {
-    const base = provider.hostUrl.replace(/\/$/, "");
+  // const buildGeneratedUrl = (provider: ApiProvider) => {
+  //   const base = provider.hostUrl.replace(/\/$/, "");
 
-    return provider.username && provider.token
-      ? `${base}/${provider.username}/${provider.token}`
-      : base;
-  };
+  //   return provider.username && provider.token
+  //     ? `${base}/${provider.username}/${provider.token}`
+  //     : base;
+  // };
 
   const [formData, setFormData] = useState({
     providerName: "",

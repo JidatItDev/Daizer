@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { SlidersHorizontal, ArrowUp, ArrowDown, X } from "lucide-react";
 
-import { useAllOrders, useMyOrders } from "../../api/auth";
+import { useMyOrders } from "../../api/auth";
 import { Table, type TableColumn } from "../../components/common/Table";
 import { Input } from "../../components/common/Input";
 import Heading from "../../components/common/Heading";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../../components/common/Button";
 import { IoCaretBackOutline } from "react-icons/io5";
 
 interface OrderRow {
@@ -59,9 +58,6 @@ const MyOrder = () => {
       direction:
         prev.field === field && prev.direction === "asc" ? "desc" : "asc",
     }));
-  };
-  const handleViewDetails = (userId: string) => {
-    navigate(`/admin/user/${userId}`);
   };
 
   /* ---------------- Date Filter ---------------- */

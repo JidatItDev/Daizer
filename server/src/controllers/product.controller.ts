@@ -72,7 +72,6 @@ class ProductController {
         isActive,
         apiProviderId,
       } = body;
-      console.log("apiProviderId", req.body);
       if (!apiProviderId) {
         return res.status(400).json({
           success: false,

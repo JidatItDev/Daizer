@@ -30,7 +30,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useApiProviders } from "../../../api/useExternalProvider";
-import { queryClient } from "../../../main";
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -398,7 +397,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     disabled={isLoadingProviders}
                   >
                     {selectedProviderId
-                      ? providers.find((p) => p.id === selectedProviderId)
+                      ? providers.find((p: any) => p.id === selectedProviderId)
                           ?.providerName
                       : "Select API Provider"}
                     <ChevronsUpDown className="h-4 w-4" />

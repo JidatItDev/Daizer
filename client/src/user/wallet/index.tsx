@@ -608,7 +608,7 @@ const Wallet = () => {
     data: transactionsData,
     isLoading: isLoadingTransactions,
     isFetching: isFetchingTransactions,
-    refetch: refetchTransactions,
+    // refetch: refetchTransactions,
   } = useWalletTransactions({
     page,
     limit,
@@ -620,7 +620,7 @@ const Wallet = () => {
         : activeTab,
   });
 
-  const { data: balanceData, refetch: refetchBalance } = useWalletBalance();
+  const { data: balanceData } = useWalletBalance();
 
   // Refund requests (for refund tab)
   const {
@@ -705,9 +705,9 @@ const Wallet = () => {
   const handlePartialRefundClick = () => {
     setIsRefundModalOpen(true);
   };
-  const handleRefundSuccess = () => {
-    setIsRefundProcessing(true);
-  };
+  // const handleRefundSuccess = () => {
+  //   setIsRefundProcessing(true);
+  // };
   return (
     <div className="bg-white relative ">
       {/* Header */}
@@ -847,11 +847,7 @@ const Wallet = () => {
         onSuccess={async () => {
           setIsRefundProcessing(true);
 
-          await Promise.all([
-            refetchRefundRequests(),
-            refetchBalance(),
-            refetchTransactions(),
-          ]);
+          await Promise.all([refetchRefundRequests()]);
 
           setIsRefundProcessing(false);
         }}

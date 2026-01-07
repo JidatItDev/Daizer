@@ -119,15 +119,15 @@ const ProductsManagement = () => {
     return product.subcategoryName || "Uncategorized";
   };
 
-  const getStatus = (product: Product) => {
-    // console.log("product", product);
+  // const getStatus = (product: Product) => {
+  //   // console.log("product", product);
 
-    return product.isActive ? (
-      <span className="text-success"> Active</span>
-    ) : (
-      <span className="text-error"> Disabled</span>
-    );
-  };
+  //   return product.isActive ? (
+  //     <span className="text-success"> Active</span>
+  //   ) : (
+  //     <span className="text-error"> Disabled</span>
+  //   );
+  // };
 
   const handleToggleStatus = async (product: Product) => {
     setUpdatingProductId(product.id);

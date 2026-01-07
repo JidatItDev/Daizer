@@ -5,7 +5,6 @@ import Heading from "../../components/common/Heading";
 import {
   Edit,
   SlidersHorizontal,
-  Trash2,
   ArrowUp,
   ArrowDown,
   X,
@@ -461,10 +460,10 @@ const UserManagement = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = (user: User) => {
-    setSelectedUser(user);
-    setIsDeleteModalOpen(true);
-  };
+  // const handleDelete = (user: User) => {
+  //   setSelectedUser(user);
+  //   setIsDeleteModalOpen(true);
+  // };
 
   const handleSignupLinksPageChange = (page: number, pageSize: number) => {
     setSignupLinksPagination((prev) => ({

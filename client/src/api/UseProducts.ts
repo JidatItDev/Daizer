@@ -217,7 +217,9 @@ export const useCreateProduct = () => {
         formData.append("quantity", payload.quantity?.toString());
       }
       formData.append("serviceId", payload.serviceId.toString());
-      formData.append("apiProviderId", payload.apiProviderId);
+      if (payload.apiProviderId) {
+        formData.append("apiProviderId", payload.apiProviderId);
+      }
 
       // console.log("form data", formData);
       const response = await axiosPrivate.post(

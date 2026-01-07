@@ -1338,7 +1338,7 @@ class AuthController {
         String(sortOrder).toLowerCase() === "asc" ? asc : desc;
 
       /* ---------------- Filters ---------------- */
-      let whereCondition = eq(transactions.type, "purchase");
+      let whereCondition: any = eq(transactions.type, "purchase");
 
       if (fromDate) {
         whereCondition = and(
@@ -1440,7 +1440,7 @@ class AuthController {
         String(sortOrder).toLowerCase() === "asc" ? asc : desc;
 
       /* ---------------- Filters ---------------- */
-      let whereCondition = and(
+      let whereCondition: any = and(
         eq(transactions.type, "purchase"),
         eq(transactions.userId, userId)
       );

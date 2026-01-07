@@ -283,7 +283,7 @@ export const useRequestRefund = () => {
       const res = await axiosPrivate.post("/wallet/refund-request", payload);
       return res.data;
     },
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       // Wait a bit to ensure DB transaction is complete
       await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -322,7 +322,7 @@ export const useApproveRefund = () => {
       );
       return res.data;
     },
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       // Wait for DB transaction to complete
       await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -358,7 +358,7 @@ export const useRejectRefund = () => {
       );
       return res.data;
     },
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       // Wait for DB transaction to complete
       await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -386,7 +386,7 @@ export const useAdjustWallet = () => {
       const res = await axiosPrivate.post("/wallet/admin/adjust", payload);
       return res.data;
     },
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       // Wait for DB transaction to complete
       await new Promise((resolve) => setTimeout(resolve, 500));
 
