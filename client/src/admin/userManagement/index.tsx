@@ -23,7 +23,7 @@ import { usePricingGroups } from "../../api/pricingGroup";
 import Modal from "../../components/common/Modal";
 import { Input } from "../../components/common/Input";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -347,8 +347,6 @@ const UserManagement = () => {
       }));
     }
   }, [signupLinksData]);
-
-  console.log("signupLinks", signupLinksData);
 
   const [sort, setSort] = useState<SortState>({
     field: "name",
@@ -809,7 +807,6 @@ const UserManagement = () => {
 
   return (
     <div className="bg-white relative">
-      <Toaster position="top-right" />
       <div className="flex justify-between items-center mb-6 flex-col md:flex-row gap-4">
         <div className="flex items-center gap-4">
           <Heading>User Management</Heading>

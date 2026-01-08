@@ -159,13 +159,22 @@ const PricingGroup = () => {
   const handleDelete = (group: PricingGroupType) => {
     setSelectedGroup(group);
 
+    // 🚫 BLOCK deleting the ONLY pricing group if it is default
+    if (pricingGroups.length === 1 && group.isDefault) {
+      setIsCannotRemoveDefaultModalOpen(true);
+      return;
+    }
+
+    // Default group but others exist → reassign flow
     if (group.isDefault && pricingGroups.length > 1) {
       setIsDeleteDefaultModalOpen(true);
       return;
     }
 
+    // Normal delete
     setIsDeleteModalOpen(true);
   };
+
   const getDeleteDefaultMessage = () => {
     if (!selectedGroup) return "";
 
@@ -746,11 +755,10 @@ This action cannot be undone.
         isOpen={isCannotRemoveDefaultModalOpen}
         onClose={() => setIsCannotRemoveDefaultModalOpen(false)}
         onConfirm={() => setIsCannotRemoveDefaultModalOpen(false)}
-        title="Cannot Remove Default Pricing Group"
-        message="At least one pricing group must be set as default. To change the default pricing group, please set another group as default first."
+        title="Cannot Delete Pricing Group"
+        message="You cannot delete the only pricing group because at least one pricing group must exist and be set as default. Please create another pricing group first."
         confirmText="Understood"
         cancelDisabled
-        cancelText={"cancel"}
         variant="danger"
       />
     </div>

@@ -385,7 +385,6 @@ class PricingGroupController {
   static async deletePricingGroup(req: Request, res: Response) {
     try {
       const { id } = req.params;
-
       await db.transaction(async (tx) => {
         // 1️⃣ Fetch pricing group
         const [pricingGroup] = await tx
@@ -398,11 +397,9 @@ class PricingGroupController {
           .from(pricingGroups)
           .where(eq(pricingGroups.id, id))
           .limit(1);
-
         if (!pricingGroup) {
           throw { status: 404, message: "Pricing group not found" };
         }
-
         // 2️⃣ Default reassignment
         if (pricingGroup.isDefault) {
           const [nextDefault] = await tx
@@ -410,20 +407,17 @@ class PricingGroupController {
             .from(pricingGroups)
             .where(ne(pricingGroups.id, pricingGroup.id))
             .limit(1);
-
           if (!nextDefault) {
             throw {
               status: 400,
               message: "Cannot delete the only pricing group",
             };
           }
-
           await tx
             .update(pricingGroups)
             .set({ isDefault: true })
             .where(eq(pricingGroups.id, nextDefault.id));
         }
-
         // 3️⃣ REMOVE pricing group prices from ALL products
         await tx.execute(sql`
         UPDATE products
@@ -433,10 +427,9 @@ class PricingGroupController {
           WHERE elem->>'id' <> ${pricingGroup.id}
         )
         WHERE pricing_group_prices @> jsonb_build_array(
-          jsonb_build_object('id', ${pricingGroup.id})
+          jsonb_build_object('id', ${pricingGroup.id}::text)
         )
       `);
-
         // 4️⃣ Delete from Zoho
         let zohoResult = null;
         if (pricingGroup.zohoPriceBookId) {
@@ -445,10 +438,8 @@ class PricingGroupController {
             pricingGroup.zohoPriceBookId
           );
         }
-
         // 5️⃣ Delete pricing group
         await tx.delete(pricingGroups).where(eq(pricingGroups.id, id));
-
         return res.status(200).json({
           success: true,
           message: pricingGroup.isDefault

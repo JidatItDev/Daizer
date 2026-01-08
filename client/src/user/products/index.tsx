@@ -76,7 +76,7 @@ const ProductCard = ({
   return (
     <div
       className={`bg-white rounded-[20px] border border-gray-200 relative overflow-hidden shadow-sm transition-shadow duration-200
-    ${!isPriceAvailable ? "opacity-70" : "hover:shadow-md"}
+    ${!isPriceAvailable ? "opacity-100" : "hover:shadow-md"}
   `}
     >
       <div
@@ -114,11 +114,6 @@ const ProductCard = ({
             <span>{pricingGroupName}</span>
           </p>
         </div>
-        {!isPriceAvailable && (
-          <p className="text-xs text-red-800 mt-3 text-center">
-            Price not set for this product
-          </p>
-        )}
 
         {/* <button
           onClick={() => {
@@ -143,6 +138,11 @@ const ProductCard = ({
         >
           {isPriceAvailable ? `$${displayPrice!.toFixed(2)}` : "Unavailable"}
         </button>
+        {!isPriceAvailable && (
+          <p className="text-xs text-red-800 mt-3 text-center">
+            Price not set for this product
+          </p>
+        )}
       </div>
     </div>
   );

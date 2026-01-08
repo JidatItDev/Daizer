@@ -19,7 +19,6 @@ import ProductsManagement from "./admin/order&Product";
 import Categories from "./user/categories";
 import Subcategory from "./user/categories/Subcategory";
 import Products from "./user/products";
-import { Toaster } from "react-hot-toast";
 import Checkout from "./user/products/Checkout";
 import Wallet from "./user/wallet";
 import Topup from "./user/wallet/Topup";
@@ -49,7 +48,6 @@ function App() {
 
   return (
     <>
-      <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/admin-login" element={<AdminLogin />} />

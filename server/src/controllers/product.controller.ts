@@ -15,6 +15,7 @@ import { ZohoAccountIdsFetchingService } from "../services/ZohoServices/zohoAcco
 import { ZohoWalletService } from "../services/ZohoServices/zohoWallet.service";
 import { ZohoProductPurchaseService } from "../services/ZohoServices/zohoProductsPurchase.service";
 import { externalProviders } from "../db/schema/externalProviders.schema";
+import { error } from "console";
 
 // Helper → Invalidate product caches
 // const invalidateProductsCache = async () => {
@@ -1273,7 +1274,7 @@ class ProductController {
           message: "Player ID is required",
         });
       }
-
+      console.log("playerId", playerId);
       // 1. Get product details
       const product = await db.query.products.findFirst({
         where: eq(products.id, productId),
@@ -1344,36 +1345,63 @@ class ProductController {
 
       // // 5. Call external service (your existing code)
       // const apiUrl = process.env.EXTERNAL_PRODUCT_API;
-      // if (!apiUrl) {
-      //   return res.status(500).json({
-      //     success: false,
-      //     message: "External API URL not configured",
-      //   });
-      // }
+      /* ---------------------------------------------
+       * 1️⃣ Fetch provider from DB (Drizzle-safe)
+       * --------------------------------------------- */
+      const [provider] = await db
+        .select()
+        .from(externalProviders)
+        .where(eq(externalProviders.id, product.apiProviderId))
+        .limit(1);
+
+      if (!provider || !provider.active) {
+        return res.status(404).json({
+          success: false,
+          message: "API provider not found or inactive",
+        });
+      }
+
+      /* ---------------------------------------------
+       * 2️⃣ Build external API URL dynamically
+       * --------------------------------------------- */
+      const base = provider.hostUrl.replace(/\/$/, "");
+      const apiUrl =
+        provider.username && provider.token
+          ? `${base}/${provider.username}/${provider.token}`
+          : base;
+
+      if (!apiUrl) {
+        return res.status(500).json({
+          success: false,
+          message: "Something went wrong please try again later",
+          error: "API url not found",
+        });
+      }
 
       const referenceNumber = Math.floor(Math.random() * 40);
       const formData = new URLSearchParams();
       formData.append("request", "neworder");
+
       formData.append("service", product.serviceId.toString());
 
       formData.append("reference", referenceNumber.toString());
 
       formData.append("player_id", playerId);
 
-      // const { data } = await axios.post(apiUrl, formData, {
-      //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      //   timeout: 30000,
-      // });
+      const { data } = await axios.post(apiUrl, formData, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: 30000,
+      });
 
-      // console.log("external service response", data);
+      console.log("external service response", data);
 
-      // if (!data || !data.status) {
-      //   return res.status(500).json({
-      //     success: false,
-      //     message: "External service failed",
-      //     externalResponse: data,
-      //   });
-      // }
+      if (!data || !data.status) {
+        return res.status(500).json({
+          success: false,
+          message: "External service failed",
+          externalResponse: data,
+        });
+      }
 
       // 6. Deduct amount from wallet
       const newBalance = currentBalance - productPrice;
