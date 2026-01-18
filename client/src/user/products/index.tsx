@@ -4,7 +4,7 @@ import Heading from "../../components/common/Heading";
 import { useNavigate } from "react-router-dom";
 import { IoCaretBackOutline } from "react-icons/io5";
 import { useProductsByCategory } from "../../api/UseProducts";
-import { useAuth } from "../../context/AuthContext";
+// import { useAuth } from "../../context/AuthContext";
 import {
   useDefaultPricingGroup,
   useMyPricingGroup,
@@ -48,7 +48,7 @@ const ProductCard = ({
   const navigate = useNavigate();
   // Find the price for the user's pricing group
   const userPrice = product.pricingGroupPrices.find(
-    (price) => price.id === userPricingGroupId
+    (price) => price.id === userPricingGroupId,
   );
 
   // Fallback to first price if user's pricing group not found
@@ -62,7 +62,7 @@ const ProductCard = ({
 
   // 2️⃣ Try default pricing group (fallback)
   const defaultPrice = product.pricingGroupPrices.find(
-    (price) => price.id === defaultPricingGroupId
+    (price) => price.id === defaultPricingGroupId,
   );
 
   // 3️⃣ Decide which one to use
@@ -154,7 +154,7 @@ const Products = () => {
   const categoryName = location.state?.name;
   const navigate = useNavigate();
 
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   // Fetch products
   const { data: productsData, isLoading: productsLoading } =

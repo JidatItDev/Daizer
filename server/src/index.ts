@@ -31,7 +31,7 @@ app.use(
   cors({
     origin: [allowedOrigin],
     credentials: true,
-  })
+  }),
 );
 
 app.use(compression({ threshold: 0, level: 6 }));
@@ -152,7 +152,7 @@ app.use(
     err: any,
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) => {
     // Handle Multer errors specifically
     if (err.code === "LIMIT_FILE_SIZE") {
@@ -218,7 +218,7 @@ app.use(
       success: false,
       message: err.message || "Internal server error",
     });
-  }
+  },
 );
 
 app.listen(PORT, () => {
