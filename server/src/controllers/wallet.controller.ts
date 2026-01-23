@@ -86,22 +86,12 @@ class WalletController {
         return res.json(payload);
       }
 
-      // console.log("called transactions of user", userId);
-
-      // let whereCondition = eq(transactions.userId, userId);
-
-      // if (filterType && filterType !== "all") {
-      //   whereCondition = and(
-      //     whereCondition,
-      //     eq(transactions.type, filterType as string)
-      //   );
-      // }
       let whereCondition: SQL = eq(transactions.userId, userId);
 
       if (filterType && filterType !== "all") {
         const newCondition = and(
           whereCondition,
-          eq(transactions.type, filterType as string)
+          eq(transactions.type, filterType as string),
         );
         if (newCondition) {
           whereCondition = newCondition;
@@ -127,7 +117,7 @@ class WalletController {
           .from(transactions)
           .where(whereCondition)
           .orderBy(
-            orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
+            orderDirection === "asc" ? asc(orderByField) : desc(orderByField),
           )
           .limit(perPage)
           .offset(offset),
@@ -168,44 +158,6 @@ class WalletController {
       .where(eq(refundRequests.userId, userId));
     return res.json({ refundRequests: list });
   }
-
-  // static async requestRefund(req: Request, res: Response) {
-  //   const userId = req.user!.id;
-  //   const { amount } = req.body;
-
-  //   const [user] = await db
-  //     .select({
-  //       id: users.id,
-  //       name: users.name,
-  //       email: users.email,
-  //     })
-  //     .from(users)
-  //     .where(eq(users.id, userId))
-  //     .limit(1);
-
-  //   if (!user) {
-  //     return res.status(404).json({ message: "User not found" });
-  //   }
-
-  //   const [rr] = await db
-  //     .insert(refundRequests)
-  //     .values({ userId, amount })
-  //     .returning();
-
-  //   console.log("request refund called!!", rr);
-  //   await EmailService.sendTemplateEmail("userPartialRequest", user.email, {
-  //     requestedBy: user.name,
-  //     name: user.name,
-  //     email: user.email,
-  //     status: rr.status || "pending",
-  //     amount,
-  //     refundAmount: amount,
-  //   });
-
-  //   return res.status(201).json({ success: true, refundRequest: rr });
-  // }
-
-  // Admin APIs
 
   static async requestRefund(req: Request, res: Response) {
     try {
@@ -260,7 +212,7 @@ class WalletController {
             refundId: rr.id,
             id: rr.id,
             status: rr.status || "pending",
-          }
+          },
         );
       }
 
@@ -338,7 +290,7 @@ class WalletController {
         .from(transactions)
         .where(whereCondition)
         .orderBy(
-          orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
+          orderDirection === "asc" ? asc(orderByField) : desc(orderByField),
         )
         .limit(perPage)
         .offset(offset);
@@ -379,7 +331,7 @@ class WalletController {
       // Create maps for easy lookup
       const userMap = new Map(userRows.map((user) => [user.id, user]));
       const walletMap = new Map(
-        walletRows.map((wallet) => [wallet.userId, wallet])
+        walletRows.map((wallet) => [wallet.userId, wallet]),
       );
 
       // Combine transactions with user and wallet data
@@ -425,6 +377,7 @@ class WalletController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+
   static async getWalletAccountId(): Promise<string> {
     const zohoService = new ZohoService();
     const accessToken = await zohoService.getValidAccessToken();
@@ -438,7 +391,7 @@ class WalletController {
     const account = data.chartofaccounts.find(
       (acc: any) =>
         acc.account_name.toLowerCase().includes("wallet") &&
-        acc.account_type === "other_current_assets"
+        acc.account_type === "other_current_assets",
     );
 
     if (!account) throw new Error("Wallet account not found in Zoho Books");
@@ -502,7 +455,7 @@ class WalletController {
         .from(refundRequests)
         .where(whereCondition)
         .orderBy(
-          orderDirection === "asc" ? asc(orderByField) : desc(orderByField)
+          orderDirection === "asc" ? asc(orderByField) : desc(orderByField),
         )
         .limit(perPage)
         .offset(offset);
@@ -543,7 +496,7 @@ class WalletController {
       // Create maps for easy lookup
       const userMap = new Map(userRows.map((user) => [user.id, user]));
       const walletMap = new Map(
-        walletRows.map((wallet) => [wallet.userId, wallet])
+        walletRows.map((wallet) => [wallet.userId, wallet]),
       );
 
       // Combine refund requests with user and wallet data
@@ -724,7 +677,7 @@ class WalletController {
               destination,
               sentBy,
               status: approvedRefund.status || "accepted",
-            }
+            },
           );
         }
 
@@ -789,7 +742,7 @@ class WalletController {
             refundId: refund.id,
             amount: refund.amount.toString(),
             status: rejectedRefund.status || "rejected",
-          }
+          },
         );
       }
       await Promise.all([
@@ -863,7 +816,7 @@ class WalletController {
           walletId: wallet.id,
           userId,
           type: "adjustment",
-          amount: type === "credit" ? amount.toString() : `-${amount}`,
+          amount: type === "credit" ? amount.toString() : `${amount}`,
           currency: wallet.currency,
           status: "completed",
           referenceId: referenceId,
@@ -898,7 +851,7 @@ class WalletController {
           reference: `ADJ-${type.toUpperCase()}-${Date.now()}`,
           liability_account_id: account_id,
           walletIncomeAccountID: walletIncomeAccountID,
-          walletClearingAccountId: walletClearingAccountId, // ← Now it's passed correctly!
+          walletClearingAccountId: walletClearingAccountId,
           expenseAccountId: expenseAccountId,
           incomeAccountId: incomeAccountId,
         });
@@ -998,7 +951,7 @@ class WalletController {
       });
 
       const approvalUrl = order.result.links.find(
-        (l: any) => l.rel === "approve"
+        (l: any) => l.rel === "approve",
       )?.href;
       await invalidateUserTransactionsCache(userId);
 
@@ -1019,7 +972,7 @@ class WalletController {
 
         // 1. Capture PayPal order
         const request = new checkoutNodeJssdk.orders.OrdersCaptureRequest(
-          orderId
+          orderId,
         );
         request.requestBody({});
         // const capture = await paypalClient().execute(request);
@@ -1030,7 +983,7 @@ class WalletController {
         const captureId =
           capture.result.purchase_units[0].payments.captures[0].id;
         let amount = parseFloat(
-          capture.result.purchase_units[0].payments.captures[0].amount.value
+          capture.result.purchase_units[0].payments.captures[0].amount.value,
         );
 
         const currency =
@@ -1189,6 +1142,122 @@ class WalletController {
     } catch (err: any) {
       console.error("PayPal webhook error:", err);
       res.sendStatus(500);
+    }
+  }
+  static async getManualOrderTransactions(req: Request, res: Response) {
+    try {
+      const {
+        page = "1",
+        limit = "20",
+        sortField = "createdAt",
+        sortOrder = "desc",
+      } = req.query;
+
+      const pageNum = Math.max(1, Number(page));
+      const perPage = Math.max(1, Math.min(100, Number(limit)));
+      const offset = (pageNum - 1) * perPage;
+
+      const whereCondition = eq(transactions.status, "manual_order");
+
+      const allowedSortFields: Record<string, any> = {
+        createdAt: transactions.createdAt,
+        amount: transactions.amount,
+        type: transactions.type,
+        status: transactions.status,
+        userId: transactions.userId,
+      };
+
+      const orderByField =
+        allowedSortFields[String(sortField)] || transactions.createdAt;
+
+      const orderDirection =
+        String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc";
+
+      const rows = await db
+        .select()
+        .from(transactions)
+        .where(whereCondition)
+        .orderBy(
+          orderDirection === "asc" ? asc(orderByField) : desc(orderByField),
+        )
+        .limit(perPage)
+        .offset(offset);
+
+      const [{ count }] = (await db
+        .select({ count: sql<number>`count(*)` })
+        .from(transactions)
+        .where(whereCondition)) as { count: number }[];
+
+      return res.json({
+        success: true,
+        transactions: rows,
+        pagination: {
+          page: pageNum,
+          limit: perPage,
+          total: Number(count),
+          totalPages: Math.ceil(Number(count) / perPage),
+        },
+      });
+    } catch (err) {
+      console.error("getManualOrderTransactions error:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+  static async updateTransactionStatus(req: Request, res: Response) {
+    try {
+      const { transactionId } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({
+          success: false,
+          message: "Status is required",
+        });
+      }
+
+      const allowedStatuses = [
+        "pending",
+        "completed",
+        "failed",
+        "manual_order",
+        "refunded",
+      ];
+
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status value",
+        });
+      }
+
+      const result = await db
+        .update(transactions)
+        .set({
+          status,
+          updatedAt: new Date(),
+        })
+        .where(eq(transactions.id, transactionId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({
+          success: false,
+          message: "Transaction not found",
+        });
+      }
+
+      // Optional: clear admin cache
+      const keys = await redisClient.keys("all-transactions:*");
+      if (keys.length) await redisClient.del(keys);
+
+      return res.json({
+        success: true,
+        message: "Transaction status updated",
+        transaction: result[0],
+      });
+    } catch (err) {
+      console.error("updateTransactionStatus error:", err);
+      return res.status(500).json({ message: "Internal server error" });
     }
   }
 }

@@ -61,7 +61,7 @@ export const useWalletTransactions = (
     type?: "topup" | "purchase" | "adjustment" | "all";
     sortField?: string;
     sortOrder?: "asc" | "desc";
-  } = {}
+  } = {},
 ) => {
   const { page = 1, limit = 10, type = "all", sortField, sortOrder } = filters;
 
@@ -76,7 +76,7 @@ export const useWalletTransactions = (
       if (sortOrder) params.append("sortOrder", sortOrder);
 
       const res = await axiosPrivate.get(
-        `/wallet/transactions?${params.toString()}`
+        `/wallet/transactions?${params.toString()}`,
       );
       return res.data;
     },
@@ -95,7 +95,7 @@ export const useUserRefundRequests = (
     status?: "pending" | "approved" | "rejected" | "all";
     sortField?: string;
     sortOrder?: "asc" | "desc";
-  } = {}
+  } = {},
 ) => {
   const {
     page = 1,
@@ -116,7 +116,7 @@ export const useUserRefundRequests = (
       if (sortOrder) params.append("sortOrder", sortOrder);
 
       const res = await axiosPrivate.get(
-        `/wallet/refunds?${params.toString()}`
+        `/wallet/refunds?${params.toString()}`,
       );
       return res.data;
     },
@@ -153,7 +153,7 @@ export const useCreatePayPalOrder = () => {
     mutationFn: async (payload: { amount: number; currency?: string }) => {
       const res = await axiosPrivate.post(
         "/wallet/paypal/create-order",
-        payload
+        payload,
       );
       return res.data;
     },
@@ -166,7 +166,7 @@ export const useCapturePayPalOrder = () => {
     mutationFn: async (payload: { orderId: string }) => {
       const res = await axiosPrivate.post(
         "/wallet/paypal/capture-order",
-        payload
+        payload,
       );
       return res.data;
     },
@@ -185,7 +185,7 @@ export const useAllWallets = (
     search?: string;
     sortField?: string;
     sortOrder?: "asc" | "desc";
-  } = {}
+  } = {},
 ) => {
   const { page = 1, limit = 20, search, sortField, sortOrder } = filters;
 
@@ -200,7 +200,7 @@ export const useAllWallets = (
       if (sortOrder) params.append("sortOrder", sortOrder);
 
       const res = await axiosPrivate.get(
-        `/wallet/admin/wallets?${params.toString()}`
+        `/wallet/admin/wallets?${params.toString()}`,
       );
       return res.data;
     },
@@ -215,7 +215,7 @@ export const useAllTransactions = (
     type?: "topup" | "purchase" | "refund" | "adjustment" | "all";
     sortField?: string;
     sortOrder?: "desc";
-  } = {}
+  } = {},
 ) => {
   const { page = 1, limit = 50, type = "all", sortField, sortOrder } = filters;
 
@@ -230,7 +230,7 @@ export const useAllTransactions = (
       if (sortOrder) params.append("sortOrder", sortOrder);
 
       const res = await axiosPrivate.get(
-        `/wallet/admin/transactions?${params.toString()}`
+        `/wallet/admin/transactions?${params.toString()}`,
       );
       return res.data;
     },
@@ -246,7 +246,7 @@ export const useRefundRequests = (
     status?: "pending" | "approved" | "rejected" | "all";
     sortField?: string;
     sortOrder?: "asc" | "desc";
-  } = {}
+  } = {},
 ) => {
   const {
     page = 1,
@@ -267,7 +267,7 @@ export const useRefundRequests = (
       if (sortOrder) params.append("sortOrder", sortOrder);
 
       const res = await axiosPrivate.get(
-        `/wallet/admin/refunds?${params.toString()}`
+        `/wallet/admin/refunds?${params.toString()}`,
       );
       return res.data;
     },
@@ -318,7 +318,7 @@ export const useApproveRefund = () => {
         {
           destination: payload.destination,
           sentBy: payload.sentBy,
-        }
+        },
       );
       return res.data;
     },
@@ -354,7 +354,7 @@ export const useRejectRefund = () => {
   return useMutation({
     mutationFn: async (refundId: string) => {
       const res = await axiosPrivate.post(
-        `/wallet/admin/refunds/${refundId}/reject`
+        `/wallet/admin/refunds/${refundId}/reject`,
       );
       return res.data;
     },
@@ -396,6 +396,53 @@ export const useAdjustWallet = () => {
         queryClient.invalidateQueries({ queryKey: ["wallet", "balance"] }),
         queryClient.invalidateQueries({ queryKey: ["wallet", "transactions"] }),
       ]);
+    },
+  });
+};
+
+export const useManualOrderTransactions = (
+  filters: {
+    page?: number;
+    limit?: number;
+    sortField?: string;
+    sortOrder?: "asc" | "desc";
+  } = {},
+) => {
+  const { page = 1, limit = 20, sortField, sortOrder } = filters;
+
+  return useQuery({
+    queryKey: ["admin", "manual-orders", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
+      if (sortField) params.append("sortField", sortField);
+      if (sortOrder) params.append("sortOrder", sortOrder);
+
+      const res = await axiosPrivate.get(
+        `/wallet/admin/transactions/manual?${params.toString()}`,
+      );
+      return res.data;
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useUpdateTransactionStatus = () => {
+  const invalidateAll = useInvalidateAll();
+
+  return useMutation({
+    mutationFn: async (payload: { transactionId: string; status: string }) => {
+      const res = await axiosPrivate.patch(
+        `/wallet/admin/transactions/${payload.transactionId}/status`,
+        { status: payload.status },
+      );
+      return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateAll();
     },
   });
 };

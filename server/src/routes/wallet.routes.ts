@@ -12,19 +12,19 @@ walletRouter.get("/active", WalletController.getActiveAccountsHandler);
 walletRouter.get(
   "/transactions",
   authenticate,
-  WalletController.getTransactions
+  WalletController.getTransactions,
 );
 
 walletRouter.post(
   "/refund-request",
   authenticate,
-  WalletController.requestRefund
+  WalletController.requestRefund,
 );
 walletRouter.get(
   "/refunds",
   authenticate,
 
-  WalletController.getUserRefundRequests
+  WalletController.getUserRefundRequests,
 );
 
 // ===================
@@ -33,13 +33,13 @@ walletRouter.get(
 walletRouter.post(
   "/paypal/create-order",
   authenticate,
-  WalletController.createPayPalOrder
+  WalletController.createPayPalOrder,
 );
 
 walletRouter.post(
   "/paypal/capture-order",
   authenticate,
-  WalletController.capturePayPalOrder
+  WalletController.capturePayPalOrder,
 );
 
 // Webhooks should not require auth (PayPal calls these)
@@ -52,42 +52,54 @@ walletRouter.get(
   "/admin/wallets",
   authenticate,
   authorize("superadmin", "admin"),
-  WalletController.getAllWallets
+  WalletController.getAllWallets,
 );
 
 walletRouter.get(
   "/admin/transactions",
   authenticate,
   authorize("superadmin", "admin"),
-  WalletController.getAllTransactions
+  WalletController.getAllTransactions,
 );
 
 walletRouter.get(
   "/admin/refunds",
   authenticate,
   authorize("superadmin", "admin"),
-  WalletController.getRefundRequests
+  WalletController.getRefundRequests,
 );
 
 walletRouter.post(
   "/admin/refunds/:refundId/approve",
   authenticate,
   authorize("superadmin", "admin"),
-  WalletController.approveRefund
+  WalletController.approveRefund,
 );
 
 walletRouter.post(
   "/admin/refunds/:refundId/reject",
   authenticate,
   authorize("superadmin", "admin"),
-  WalletController.rejectRefund
+  WalletController.rejectRefund,
 );
 
 walletRouter.post(
   "/admin/adjust",
   authenticate,
   authorize("superadmin", "admin"),
-  WalletController.adjustWallet
+  WalletController.adjustWallet,
+);
+walletRouter.get(
+  "/admin/transactions/manual",
+  authenticate,
+  authorize("superadmin", "admin"),
+  WalletController.getManualOrderTransactions,
+);
+walletRouter.patch(
+  "/admin/transactions/:transactionId/status",
+  authenticate,
+  authorize("superadmin", "admin"),
+  WalletController.updateTransactionStatus,
 );
 
 export default walletRouter;

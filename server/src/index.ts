@@ -20,16 +20,30 @@ dotenv.config();
 const app = express();
 
 const PORT = process.env.PORT;
-const allowedOrigin = process.env.FRONTEND_URL;
+// const allowedOrigin = process.env.FRONTEND_URL;
 
-if (!allowedOrigin) {
+// if (!allowedOrigin) {
+//   throw new Error("FRONTEND_URL environment variable is not defined");
+// }
+
+// app.use(helmet());
+// app.use(
+//   cors({
+//     origin: [allowedOrigin],
+//     credentials: true,
+//   }),
+// );
+const allowedOrigins = process.env.FRONTEND_URL?.split(",").map((o) =>
+  o.trim(),
+);
+
+if (!allowedOrigins || allowedOrigins.length === 0) {
   throw new Error("FRONTEND_URL environment variable is not defined");
 }
 
-app.use(helmet());
 app.use(
   cors({
-    origin: [allowedOrigin],
+    origin: allowedOrigins,
     credentials: true,
   }),
 );

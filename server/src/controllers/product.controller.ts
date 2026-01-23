@@ -190,7 +190,7 @@ class ProductController {
           zohoStatus =
             isActive.toLowerCase() === "active" ? "active" : "inactive";
         } else {
-          zohoStatus = isActive ?? true ? "active" : "inactive";
+          zohoStatus = (isActive ?? true) ? "active" : "inactive";
         }
         const zohoItem = await zohoItemService.createItemInZoho({
           name,
@@ -547,7 +547,7 @@ class ProductController {
           if (Object.keys(zohoUpdatePayload).length > 0) {
             await zohoItemService.updateItemInZoho(
               existingProduct.zohoItemId,
-              zohoUpdatePayload
+              zohoUpdatePayload,
             );
           }
         }
@@ -653,7 +653,7 @@ class ProductController {
         // ✅ Mark as inactive in Zoho instead of deleting
         if (existingProduct.zohoItemId) {
           await zohoItemService.deleteOrInactivateItem(
-            existingProduct.zohoItemId
+            existingProduct.zohoItemId,
           );
         }
 
@@ -741,8 +741,8 @@ class ProductController {
         .where(
           and(
             eq(products.subcategoryId, categoryId),
-            eq(products.isActive, true)
-          )
+            eq(products.isActive, true),
+          ),
         );
 
       if (!result || result.length === 0) {
@@ -1320,7 +1320,7 @@ class ProductController {
 
       // 3. Get price from user's pricing group
       const pricingGroupPrice = product.pricingGroupPrices?.find(
-        (pg: any) => pg.id === user.pricingGroupId
+        (pg: any) => pg.id === user.pricingGroupId,
       );
 
       if (!pricingGroupPrice) {
@@ -1354,53 +1354,61 @@ class ProductController {
         .where(eq(externalProviders.id, product.apiProviderId))
         .limit(1);
 
-      if (!provider || !provider.active) {
-        return res.status(404).json({
-          success: false,
-          message: "API provider not found or inactive",
-        });
-      }
+      // if (!provider || !provider.active) {
+      //   return res.status(404).json({
+      //     success: false,
+      //     message: "API provider not found or inactive",
+      //   });
+      // }
+
+      const isManualOrder = !provider || !provider.active;
 
       /* ---------------------------------------------
        * 2️⃣ Build external API URL dynamically
        * --------------------------------------------- */
-      const base = provider.hostUrl.replace(/\/$/, "");
-      const apiUrl =
-        provider.username && provider.token
-          ? `${base}/${provider.username}/${provider.token}`
-          : base;
+      let externalResponse: any = null;
+      let referenceNumber = null;
 
-      if (!apiUrl) {
-        return res.status(500).json({
-          success: false,
-          message: "Something went wrong please try again later",
-          error: "API url not found",
+      if (!isManualOrder) {
+        const base = provider.hostUrl.replace(/\/$/, "");
+        const apiUrl =
+          provider.username && provider.token
+            ? `${base}/${provider.username}/${provider.token}`
+            : base;
+
+        if (!apiUrl) {
+          return res.status(500).json({
+            success: false,
+            message: "Something went wrong please try again later",
+            error: "API url not found",
+          });
+        }
+
+        referenceNumber = Math.floor(Math.random() * 40);
+        const formData = new URLSearchParams();
+        formData.append("request", "neworder");
+
+        formData.append("service", product.serviceId.toString());
+
+        formData.append("reference", referenceNumber.toString());
+
+        formData.append("player_id", playerId);
+
+        const { data } = await axios.post(apiUrl, formData, {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          timeout: 30000,
         });
-      }
 
-      const referenceNumber = Math.floor(Math.random() * 40);
-      const formData = new URLSearchParams();
-      formData.append("request", "neworder");
+        console.log("external service response", data);
 
-      formData.append("service", product.serviceId.toString());
-
-      formData.append("reference", referenceNumber.toString());
-
-      formData.append("player_id", playerId);
-
-      const { data } = await axios.post(apiUrl, formData, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        timeout: 30000,
-      });
-
-      console.log("external service response", data);
-
-      if (!data || !data.status) {
-        return res.status(500).json({
-          success: false,
-          message: "External service failed",
-          externalResponse: data,
-        });
+        if (!data || !data.status) {
+          return res.status(500).json({
+            success: false,
+            message: "External service failed",
+            externalResponse: data,
+          });
+        }
+        externalResponse = data;
       }
 
       // 6. Deduct amount from wallet
@@ -1439,11 +1447,10 @@ class ProductController {
         walletId: wallet.id,
         userId,
         type: "purchase",
-        amount: `-${productPrice}`,
+        amount: `${productPrice}`,
         currency: wallet.currency,
-        status: "completed",
+        status: isManualOrder ? "manual_order" : "completed",
         referenceId: zohoResult.invoiceNumber,
-        // ✅ Zoho invoice reference ONLY
         invoiceId: zohoResult.invoiceId,
         invoiceNumber: zohoResult.invoiceNumber,
 
@@ -1452,7 +1459,8 @@ class ProductController {
           productName: product.name,
           serviceId: product.serviceId,
           playerId: playerId,
-          referenceNumber: referenceNumber,
+          orderMode: isManualOrder ? "manual" : "auto",
+          referenceNumber: isManualOrder ? null : referenceNumber,
           pricingGroupId: user.pricingGroupId,
           priceListName: zohoResult.priceListName,
           priceListPrice: zohoResult.finalPrice,
@@ -1482,7 +1490,9 @@ class ProductController {
 
       return res.status(200).json({
         success: true,
-        message: "Product purchased successfully",
+        message: isManualOrder
+          ? "Order completed and queued for manual processing"
+          : "Product purchased successfully",
         product: product.name,
         amount: productPrice,
         newBalance: newBalance,
@@ -1521,7 +1531,7 @@ class ProductController {
   async updateZohoWalletBalance(
     customerId: string,
     amount: number,
-    isIncrease: boolean
+    isIncrease: boolean,
   ) {
     const zohoService = new ZohoService();
     const accessToken = await zohoService.getValidAccessToken();
@@ -1533,13 +1543,13 @@ class ProductController {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },
-      }
+      },
     );
 
     const currentWalletBalance = parseFloat(
       customerData.contact.custom_fields?.find(
-        (cf: any) => cf.label === "Wallet Balance"
-      )?.value || "0"
+        (cf: any) => cf.label === "Wallet Balance",
+      )?.value || "0",
     );
 
     const newWalletBalance = isIncrease
@@ -1561,11 +1571,11 @@ class ProductController {
         headers: {
           Authorization: `Zoho-oauthtoken ${accessToken}`,
         },
-      }
+      },
     );
 
     console.log(
-      `✅ Updated Zoho wallet balance: ${currentWalletBalance} → ${newWalletBalance}`
+      `✅ Updated Zoho wallet balance: ${currentWalletBalance} → ${newWalletBalance}`,
     );
   }
 }

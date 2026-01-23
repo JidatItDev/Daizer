@@ -17,6 +17,10 @@ import { EditProductModal } from "../../components/admin/orders&Products/EditPro
 import { ProductDetailModal } from "../../components/admin/orders&Products/ProductDetailModal";
 import ConfirmationModalNew from "../../components/common/NewConfirmationModal";
 import OrderManagement from "./OrderManagement";
+import {
+  useManualOrderTransactions,
+  useUpdateTransactionStatus,
+} from "../../api/Wallets";
 
 // Updated Product interface to match API response
 
@@ -31,9 +35,12 @@ const ProductsManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [updatingProductId, setUpdatingProductId] = useState<string | null>(
-    null
+    null,
   );
   const [isAnyStatusUpdating, setIsAnyStatusUpdating] = useState(false);
+
+  const [isTransactionStatusUpdatingId, setIsTransactionStatusUpdatingId] =
+    useState<string | null>(null);
 
   const [pagination, setPagination] = useState({
     current: 1,
@@ -45,6 +52,41 @@ const ProductsManagement = () => {
     page: pagination.current,
     limit: pagination.pageSize,
   });
+
+  const {
+    data: manualOrders,
+    isFetching: is_manualTransactionsFetching,
+    refetch: manualRefetch,
+  } = useManualOrderTransactions({
+    page: pagination.current,
+    limit: pagination.pageSize,
+  });
+
+  const updateTransactionStatusMutation = useUpdateTransactionStatus();
+
+  const manualOrdersList = manualOrders?.transactions ?? [];
+  const manualOrdersCount = manualOrders?.pagination?.total ?? 0;
+
+  const handleUpdateManualOrderStatus = async (
+    transactionId: string,
+    status: string,
+  ) => {
+    try {
+      setIsTransactionStatusUpdatingId(transactionId);
+      await updateTransactionStatusMutation.mutateAsync({
+        transactionId,
+        status,
+      });
+
+      toast.success("Transaction status updated");
+      manualRefetch();
+      setIsTransactionStatusUpdatingId(null);
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  console.log("manualOrders", manualOrders);
 
   const deleteProductMutation = useDeleteProduct();
 
@@ -100,7 +142,7 @@ const ProductsManagement = () => {
     pricingGroups:
       | Array<{ id: string; name: string; price: number }>
       | null
-      | undefined
+      | undefined,
   ) => {
     if (!Array.isArray(pricingGroups) || pricingGroups.length === 0) {
       return "N/A";
@@ -275,8 +317,8 @@ const ProductsManagement = () => {
             {updatingProductId === record.id
               ? "Updating..."
               : record.isActive
-              ? "Active"
-              : "Inactive"}
+                ? "Active"
+                : "Inactive"}
           </span>
         </div>
       ),
@@ -313,6 +355,140 @@ const ProductsManagement = () => {
     },
   ];
 
+  const manualOrderColumns: TableColumn<any>[] = [
+    {
+      key: "id",
+      title: "Transaction ID",
+      render: (_, r) => <span className="text-sm font-mono">{r.id}</span>,
+    },
+    {
+      key: "productName",
+      title: "Product Name",
+      render: (_, r) => {
+        let productName = "-";
+
+        try {
+          const metadata =
+            typeof r.metadata === "string"
+              ? JSON.parse(r.metadata)
+              : r.metadata;
+
+          productName = metadata?.productName ?? "-";
+        } catch (e) {
+          productName = "-";
+        }
+
+        return <span className="text-sm">{productName}</span>;
+      },
+    },
+    {
+      key: "productId",
+      title: "Product ID",
+      render: (_, r) => {
+        let productId = "-";
+
+        try {
+          const metadata =
+            typeof r.metadata === "string"
+              ? JSON.parse(r.metadata)
+              : r.metadata;
+
+          productId = metadata?.productId ?? "-";
+        } catch (e) {
+          productId = "-";
+        }
+
+        return <span className="text-sm">{productId}</span>;
+      },
+    },
+    {
+      key: "userGameId",
+      title: "User Game ID",
+      render: (_, r) => {
+        let playerId = "-";
+
+        try {
+          const metadata =
+            typeof r.metadata === "string"
+              ? JSON.parse(r.metadata)
+              : r.metadata;
+
+          playerId = metadata?.playerId ?? "-";
+        } catch (e) {
+          playerId = "-";
+        }
+
+        return <span className="text-sm">{playerId}</span>;
+      },
+    },
+    {
+      key: "amount",
+      title: "Amount",
+      render: (_, r) => <span className="font-medium ">{r.amount}</span>,
+    },
+    {
+      key: "status",
+      title: "Status",
+      render: (_, r) => (
+        <span className="px-2 py-1 rounded  text-red-500">
+          {r.status === "manual_order" ? "Pending" : r.status}
+        </span>
+      ),
+    },
+    {
+      key: "createdAt",
+      title: "Created",
+      render: (_, r) => new Date(r.createdAt).toLocaleString(),
+    },
+    {
+      key: "action",
+      title: "Action",
+      align: "center",
+      render: (_, r) => (
+        <div className="flex gap-2 justify-center">
+          <Button
+            size="sm"
+            disabled={isTransactionStatusUpdatingId === r.id}
+            onClick={() => handleUpdateManualOrderStatus(r.id, "completed")}
+          >
+            {isTransactionStatusUpdatingId === r.id
+              ? "Updating..."
+              : "Complete Order"}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const manualOrdersTab = {
+    label: (
+      <div className="flex items-center gap-2">
+        <span>Manual Orders</span>
+
+        {manualOrdersCount > 0 && (
+          <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+            {manualOrdersCount}
+          </span>
+        )}
+      </div>
+    ),
+    content: (
+      <div className="space-y-6">
+        <div className="bg-white border-t-2 border-black/50">
+          <Table
+            columns={manualOrderColumns}
+            data={manualOrdersList}
+            loading={is_manualTransactionsFetching}
+            pagination={{
+              ...pagination,
+              onChange: handlePageChange,
+            }}
+          />
+        </div>
+      </div>
+    ),
+  };
+
   const tabsData = [
     {
       label: "Product Management",
@@ -348,6 +524,7 @@ const ProductsManagement = () => {
         </div>
       ),
     },
+    manualOrdersTab,
   ];
 
   return (
